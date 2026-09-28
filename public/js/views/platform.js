@@ -104,7 +104,7 @@ export async function platformView(ctx) {
       });
       if (!ok) return;
       await busy(btn, async () => {
-        await call('reset_admin_password', { school_id: btn.dataset.reset, password });
+        await call('reset_admin_password', { school_id: btn.dataset.reset, new_password: password });
         await copyText(password);
         toast('Contraseña cambiada y copiada', 'ok');
       });
