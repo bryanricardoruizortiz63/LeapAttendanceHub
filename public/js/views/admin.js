@@ -34,12 +34,17 @@ import { go, state } from '../store.js';
 import { bindPasswordToggles } from './auth.js';
 import { avatar, empty } from './common.js';
 
+/** Asked for a new password from the login screen in the last 3 days. */
+function recentHelp(e) {
+  return !!e.password_help_at && Date.now() - new Date(e.password_help_at).getTime() < 3 * 86400000;
+}
+
 // ---- Credentials card ------------------------------------------------------
 
 function credentialsText(employee, password) {
   return [
     'Leap Attendance Hub',
-    `Enlace: ${APP_URL}`,
+    `Enlace: ${APP_URL}?escuela=${encodeURIComponent(state.me.school.code)}`,
     `Código de escuela: ${state.me.school.code}`,
     `Usuario: ${employee.username}`,
     `Contraseña temporal: ${password}`,
@@ -94,6 +99,7 @@ export async function employeesView({ el }) {
                   ${e.absence_count ? html`<span class="tag">${icon('calendar', 14)} ${e.absence_count}</span>` : ''}
                   ${e.active ? '' : html`<span class="tag tag-warn">Inactivo</span>`}
                   ${e.active && !e.last_login_at ? html`<span class="tag">Nunca ha entrado</span>` : ''}
+                  ${recentHelp(e) ? html`<span class="tag tag-warn">${icon('key', 14)} Pidió contraseña</span>` : ''}
                 </span>
               </span>
               ${icon('chevron', 18)}
@@ -186,8 +192,14 @@ export async function employeeFormView({ el, params, setTitle }) {
       ${isNew
         ? ''
         : html`<section class="card stack">
+            ${recentHelp(employee)
+              ? html`<p class="status-note warn">${icon('key', 16)} Pidió ayuda con su contraseña ${timeAgo(employee.password_help_at)}.
+                  Toca “Restablecer contraseña” y compártele la temporal.</p>`
+              : ''}
             <a class="btn btn-secondary btn-block" href="#/absences?user_id=${employee.id}&status=all&from=">${icon('calendar', 18)} Ver sus ausencias</a>
-            <a class="btn btn-secondary btn-block" href="#/report?user_id=${employee.id}">${icon('plus', 18)} Registrar una ausencia</a>
+            ${me.role === 'admin'
+              ? html`<a class="btn btn-secondary btn-block" href="#/report?user_id=${employee.id}">${icon('plus', 18)} Registrar una ausencia</a>`
+              : ''}
             <button type="button" class="btn btn-secondary btn-block" data-reset>${icon('key', 18)} Restablecer contraseña</button>
             ${self ? '' : html`<button type="button" class="btn btn-ghost-danger btn-block" data-delete>${icon('trash', 18)} Eliminar empleado</button>`}
           </section>`}
@@ -287,9 +299,15 @@ export async function settingsView({ el }) {
           <input name="teams_webhook_url" type="url" value="${school.teams_webhook_url || ''}" autocapitalize="none" spellcheck="false"
             placeholder="https://…logic.azure.com/… o https://…webhook.office.com/…"></label>
         <div data-teams-status>${teamsStatus()}</div>
+        <label class="field"><span>URL para “Olvidé mi contraseña” <em class="optional">opcional</em></span>
+          <input name="teams_password_webhook_url" type="url" value="${school.teams_password_webhook_url || ''}" autocapitalize="none"
+            spellcheck="false" placeholder="Vacía = mismo canal de las ausencias"></label>
+        <p class="hint">Cuando alguien toca “¿Olvidaste tu contraseña?”, avisamos aquí, en la app y en el teléfono de la dirección.
+          Si quieres esos avisos en otro chat o canal, crea otro webhook allí y pega su URL.</p>
         <div class="button-row">
           <button class="btn btn-primary" type="submit">Guardar</button>
-          <button class="btn btn-secondary" type="button" data-test>${icon('send', 16)} Enviar prueba</button>
+          <button class="btn btn-secondary" type="button" data-test="main">${icon('send', 16)} Probar ausencias</button>
+          <button class="btn btn-secondary" type="button" data-test="password">${icon('send', 16)} Probar contraseñas</button>
         </div>
         <details class="help">
           <summary>¿Cómo obtengo la URL del webhook?</summary>
@@ -299,7 +317,7 @@ export async function settingsView({ el }) {
             <li>Elige la plantilla <b>“Publicar en un canal cuando se reciba una solicitud de webhook”</b>
               (<i>Post to a channel when a webhook request is received</i>).</li>
             <li>Sigue los pasos, confirma el equipo y el canal, y copia la URL que te muestra al final.</li>
-            <li>Pégala aquí, toca <b>Guardar</b> y luego <b>Enviar prueba</b>.</li>
+            <li>Pégala aquí, toca <b>Guardar</b> y luego <b>Probar ausencias</b>.</li>
           </ol>
           <p class="hint">Si tu organización todavía usa “Conectores → Incoming Webhook”, esa URL también funciona.</p>
         </details>
@@ -345,19 +363,24 @@ export async function settingsView({ el }) {
       toast('Configuración de Teams guardada', 'ok');
     });
   });
-  $('[data-test]', el).addEventListener('click', (e) =>
-    busy(e.currentTarget, async () => {
-      const v = formValues(teams);
-      if ((v.teams_webhook_url || '') !== (school.teams_webhook_url || '')) await updateSchool(v);
-      try {
-        await testTeams();
-        toast('Mensaje de prueba enviado. Revisa tu canal de Teams.', 'ok');
-      } finally {
-        school = await getSchool(state.me.school.id);
-        refreshStatus();
-      }
-    }),
-  );
+  for (const btn of el.querySelectorAll('[data-test]')) {
+    btn.addEventListener('click', () =>
+      busy(btn, async () => {
+        const v = formValues(teams);
+        const changed =
+          (v.teams_webhook_url || '') !== (school.teams_webhook_url || '') ||
+          (v.teams_password_webhook_url || '') !== (school.teams_password_webhook_url || '');
+        if (changed) await updateSchool(v);
+        try {
+          await testTeams(btn.dataset.test);
+          toast('Mensaje de prueba enviado. Revisa tu canal de Teams.', 'ok');
+        } finally {
+          school = await getSchool(state.me.school.id);
+          refreshStatus();
+        }
+      }),
+    );
+  }
 
   const pw = $('[data-admin-pw]', el);
   pw.addEventListener('submit', (e) => {

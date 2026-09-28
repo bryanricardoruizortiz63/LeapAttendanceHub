@@ -162,7 +162,10 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     const password = validatePassword(b.password ? String(b.password) : generatePassword());
     const { error } = await db.auth.admin.updateUserById(employee.id, { password });
     check(error, 'No se pudo cambiar la contraseña.');
-    await db.from('profiles').update({ must_change_password: true, updated_at: new Date().toISOString() }).eq('id', employee.id);
+    await db
+      .from('profiles')
+      .update({ must_change_password: true, password_help_at: null, updated_at: new Date().toISOString() })
+      .eq('id', employee.id);
     return json({ temp_password: password });
   },
 
@@ -202,29 +205,34 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     return json({ ok: true });
   },
 
-  async test_teams(me) {
+  async test_teams(me, b) {
+    const passwordChannel = b.target === 'password';
     const { data: settings } = await db.from('school_settings').select('*').eq('school_id', me.school_id).maybeSingle();
-    if (!settings?.teams_webhook_url) throw new HttpError(400, 'Primero guarda la URL del webhook de Teams.');
+    const url = passwordChannel ? settings?.teams_password_webhook_url : settings?.teams_webhook_url;
+    if (!url) throw new HttpError(400, 'Primero guarda la URL del webhook de Teams.');
     if (!settings.teams_enabled) throw new HttpError(400, 'Las notificaciones de Teams están desactivadas.');
     const { data: app } = await db.from('app_settings').select('value').eq('key', 'app_url').maybeSingle();
+    const what = passwordChannel ? 'Las solicitudes de contraseña olvidada' : 'Las nuevas ausencias del personal';
     let status = 'ok';
     try {
       await postToTeams(
-        settings.teams_webhook_url,
+        url,
         buildCard({
           title: '✅ Prueba de Leap Attendance Hub',
           subtitle: me.school.name,
-          text: `Las nuevas ausencias del personal se publicarán en este canal. Prueba enviada por ${me.full_name}.`,
+          text: `${what} se publicarán en este canal. Prueba enviada por ${me.full_name}.`,
           linkUrl: (app?.value as { url?: string } | undefined)?.url,
         }),
       );
     } catch (err) {
       status = `error: ${(err as Error).message}`.slice(0, 300);
     }
-    await db
-      .from('school_settings')
-      .update({ teams_last_status: status, teams_last_at: new Date().toISOString() })
-      .eq('school_id', me.school_id);
+    if (!passwordChannel) {
+      await db
+        .from('school_settings')
+        .update({ teams_last_status: status, teams_last_at: new Date().toISOString() })
+        .eq('school_id', me.school_id);
+    }
     if (status !== 'ok') throw new HttpError(502, `No se pudo enviar a Teams: ${status.replace(/^error: /, '')}`);
     return json({ ok: true });
   },

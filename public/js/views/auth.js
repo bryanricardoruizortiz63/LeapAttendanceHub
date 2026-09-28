@@ -1,5 +1,5 @@
-import { changePassword, signIn } from '../backend.js';
-import { $, busy, formValues, html, toast } from '../lib.js';
+import { changePassword, requestPasswordHelp, signIn } from '../backend.js';
+import { $, busy, dialog, formValues, html, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { syncPush } from '../pwa.js';
 import { go, homePath, logout, state } from '../store.js';
@@ -42,14 +42,69 @@ export function bindPasswordToggles(root) {
   }
 }
 
+/**
+ * Links shared with staff carry the school code (?escuela=CODE) so nobody has to type it.
+ * Called once at startup; the code is remembered on this device.
+ */
+export function adoptSchoolFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const code = (params.get('escuela') || '').trim().toUpperCase();
+  if (!code) return;
+  if (code !== recall('lah:school')) {
+    remember('lah:school', code);
+    remember('lah:school-name', '');
+  }
+  params.delete('escuela');
+  const search = params.toString();
+  history.replaceState(null, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+}
+
+async function forgotPassword(defaults) {
+  const values = await dialog({
+    title: '¿Olvidaste tu contraseña?',
+    message: 'Le avisaremos a la dirección para que te den una contraseña temporal.',
+    body: html`
+      <label class="field"><span>Código de escuela</span>
+        <input name="school_code" autocapitalize="characters" spellcheck="false" value="${defaults.school_code || ''}"></label>
+      <label class="field"><span>Tu usuario o correo</span>
+        <input name="username" autocapitalize="none" spellcheck="false" value="${defaults.username || ''}"></label>`,
+    confirmText: 'Avisar a la dirección',
+    collect: true,
+  });
+  if (!values) return;
+  if (!values.school_code?.trim() || !values.username?.trim()) {
+    toast('Escribe tu código de escuela y tu usuario.', 'error');
+    return;
+  }
+  try {
+    await requestPasswordHelp(values.school_code, values.username);
+  } catch (err) {
+    toast(err.message, 'error');
+    return;
+  }
+  await dialog({
+    title: 'Solicitud enviada',
+    message:
+      'Si tus datos son correctos, la dirección ya recibió el aviso y te dará una contraseña temporal. ' +
+      'Al entrar con ella, la app te pedirá crear una nueva.',
+    confirmText: 'Entendido',
+    cancelText: '',
+  });
+}
+
 export async function loginView({ el, query }) {
   let mode = query.get('mode') === 'admin' ? 'admin' : 'staff';
+  let editingCode = false;
+  let draft = {};
 
   const render = () => {
+    const savedCode = recall('lah:school');
+    const savedName = recall('lah:school-name');
+    const showCodeInput = editingCode || !savedCode;
     el.innerHTML = String(html`
       <div class="auth">
         <div class="auth-brand">
-          <img src="icons/icon.svg" alt="" class="auth-logo" width="72" height="72">
+          <img src="icons/icon-192.png" alt="" class="auth-logo" width="72" height="72">
           <h1>Leap Attendance Hub</h1>
           <p>Reporta tus ausencias en segundos y mantén informada a la dirección.</p>
         </div>
@@ -61,39 +116,59 @@ export async function loginView({ el, query }) {
               aria-selected="${mode === 'admin'}">${icon('shield', 18)} Administración</button>
           </div>
           <form class="stack" data-login novalidate>
-            <label class="field"><span>Código de escuela</span>
-              <input name="school_code" required autocapitalize="characters" autocomplete="organization"
-                spellcheck="false" placeholder="Ej. LEAP-2045" value="${recall('lah:school')}">
-            </label>
+            ${showCodeInput
+              ? html`<label class="field"><span>Código de escuela</span>
+                  <input name="school_code" required autocapitalize="characters" autocomplete="organization"
+                    spellcheck="false" placeholder="Ej. LEAP-2045" value="${draft.school_code ?? savedCode}">
+                </label>`
+              : html`<div class="school-chip">
+                  ${icon('school', 20)}
+                  <span class="grow"><small>Escuela</small><strong>${savedName || savedCode}</strong></span>
+                  <button type="button" class="btn btn-ghost btn-sm" data-change-school>Cambiar</button>
+                  <input type="hidden" name="school_code" value="${savedCode}">
+                </div>`}
             ${mode === 'staff'
               ? html`<label class="field"><span>Usuario o correo</span>
                   <input name="username" required autocomplete="username" autocapitalize="none" spellcheck="false"
-                    value="${recall('lah:username')}">
+                    value="${draft.username ?? recall('lah:username')}">
                 </label>`
               : ''}
             ${passwordField('password', mode === 'admin' ? 'Contraseña de administración' : 'Contraseña', 'current-password')}
             <button class="btn btn-primary btn-block btn-lg" type="submit">Entrar</button>
           </form>
-          <p class="hint center">
-            ${mode === 'admin'
-              ? 'Acceso completo de la dirección: personal, ausencias, configuración y datos de la escuela.'
-              : '¿Olvidaste tu contraseña? Pide a la dirección que la restablezca.'}
-          </p>
+          ${mode === 'admin'
+            ? html`<p class="hint center">Acceso completo de la dirección: personal, ausencias, configuración y datos de la escuela.</p>`
+            : html`<button type="button" class="btn btn-ghost btn-block" data-forgot>${icon('key', 18)} ¿Olvidaste tu contraseña?</button>`}
         </div>
         <div data-install-slot></div>
         <p class="auth-foot"><a href="#/platform">Panel de plataforma</a></p>
       </div>`);
 
+    const form = $('[data-login]', el);
+    const keepDraft = () => {
+      const v = formValues(form);
+      draft = { school_code: v.school_code, username: v.username };
+    };
     for (const btn of el.querySelectorAll('[data-mode]')) {
       btn.addEventListener('click', () => {
+        keepDraft();
         mode = btn.dataset.mode;
         render();
       });
     }
+    $('[data-change-school]', el)?.addEventListener('click', () => {
+      keepDraft();
+      editingCode = true;
+      render();
+      el.querySelector('[name=school_code]').select();
+    });
+    $('[data-forgot]', el)?.addEventListener('click', () => {
+      const v = formValues(form);
+      forgotPassword({ school_code: v.school_code, username: v.username });
+    });
     bindPasswordToggles(el);
     installHint($('[data-install-slot]', el), { dismissible: false });
 
-    const form = $('[data-login]', el);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const submit = form.querySelector('[type=submit]');
@@ -105,6 +180,7 @@ export async function loginView({ el, query }) {
         // The school administration account is the user "admin" of that school.
         const me = await signIn(v.school_code, mode === 'admin' ? 'admin' : v.username, v.password);
         remember('lah:school', me.school.code);
+        remember('lah:school-name', me.school.name);
         if (mode === 'staff') remember('lah:username', v.username.trim());
         state.me = me;
         state.platformPassword = null;
@@ -124,7 +200,7 @@ export async function changePasswordView({ el }) {
   el.innerHTML = String(html`
     <div class="auth">
       <div class="auth-brand">
-        <img src="icons/icon.svg" alt="" class="auth-logo" width="64" height="64">
+        <img src="icons/icon-192.png" alt="" class="auth-logo" width="64" height="64">
         <h1>${forced ? 'Crea tu contraseña' : 'Cambiar contraseña'}</h1>
         <p>${forced
           ? `Hola, ${state.me.user.full_name}. Por seguridad, cambia la contraseña temporal que te dieron.`

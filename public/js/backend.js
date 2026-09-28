@@ -106,6 +106,10 @@ export async function signIn(schoolCode, username, password) {
   return me;
 }
 
+/** Tells the school's administration someone forgot their password. Never reveals if the account exists. */
+export const requestPasswordHelp = (schoolCode, username) =>
+  rpc('request_password_help', { p_school_code: schoolCode, p_username: username });
+
 export async function signOut() {
   await sb.auth.signOut({ scope: 'local' }).catch(() => {});
 }
@@ -335,7 +339,8 @@ export const resetEmployeePassword = (id) => callFunction('admin', { action: 're
 export const deleteEmployee = (id) => callFunction('admin', { action: 'delete_employee', id });
 export const setAdminPassword = (current, next) =>
   callFunction('admin', { action: 'set_admin_password', current_password: current, new_password: next });
-export const testTeams = () => callFunction('admin', { action: 'test_teams' });
+/** target: 'main' (absences channel) or 'password' (forgotten-password channel). */
+export const testTeams = (target = 'main') => callFunction('admin', { action: 'test_teams', target });
 
 // ---- Escuela ---------------------------------------------------------------------
 
@@ -354,6 +359,8 @@ export const updateSchool = (v) =>
     p_teams_enabled: v.teams_enabled ?? null,
     p_teams_include_reason: v.teams_include_reason ?? null,
     p_update_teams_url: 'teams_webhook_url' in v,
+    p_teams_password_webhook_url: v.teams_password_webhook_url ?? null,
+    p_update_teams_password_url: 'teams_password_webhook_url' in v,
   });
 
 // ---- Datos y reportes ------------------------------------------------------------

@@ -75,22 +75,23 @@ export async function homeView({ el }) {
 
 export async function reportView({ el, query }) {
   const me = state.me.user;
-  const staff = isStaff(me);
-  const employees = staff ? (await listEmployees()).filter((e) => e.active) : [];
+  // Only the school's Administración account registers absences for other people.
+  const forOthers = me.role === 'admin';
+  const employees = forOthers ? (await listEmployees()).filter((e) => e.active) : [];
   const today = todayStr();
-  const preselect = query.get('user_id') || (me.role === 'admin' ? '' : String(me.id));
+  const preselect = query.get('user_id') || '';
   const files = [];
 
   el.innerHTML = String(html`
     <form class="stack" data-form novalidate>
-      ${staff
+      ${forOthers
         ? html`<section class="card">
             <label class="field"><span>¿Quién va a faltar?</span>
               <select name="user_id" required>
                 <option value="" ${preselect ? '' : 'selected'} disabled>Selecciona un empleado…</option>
                 ${employees.map(
                   (e) => html`<option value="${e.id}" ${String(e.id) === preselect ? 'selected' : ''}>
-                    ${e.id === me.id ? `Yo (${e.full_name})` : e.full_name}${e.position ? ` — ${e.position}` : ''}</option>`,
+                    ${e.full_name}${e.position ? ` — ${e.position}` : ''}</option>`,
                 )}
               </select>
             </label>
@@ -240,7 +241,7 @@ export async function reportView({ el, query }) {
     e.preventDefault();
     busy(form.querySelector('[type=submit]'), async () => {
       const v = formValues(form);
-      if (staff && !v.user_id) throw new Error('Selecciona el empleado que va a faltar.');
+      if (forOthers && !v.user_id) throw new Error('Selecciona el empleado que va a faltar.');
       if (!v.start_date) throw new Error('Selecciona la fecha.');
       if (v.partial === '1' && !v.start_time) throw new Error('Indica desde qué hora vas a faltar.');
       if (!multi) v.end_date = null;

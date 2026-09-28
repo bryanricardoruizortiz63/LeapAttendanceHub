@@ -192,7 +192,8 @@ export async function moreView({ el }) {
   const { user } = state.me;
   const manager = isManager(user);
   const links = [
-    manager ? ['#/report', 'plus', 'Registrar ausencia', 'Para ti o para un empleado'] : null,
+    user.role === 'admin' ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error'] : null,
+    user.role === 'director' ? ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'] : null,
     user.role !== 'admin' ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
     manager ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams y contraseña de administración'] : null,
     manager ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,

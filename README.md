@@ -16,7 +16,8 @@ Funciona con servicios gratuitos:
 ## Qué hace
 
 **Maestros y personal**
-- Entran con **código de escuela + usuario + contraseña**. La primera vez deben cambiar la contraseña temporal.
+- Entran con **usuario + contraseña**. El código de escuela viene ya puesto en el enlace que reciben con sus credenciales (`…/?escuela=CÓDIGO`) y el teléfono lo recuerda; solo lo escriben si abren la app sin ese enlace. La primera vez deben cambiar la contraseña temporal.
+- **¿Olvidaste tu contraseña?**: avisa a la dirección (en la app, push y Teams). La dirección le da una contraseña temporal desde *Personal*.
 - Reportan una ausencia en segundos: hoy, mañana o varios días, día completo o parte del día.
 - **Causa opcional** (y tipo opcional: enfermedad, cita médica, asunto personal, etc.).
 - **Suben su excusa**: foto desde la cámara, PDF o Word (hasta 5 archivos, 10 MB c/u). También pueden añadirla después.
@@ -26,17 +27,17 @@ Funciona con servicios gratuitos:
 **Dirección y secretaría**
 - **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
 - **Marcar como recibida** (con mensaje opcional al empleado), registrar **cobertura/arreglos** y comentar.
-- Registrar una ausencia a nombre de un empleado (por ejemplo, si llamó por teléfono).
 - Lista de todas las ausencias con búsqueda y filtros.
 
 **Administración (directora)**
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
-- **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles.
-- **Escuela y Teams**: nombre, webhook de Microsoft Teams y contraseña de administración.
+- **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles. Quien pidió ayuda con su contraseña aparece marcado.
+- **Registrar una ausencia a nombre de un empleado** (por ejemplo, si llamó por teléfono o para corregir un error). Solo la cuenta de Administración puede hacerlo.
+- **Escuela y Teams**: nombre, webhooks de Microsoft Teams (ausencias y, opcionalmente, otro canal para contraseñas) y contraseña de administración.
 - **Datos y reportes**: estadísticas, exportación a Excel (CSV) y respaldo completo (JSON) de *esa* escuela.
 
 **Notificaciones**
-- **Microsoft Teams**: cada ausencia nueva (o cancelada) se publica en el canal que elija la escuela.
+- **Microsoft Teams**: cada ausencia nueva (o cancelada) se publica en el canal que elija la escuela. Las solicitudes de contraseña van al mismo canal o a otro distinto.
 - **En la app**: campana con avisos y contador.
 - **Push al teléfono**: se activan en *Perfil*. Funcionan en Android, computadoras e iPhone (iOS 16.4+ con la app añadida a la pantalla de inicio).
 
@@ -47,7 +48,7 @@ Funciona con servicios gratuitos:
 | Maestro(a) | ✅ | | |
 | Secretaría | ✅ | ✅ | |
 | Director(a) | ✅ | ✅ | ✅ |
-| Administración (código + contraseña) | | ✅ | ✅ |
+| Administración (código + contraseña) | Registra las de cualquier empleado | ✅ | ✅ |
 
 ---
 
@@ -63,7 +64,16 @@ Funciona con servicios gratuitos:
 2. Toca **⋯** junto al canal → **Workflows** (Flujos de trabajo).
 3. Elige **“Publicar en un canal cuando se reciba una solicitud de webhook”** (*Post to a channel when a webhook request is received*).
 4. Confirma el equipo y el canal, y copia la URL que aparece al final.
-5. En la app: **Más → Escuela y Teams**, pega la URL, **Guardar** y **Enviar prueba**.
+5. En la app: **Más → Escuela y Teams**, pega la URL, **Guardar** y **Probar ausencias**.
+6. *(Opcional)* Para recibir las solicitudes de contraseña en otro chat o canal, repite los pasos 1–4 allí y pega esa URL en **URL para “Olvidé mi contraseña”** → **Probar contraseñas**. Si lo dejas vacío, llegan al canal de ausencias.
+
+### Cambiar el ícono de la app
+
+1. **Panel de plataforma → Ícono de la app** → elige una imagen cuadrada (idealmente 1024×1024).
+2. Ajusta el color de fondo si hace falta y toca **Descargar los 4 archivos**.
+3. Toca **subir a GitHub**, arrastra los 4 archivos a `public/icons` y toca **Commit changes**.
+
+En 1–2 minutos la app usa el ícono nuevo. Android lo actualiza solo en unos días; en iPhone hay que quitar la app de la pantalla de inicio y volver a añadirla.
 
 ### Instalar en los teléfonos
 
@@ -71,6 +81,8 @@ Funciona con servicios gratuitos:
 - **Android (Chrome):** abre la app → **Instalar app** (o menú ⋮ → *Instalar app*).
 
 Después, en **Perfil → Activar notificaciones**.
+
+Conviene abrir primero el enlace recibido con las credenciales: así el código de escuela queda puesto. En iPhone, la app de la pantalla de inicio guarda sus datos aparte de Safari, así que puede pedir el código una vez más; después lo recuerda.
 
 ---
 

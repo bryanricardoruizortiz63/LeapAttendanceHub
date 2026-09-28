@@ -220,9 +220,19 @@ export function toast(message, type = 'info') {
 }
 
 /**
- * Promise-based modal dialog. Resolves with the textarea value (or true) on confirm, null on cancel.
+ * Promise-based modal dialog. Resolves on confirm with the textarea value (input), the named fields in
+ * body (collect) or true; resolves null on cancel.
  */
-export function dialog({ title, message = '', body = '', confirmText = 'Aceptar', cancelText = 'Cancelar', danger = false, input = null }) {
+export function dialog({
+  title,
+  message = '',
+  body = '',
+  confirmText = 'Aceptar',
+  cancelText = 'Cancelar',
+  danger = false,
+  input = null,
+  collect = false,
+}) {
   return new Promise((resolve) => {
     const dlg = document.createElement('dialog');
     dlg.className = 'dialog';
@@ -253,7 +263,8 @@ export function dialog({ title, message = '', body = '', confirmText = 'Aceptar'
     });
     dlg.querySelector('form').addEventListener('submit', (e) => {
       e.preventDefault();
-      done(input ? dlg.querySelector('textarea').value.trim() : true);
+      const form = dlg.querySelector('form');
+      done(input ? dlg.querySelector('textarea').value.trim() : collect ? formValues(form) : true);
     });
     dlg.showModal();
   });
