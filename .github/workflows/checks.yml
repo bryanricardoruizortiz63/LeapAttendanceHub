@@ -1,0 +1,35 @@
+name: Comprobaciones
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  functions:
+    name: Funciones de Supabase
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check */index.ts
+      - run: deno test
+
+  web:
+    name: App web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verificar que todos los módulos cargan
+        run: npx --yes esbuild@0.25 public/js/app.js --bundle --format=esm --outfile=/tmp/bundle.js

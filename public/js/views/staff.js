@@ -1,4 +1,5 @@
-import { $, addDays, api, fmtLongDate, html, isManager, todayStr } from '../lib.js';
+import { dashboard, exportAbsencesCsv, listEmployees, schoolAbsences } from '../backend.js';
+import { $, addDays, busy, fmtLongDate, html, isManager, todayStr } from '../lib.js';
 import { icon } from '../icons.js';
 import { state } from '../store.js';
 import { absenceList, empty, installHint } from './common.js';
@@ -8,7 +9,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
   const firstName = me.role === 'admin' ? '' : `, ${me.full_name.replace(/^(dra?|sra?|lcda?)\.?\s+/i, '').split(' ')[0]}`;
 
   const load = async () => {
-    const d = await api(`/dashboard?today=${todayStr()}`);
+    const d = await dashboard(todayStr());
     if (!isCurrent()) return;
     const c = d.counts;
     el.innerHTML = String(html`
@@ -78,7 +79,7 @@ export async function absencesListView({ el, query, isCurrent }) {
     to: query.get('to') || '',
     user_id: query.get('user_id') || '',
   };
-  const { employees } = await api('/employees?include_inactive=1');
+  const employees = await listEmployees();
   const selected = employees.find((e) => String(e.id) === filters.user_id);
 
   el.innerHTML = String(html`
@@ -109,27 +110,24 @@ export async function absencesListView({ el, query, isCurrent }) {
     </form>
     <div class="list-head">
       <p class="muted" data-count></p>
-      ${isManager(me) ? html`<a class="btn btn-ghost btn-sm" data-export href="#">${icon('download', 16)} Exportar CSV</a>` : ''}
+      ${isManager(me) ? html`<button type="button" class="btn btn-ghost btn-sm" data-export>${icon('download', 16)} Exportar CSV</button>` : ''}
     </div>
     <div data-results><div class="loading"><span class="spinner"></span></div></div>`);
 
   const form = $('[data-filters]', el);
   const results = $('[data-results]', el);
   const count = $('[data-count]', el);
-  const exportLink = $('[data-export]', el);
   let seq = 0;
+
+  $('[data-export]', el)?.addEventListener('click', (e) =>
+    busy(e.currentTarget, () => exportAbsencesCsv(state.me.school.code, { from: filters.from, to: filters.to })),
+  );
 
   async function load() {
     const mySeq = ++seq;
-    const params = new URLSearchParams({ scope: 'school' });
-    for (const [k, v] of Object.entries(filters)) if (v && !(k === 'status' && v === 'all')) params.set(k, v);
     const url = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== ''));
     history.replaceState(null, '', `#/absences?${url}`);
-    if (exportLink) {
-      const exp = new URLSearchParams(Object.entries({ from: filters.from, to: filters.to }).filter(([, v]) => v));
-      exportLink.href = `/api/data/export/absences.csv?${exp}`;
-    }
-    const { absences } = await api(`/absences?${params}`);
+    const absences = await schoolAbsences(filters);
     if (mySeq !== seq || !isCurrent()) return;
     count.textContent = `${absences.length} ausencia${absences.length === 1 ? '' : 's'}`;
     results.innerHTML = String(

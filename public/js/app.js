@@ -1,4 +1,5 @@
-import { api, html, raw, toast } from './lib.js';
+import { getMe } from './backend.js';
+import { html, raw, toast } from './lib.js';
 import { icon } from './icons.js';
 import { initPwa, syncPush } from './pwa.js';
 import { go, homePath, refreshUnread, setUnread, state } from './store.js';
@@ -70,7 +71,7 @@ function renderShell(route, path) {
       <div class="shell">
         <nav class="tabbar" aria-label="Navegación principal">
           <div class="side-brand">
-            <img src="/icons/icon.svg" alt="" width="36" height="36">
+            <img src="icons/icon.svg" alt="" width="36" height="36">
             <div><strong>Leap Attendance Hub</strong><small>${school.name}</small></div>
           </div>
           ${navItems(user.role).map(
@@ -83,7 +84,7 @@ function renderShell(route, path) {
         <div class="main-col">
           <header class="topbar">
             <button class="icon-btn" data-back aria-label="Volver">${icon('back', 22)}</button>
-            <img class="topbar-logo" src="/icons/icon.svg" alt="" width="30" height="30">
+            <img class="topbar-logo" src="icons/icon.svg" alt="" width="30" height="30">
             <div class="topbar-title"><h1 id="page-title"></h1><small>${school.name}</small></div>
             <a class="icon-btn" href="#/notifications" aria-label="Avisos">${icon('bell', 22)}<b class="dot" data-unread hidden></b></a>
           </header>
@@ -123,7 +124,7 @@ async function router() {
   if (!route) return go(homePath(), { replace: true });
   if (!route.public && !user) return go('/login', { replace: true });
   if (user?.must_change_password && path !== '/change-password') return go('/change-password', { replace: true });
-  if (path === '/login' && (user || state.platform)) return go(homePath(), { replace: true });
+  if (path === '/login' && user) return go(homePath(), { replace: true });
   if (route.roles && !route.roles.includes(user.role)) return go(homePath(), { replace: true });
 
   const seq = ++navSeq;
@@ -172,29 +173,24 @@ async function router() {
   if (user && !route.bare) refreshUnread();
 }
 
+function sessionEnded() {
+  if (!state.me) return;
+  state.me = null;
+  toast('Tu sesión expiró. Vuelve a entrar.', 'error');
+  go('/login', { replace: true });
+}
+
 async function boot() {
   initPwa();
   try {
-    state.config = await api('/config');
-  } catch {
-    state.config = { max_upload_mb: 10, platform_enabled: false };
-  }
-  try {
-    const me = await api('/me');
-    if (me.platform) state.platform = true;
-    else if (me.user) state.me = me;
+    state.me = await getMe();
   } catch (err) {
-    if (err.status !== 401) toast(err.message, 'error');
+    toast(err.message, 'error');
   }
 
   window.addEventListener('hashchange', router);
-  window.addEventListener('lah:unauthorized', () => {
-    if (!state.me && !state.platform) return;
-    state.me = null;
-    state.platform = false;
-    toast('Tu sesión expiró. Vuelve a entrar.', 'error');
-    go('/login', { replace: true });
-  });
+  window.addEventListener('lah:unauthorized', sessionEnded);
+  window.addEventListener('lah:signed-out', sessionEnded);
   window.addEventListener('lah:push', refreshUnread);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refreshUnread();

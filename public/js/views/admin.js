@@ -2,7 +2,6 @@ import {
   $,
   ROLE_LABELS,
   addDays,
-  api,
   busy,
   copyText,
   dialog,
@@ -13,6 +12,22 @@ import {
   toast,
   todayStr,
 } from '../lib.js';
+import {
+  createEmployee,
+  deleteEmployee,
+  exportAbsencesCsv,
+  exportBackupJson,
+  exportEmployeesCsv,
+  getEmployee,
+  getSchool,
+  listEmployees,
+  resetEmployeePassword,
+  setAdminPassword,
+  stats,
+  testTeams,
+  updateEmployee,
+  updateSchool,
+} from '../backend.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { bindPasswordToggles } from './auth.js';
@@ -89,7 +104,7 @@ export async function employeesView({ el }) {
   };
 
   const load = async () => {
-    employees = (await api('/employees?include_inactive=1')).employees;
+    employees = await listEmployees();
     renderList();
   };
 
@@ -118,7 +133,7 @@ export async function employeesView({ el }) {
 export async function employeeFormView({ el, params, setTitle }) {
   const isNew = params[0] === 'new';
   const me = state.me.user;
-  const employee = isNew ? { role: 'teacher', active: 1 } : (await api(`/employees/${params[0]}`)).employee;
+  const employee = isNew ? { role: 'teacher', active: true } : await getEmployee(params[0]);
   const self = employee.id === me.id;
   setTitle(isNew ? 'Nuevo empleado' : employee.full_name);
 
@@ -187,7 +202,7 @@ export async function employeeFormView({ el, params, setTitle }) {
       if (isNew) {
         if (!v.username.trim() && !v.email.trim()) throw new Error('Escribe un usuario o un correo.');
         if (!v.password) delete v.password;
-        const res = await api('/employees', { method: 'POST', body: v });
+        const res = await createEmployee(v);
         await showCredentials(res.employee, res.temp_password, 'Empleado creado ✅');
         go('/employees', { replace: true });
       } else {
@@ -195,7 +210,7 @@ export async function employeeFormView({ el, params, setTitle }) {
           delete v.role;
           delete v.active;
         }
-        await api(`/employees/${employee.id}`, { method: 'PATCH', body: v });
+        await updateEmployee(employee.id, v);
         toast('Cambios guardados', 'ok');
         go('/employees');
       }
@@ -211,7 +226,7 @@ export async function employeeFormView({ el, params, setTitle }) {
     });
     if (!ok) return;
     await busy(btn, async () => {
-      const res = await api(`/employees/${employee.id}/reset-password`, { method: 'POST', body: {} });
+      const res = await resetEmployeePassword(employee.id);
       await showCredentials(employee, res.temp_password, 'Nueva contraseña temporal');
     });
   });
@@ -226,7 +241,7 @@ export async function employeeFormView({ el, params, setTitle }) {
     });
     if (!ok) return;
     await busy(btn, async () => {
-      await api(`/employees/${employee.id}`, { method: 'DELETE' });
+      await deleteEmployee(employee.id);
       toast('Empleado eliminado', 'ok');
       go('/employees', { replace: true });
     });
@@ -236,7 +251,7 @@ export async function employeeFormView({ el, params, setTitle }) {
 // ---- Escuela y Teams -----------------------------------------------------------
 
 export async function settingsView({ el }) {
-  let { school } = await api('/school');
+  let school = await getSchool(state.me.school.id);
 
   const teamsStatus = () => {
     if (!school.teams_webhook_url) return html`<p class="status-note muted">${icon('alert', 16)} Sin configurar</p>`;
@@ -309,7 +324,8 @@ export async function settingsView({ el }) {
   schoolForm.addEventListener('submit', (e) => {
     e.preventDefault();
     busy(schoolForm.querySelector('[type=submit]'), async () => {
-      ({ school } = await api('/school', { method: 'PATCH', body: { name: formValues(schoolForm).name } }));
+      await updateSchool({ name: formValues(schoolForm).name });
+      school = await getSchool(state.me.school.id);
       state.me.school.name = school.name;
       toast('Escuela actualizada', 'ok');
     });
@@ -322,8 +338,8 @@ export async function settingsView({ el }) {
   teams.addEventListener('submit', (e) => {
     e.preventDefault();
     busy(teams.querySelector('[type=submit]'), async () => {
-      const v = formValues(teams);
-      ({ school } = await api('/school', { method: 'PATCH', body: v }));
+      await updateSchool(formValues(teams));
+      school = await getSchool(state.me.school.id);
       refreshStatus();
       toast('Configuración de Teams guardada', 'ok');
     });
@@ -331,14 +347,12 @@ export async function settingsView({ el }) {
   $('[data-test]', el).addEventListener('click', (e) =>
     busy(e.currentTarget, async () => {
       const v = formValues(teams);
-      if ((v.teams_webhook_url || '') !== (school.teams_webhook_url || '')) {
-        ({ school } = await api('/school', { method: 'PATCH', body: v }));
-      }
+      if ((v.teams_webhook_url || '') !== (school.teams_webhook_url || '')) await updateSchool(v);
       try {
-        ({ school } = await api('/school/test-teams', { method: 'POST' }));
+        await testTeams();
         toast('Mensaje de prueba enviado. Revisa tu canal de Teams.', 'ok');
       } finally {
-        ({ school } = await api('/school'));
+        school = await getSchool(state.me.school.id);
         refreshStatus();
       }
     }),
@@ -348,7 +362,8 @@ export async function settingsView({ el }) {
   pw.addEventListener('submit', (e) => {
     e.preventDefault();
     busy(pw.querySelector('[type=submit]'), async () => {
-      await api('/school/admin-password', { method: 'POST', body: formValues(pw) });
+      const v = formValues(pw);
+      await setAdminPassword(v.current_password, v.new_password);
       pw.reset();
       toast('Contraseña de administración actualizada', 'ok');
     });
@@ -388,20 +403,28 @@ export async function dataView({ el, isCurrent }) {
       <section class="card stack">
         <h2 class="card-title">${icon('download')} Exportar datos de la escuela</h2>
         <p class="muted">Los archivos CSV se abren en Excel o Google Sheets.</p>
-        <a class="btn btn-secondary btn-block" data-exp-range href="#">${icon('download', 18)} Ausencias del período (CSV)</a>
-        <a class="btn btn-secondary btn-block" href="/api/data/export/absences.csv">${icon('download', 18)} Todas las ausencias (CSV)</a>
-        <a class="btn btn-secondary btn-block" href="/api/data/export/employees.csv">${icon('download', 18)} Lista de personal (CSV)</a>
-        <a class="btn btn-ghost btn-block" href="/api/data/export/backup.json">${icon('shield', 18)} Respaldo completo (JSON)</a>
+        <button type="button" class="btn btn-secondary btn-block" data-export="range">${icon('download', 18)} Ausencias del período (CSV)</button>
+        <button type="button" class="btn btn-secondary btn-block" data-export="all">${icon('download', 18)} Todas las ausencias (CSV)</button>
+        <button type="button" class="btn btn-secondary btn-block" data-export="employees">${icon('download', 18)} Lista de personal (CSV)</button>
+        <button type="button" class="btn btn-ghost btn-block" data-export="backup">${icon('shield', 18)} Respaldo completo (JSON)</button>
       </section>
     </div>`);
 
   const fromInput = $('[data-from]', el);
   const toInput = $('[data-to]', el);
+  const { school } = state.me;
+  const exporters = {
+    range: () => exportAbsencesCsv(school.code, range),
+    all: () => exportAbsencesCsv(school.code),
+    employees: () => exportEmployeesCsv(school.code),
+    backup: () => exportBackupJson(school),
+  };
+  for (const btn of el.querySelectorAll('[data-export]')) {
+    btn.addEventListener('click', () => busy(btn, exporters[btn.dataset.export]));
+  }
 
   async function load() {
-    const qs = new URLSearchParams({ from: range.from, to: range.to });
-    $('[data-exp-range]', el).href = `/api/data/export/absences.csv?${qs}`;
-    const s = await api(`/data/stats?${qs}`);
+    const s = await stats(range.from, range.to);
     if (!isCurrent()) return;
     const maxCat = Math.max(1, ...s.by_category.map((c) => c.count));
     const maxDays = Math.max(1, ...s.by_employee.map((e) => e.days));

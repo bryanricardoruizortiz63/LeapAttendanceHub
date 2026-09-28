@@ -1,4 +1,12 @@
-import { $, ROLE_LABELS, api, busy, formValues, html, isManager, timeAgo, toast } from '../lib.js';
+import {
+  changePassword,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  testPush,
+  updateMyContact,
+} from '../backend.js';
+import { $, ROLE_LABELS, busy, formValues, html, isManager, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { currentPushSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../pwa.js';
 import { logout, setUnread, state } from '../store.js';
@@ -52,7 +60,7 @@ async function pushCard(slot, { compact = false } = {}) {
   );
   $('[data-push-test]', slot)?.addEventListener('click', (e) =>
     busy(e.currentTarget, async () => {
-      await api('/push/test', { method: 'POST' });
+      await testPush();
       toast('Enviada. Debería llegarte en unos segundos.', 'ok');
     }),
   );
@@ -62,7 +70,7 @@ async function pushCard(slot, { compact = false } = {}) {
 
 export async function notificationsView({ el, isCurrent, onLeave }) {
   const load = async () => {
-    const { notifications, unread } = await api('/notifications');
+    const { notifications, unread } = await listNotifications();
     if (!isCurrent()) return;
     setUnread(unread);
     el.innerHTML = String(html`
@@ -88,13 +96,13 @@ export async function notificationsView({ el, isCurrent, onLeave }) {
     pushCard($('[data-push-slot]', el), { compact: true });
     $('[data-read-all]', el)?.addEventListener('click', (e) =>
       busy(e.currentTarget, async () => {
-        await api('/notifications/read-all', { method: 'POST' });
+        await markAllNotificationsRead();
         await load();
       }),
     );
     for (const a of el.querySelectorAll('.notif.unread')) {
       a.addEventListener('click', () => {
-        api(`/notifications/${a.dataset.id}/read`, { method: 'POST' }).catch(() => {});
+        markNotificationRead(Number(a.dataset.id)).catch(() => {});
       });
     }
   };
@@ -159,7 +167,7 @@ export async function profileView({ el }) {
     e.preventDefault();
     busy(contact.querySelector('[type=submit]'), async () => {
       const v = formValues(contact);
-      await api('/me', { method: 'PATCH', body: v });
+      await updateMyContact(v.email, v.phone);
       Object.assign(state.me.user, v);
       toast('Datos guardados', 'ok');
     });
@@ -171,7 +179,7 @@ export async function profileView({ el }) {
     busy(pw.querySelector('[type=submit]'), async () => {
       const v = formValues(pw);
       if (v.new_password.length < 8) throw new Error('La nueva contraseña debe tener al menos 8 caracteres.');
-      await api('/me/password', { method: 'POST', body: v });
+      await changePassword(v.current_password, v.new_password);
       pw.reset();
       toast('Contraseña actualizada', 'ok');
     });
