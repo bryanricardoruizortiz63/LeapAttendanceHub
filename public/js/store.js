@@ -4,6 +4,7 @@ import { unlinkPush } from './pwa.js';
 export const state = {
   me: null, // { user, school }
   platformPassword: null,
+  nextPath: null,
   unread: 0,
 };
 

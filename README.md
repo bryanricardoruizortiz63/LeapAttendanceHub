@@ -8,10 +8,10 @@ Funciona con servicios gratuitos:
 
 | Parte | Dónde vive | Costo |
 |---|---|---|
-| Pantallas (HTML/CSS/JS) | **GitHub Pages** (carpeta `public/`) | Gratis |
+| Pantallas (HTML/CSS/JS) | **GitHub Pages** (carpeta `public/`; el `index.html` de la raíz redirige a ella) | Gratis |
 | Base de datos, inicios de sesión y archivos de excusas | **Supabase** (proyecto `leap-attendance-hub`) | Plan gratis |
 | Avisos a Teams y notificaciones push | **Supabase Edge Functions** (`supabase/functions/`) | Plan gratis |
-| Publicación automática y “mantener activo” | **GitHub Actions** (`.github/workflows/`) | Gratis |
+| “Mantener activo” y comprobaciones | **GitHub Actions** (`.github/workflows/`) | Gratis |
 
 ## Qué hace
 
@@ -53,10 +53,9 @@ Funciona con servicios gratuitos:
 
 ## Primeros pasos
 
-1. **Activar GitHub Pages (una sola vez):** en el repositorio, *Settings → Pages → Build and deployment → Source:* **GitHub Actions**.
-2. **Publicar:** cada cambio en `main` publica la app automáticamente (workflow “Publicar la app”). También se puede lanzar a mano en *Actions → Publicar la app → Run workflow*.
-3. **Crear tu escuela:** abre la app, toca **Panel de plataforma** (abajo en la pantalla de inicio de sesión), entra con la contraseña de plataforma y crea la escuela. Obtendrás el **código de escuela** y la **contraseña de administración**.
-4. **Añadir al personal:** entra en la pestaña **Administración** con el código y esa contraseña → **Personal → Nuevo**. La app muestra los datos de acceso de cada empleado para copiarlos o compartirlos.
+1. **GitHub Pages (una sola vez):** *Settings → Pages → Build and deployment → Source:* **Deploy from a branch**, rama **`main`**, carpeta **`/ (root)`**. Cada cambio en `main` se publica solo en uno o dos minutos.
+2. **Crear tu escuela:** abre la app, toca **Panel de plataforma** (abajo en la pantalla de inicio de sesión), entra con la contraseña de plataforma y crea la escuela. Obtendrás el **código de escuela** y la **contraseña de administración**.
+3. **Añadir al personal:** entra en la pestaña **Administración** con el código y esa contraseña → **Personal → Nuevo**. La app muestra los datos de acceso de cada empleado para copiarlos o compartirlos.
 
 ### Conectar Microsoft Teams
 
@@ -90,7 +89,8 @@ supabase/
   functions/admin/        Acciones de la dirección que requieren permisos de Auth
   functions/platform/     Crear y administrar escuelas
   functions/_shared/      Código común (Web Push con WebCrypto, tarjetas de Teams)
-.github/workflows/        Publicación en Pages, “mantener activo” y comprobaciones
+index.html                Redirige de la raíz del sitio a public/ (conservando #/rutas)
+.github/workflows/        “Mantener activo” y comprobaciones
 ```
 
 **Inicio de sesión:** Supabase Auth usa correo, así que cada cuenta recibe un correo interno calculado a partir de *código de escuela + usuario* (por ejemplo `u3f9…@users.leap-hub.local`). Nadie tiene que saberlo ni se envían correos.

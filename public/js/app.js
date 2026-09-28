@@ -122,7 +122,11 @@ async function router() {
   const user = state.me?.user;
 
   if (!route) return go(homePath(), { replace: true });
-  if (!route.public && !user) return go('/login', { replace: true });
+  if (!route.public && !user) {
+    // Remember where they were going (e.g. a link from Teams) to continue there after signing in.
+    state.nextPath = `${path}${queryString ? `?${queryString}` : ''}`;
+    return go('/login', { replace: true });
+  }
   if (user?.must_change_password && path !== '/change-password') return go('/change-password', { replace: true });
   if (path === '/login' && user) return go(homePath(), { replace: true });
   if (route.roles && !route.roles.includes(user.role)) return go(homePath(), { replace: true });

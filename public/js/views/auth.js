@@ -109,7 +109,10 @@ export async function loginView({ el, query }) {
         state.me = me;
         state.platformPassword = null;
         syncPush();
-        go(me.user.must_change_password ? '/change-password' : homePath(), { replace: true });
+        if (me.user.must_change_password) return go('/change-password', { replace: true });
+        const next = state.nextPath;
+        state.nextPath = null;
+        go(next || homePath(), { replace: true });
       });
     });
   };
@@ -147,7 +150,9 @@ export async function changePasswordView({ el }) {
       await changePassword(v.current_password, v.new_password);
       state.me.user.must_change_password = false;
       toast('Contraseña actualizada', 'ok');
-      go(homePath(), { replace: true });
+      const next = state.nextPath;
+      state.nextPath = null;
+      go(next || homePath(), { replace: true });
     });
   });
 }
