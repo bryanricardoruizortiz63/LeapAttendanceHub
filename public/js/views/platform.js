@@ -1,4 +1,5 @@
 import { platform } from '../backend.js';
+import { APP_URL } from '../config.js';
 import { $, busy, copyText, dialog, fmtDateTime, formValues, html, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { logout, state } from '../store.js';
@@ -75,7 +76,7 @@ export async function platformView(ctx) {
     busy(form.querySelector('[type=submit]'), async () => {
       const v = formValues(form);
       const { school } = await call('create_school', v);
-      const text = `Leap Attendance Hub\nEnlace: ${location.origin}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
+      const text = `Leap Attendance Hub\nEnlace: ${APP_URL}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
       const pending = dialog({
         title: 'Escuela creada ✅',
         body: html`<div class="credentials">

@@ -28,6 +28,7 @@ import {
   updateEmployee,
   updateSchool,
 } from '../backend.js';
+import { APP_URL } from '../config.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { bindPasswordToggles } from './auth.js';
@@ -38,7 +39,7 @@ import { avatar, empty } from './common.js';
 function credentialsText(employee, password) {
   return [
     'Leap Attendance Hub',
-    `Enlace: ${location.origin}`,
+    `Enlace: ${APP_URL}`,
     `Código de escuela: ${state.me.school.code}`,
     `Usuario: ${employee.username}`,
     `Contraseña temporal: ${password}`,
