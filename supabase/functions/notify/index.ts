@@ -39,55 +39,89 @@ async function handlePush(payload: { notification_id: number }): Promise<string>
   return `push: ${results.join(', ')}`;
 }
 
-async function handleTeams(schoolId: string, payload: { event: string; absence_id: number }): Promise<string> {
-  const { data: settings } = await db.from('school_settings').select('*').eq('school_id', schoolId).maybeSingle();
-  if (!settings?.teams_webhook_url || !settings.teams_enabled) return 'teams: skipped';
-  const { data: a } = await db.from('absences_v').select('*').eq('id', payload.absence_id).maybeSingle();
-  if (!a) return 'teams: absence not found';
-  const { data: school } = await db.from('schools').select('name').eq('id', schoolId).single();
+type TeamsPayload = { event: string; absence_id?: number; user_id?: string };
+// deno-lint-ignore no-explicit-any
+type Settings = Record<string, any>;
+
+async function appLink(route: string): Promise<string | null> {
   const app = await setting<{ url: string }>('app_url');
-  const linkUrl = app?.url ? `${app.url.replace(/\/?$/, '/')}#/absence/${a.id}` : null;
+  return app?.url ? `${app.url.replace(/\/?$/, '/')}#${route}` : null;
+}
+
+async function passwordHelpCard(schoolName: string | undefined, payload: TeamsPayload) {
+  const { data: p } = await db.from('profiles').select('id, full_name, username, position').eq('id', payload.user_id).maybeSingle();
+  if (!p) return null;
+  return buildCard({
+    title: '🔑 Solicitud de contraseña',
+    subtitle: schoolName,
+    facts: [
+      { title: 'Empleado', value: p.full_name },
+      { title: 'Usuario', value: p.username },
+      { title: 'Puesto', value: p.position },
+    ],
+    text: 'Olvidó su contraseña. En la app: Personal → su nombre → Restablecer contraseña, y compártele la contraseña temporal.',
+    linkUrl: await appLink(`/employees/${p.id}`),
+    linkTitle: 'Abrir su ficha',
+  });
+}
+
+async function absenceCard(schoolName: string | undefined, settings: Settings, payload: TeamsPayload) {
+  const { data: a } = await db.from('absences_v').select('*').eq('id', payload.absence_id).maybeSingle();
+  if (!a) return null;
+  const linkUrl = await appLink(`/absence/${a.id}`);
   const range = fmtRangeEs(a.start_date, a.end_date);
   const onBehalf = a.created_by && a.created_by !== a.user_id;
+  return payload.event === 'cancelled'
+    ? buildCard({
+        title: '↩️ Ausencia cancelada',
+        subtitle: schoolName,
+        facts: [
+          { title: 'Empleado', value: a.employee_name },
+          { title: 'Fecha', value: range },
+        ],
+        linkUrl,
+      })
+    : buildCard({
+        title: '🗓️ Nueva ausencia reportada',
+        subtitle: schoolName,
+        facts: [
+          { title: 'Empleado', value: a.employee_name },
+          { title: 'Puesto', value: a.employee_position },
+          { title: 'Fecha', value: range },
+          { title: 'Horario', value: scheduleText(a) },
+          { title: 'Tipo', value: a.category ? CATEGORIES[a.category] : null },
+          { title: 'Causa', value: settings.teams_include_reason ? a.reason : null },
+          { title: 'Notas para cubrir', value: a.coverage_notes },
+          { title: 'Documentos', value: a.attachment_count ? `${a.attachment_count} adjunto(s)` : null },
+          { title: 'Registrada por', value: onBehalf ? a.created_by_name : null },
+        ],
+        linkUrl,
+      });
+}
 
-  const card =
-    payload.event === 'cancelled'
-      ? buildCard({
-          title: '↩️ Ausencia cancelada',
-          subtitle: school?.name,
-          facts: [
-            { title: 'Empleado', value: a.employee_name },
-            { title: 'Fecha', value: range },
-          ],
-          linkUrl,
-        })
-      : buildCard({
-          title: '🗓️ Nueva ausencia reportada',
-          subtitle: school?.name,
-          facts: [
-            { title: 'Empleado', value: a.employee_name },
-            { title: 'Puesto', value: a.employee_position },
-            { title: 'Fecha', value: range },
-            { title: 'Horario', value: scheduleText(a) },
-            { title: 'Tipo', value: a.category ? CATEGORIES[a.category] : null },
-            { title: 'Causa', value: settings.teams_include_reason ? a.reason : null },
-            { title: 'Notas para cubrir', value: a.coverage_notes },
-            { title: 'Documentos', value: a.attachment_count ? `${a.attachment_count} adjunto(s)` : null },
-            { title: 'Registrada por', value: onBehalf ? a.created_by_name : null },
-          ],
-          linkUrl,
-        });
+async function handleTeams(schoolId: string, payload: TeamsPayload): Promise<string> {
+  const { data: settings } = await db.from('school_settings').select('*').eq('school_id', schoolId).maybeSingle();
+  if (!settings?.teams_enabled) return 'teams: skipped';
+  // Password requests can go to their own channel; otherwise they share the absences channel.
+  const passwordHelp = payload.event === 'password_help';
+  const url = passwordHelp ? settings.teams_password_webhook_url || settings.teams_webhook_url : settings.teams_webhook_url;
+  if (!url) return 'teams: skipped';
+  const { data: school } = await db.from('schools').select('name').eq('id', schoolId).single();
+  const card = passwordHelp ? await passwordHelpCard(school?.name, payload) : await absenceCard(school?.name, settings, payload);
+  if (!card) return 'teams: record not found';
 
   let status = 'ok';
   try {
-    await postToTeams(settings.teams_webhook_url, card);
+    await postToTeams(url, card);
   } catch (err) {
     status = `error: ${(err as Error).message}`.slice(0, 300);
   }
-  await db
-    .from('school_settings')
-    .update({ teams_last_status: status, teams_last_at: new Date().toISOString() })
-    .eq('school_id', schoolId);
+  if (url === settings.teams_webhook_url) {
+    await db
+      .from('school_settings')
+      .update({ teams_last_status: status, teams_last_at: new Date().toISOString() })
+      .eq('school_id', schoolId);
+  }
   return `teams: ${status}`;
 }
 

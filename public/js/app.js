@@ -3,7 +3,7 @@ import { html, raw, toast } from './lib.js';
 import { icon } from './icons.js';
 import { initPwa, syncPush } from './pwa.js';
 import { go, homePath, refreshUnread, setUnread, state } from './store.js';
-import { changePasswordView, loginView } from './views/auth.js';
+import { adoptSchoolFromUrl, changePasswordView, loginView } from './views/auth.js';
 import { absenceView, homeView, reportView } from './views/absences.js';
 import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
@@ -72,7 +72,7 @@ function renderShell(route, path) {
       <div class="shell">
         <nav class="tabbar" aria-label="Navegación principal">
           <div class="side-brand">
-            <img src="icons/icon.svg" alt="" width="36" height="36">
+            <img src="icons/icon-192.png" alt="" width="36" height="36">
             <div><strong>Leap Attendance Hub</strong><small>${school.name}</small></div>
           </div>
           ${navItems(user.role).map(
@@ -85,7 +85,7 @@ function renderShell(route, path) {
         <div class="main-col">
           <header class="topbar">
             <button class="icon-btn" data-back aria-label="Volver">${icon('back', 22)}</button>
-            <img class="topbar-logo" src="icons/icon.svg" alt="" width="30" height="30">
+            <img class="topbar-logo" src="icons/icon-192.png" alt="" width="30" height="30">
             <div class="topbar-title"><h1 id="page-title"></h1><small>${school.name}</small></div>
             <a class="icon-btn" href="#/notifications" aria-label="Avisos">${icon('bell', 22)}<b class="dot" data-unread hidden></b></a>
           </header>
@@ -187,6 +187,7 @@ function sessionEnded() {
 
 async function boot() {
   initPwa();
+  adoptSchoolFromUrl();
   try {
     state.me = await getMe();
   } catch (err) {

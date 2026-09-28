@@ -5,6 +5,7 @@ import { icon } from '../icons.js';
 import { logout, state } from '../store.js';
 import { bindPasswordToggles } from './auth.js';
 import { empty } from './common.js';
+import { iconTool } from './icon-tool.js';
 
 function randomPassword() {
   const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -27,7 +28,7 @@ export async function platformView(ctx) {
   el.innerHTML = String(html`
     <div class="platform">
       <header class="platform-head">
-        <div class="row"><img src="icons/icon.svg" alt="" width="36" height="36">
+        <div class="row"><img src="icons/icon-192.png" alt="" width="36" height="36">
           <div><h1>Panel de plataforma</h1><small class="muted">Leap Attendance Hub · ${schools.length} escuela(s)</small></div></div>
         <button class="btn btn-ghost btn-sm" data-logout>${icon('logout', 16)} Salir</button>
       </header>
@@ -65,9 +66,12 @@ export async function platformView(ctx) {
             )
           : html`<div class="card">${empty('school', 'Aún no hay escuelas', 'Crea la primera con el formulario de arriba.')}</div>`}
       </section>
+
+      <div data-icon-slot></div>
     </div>`);
 
   bindPasswordToggles(el);
+  iconTool($('[data-icon-slot]', el));
   $('[data-logout]', el).addEventListener('click', logout);
 
   const form = $('[data-create]', el);
@@ -76,7 +80,7 @@ export async function platformView(ctx) {
     busy(form.querySelector('[type=submit]'), async () => {
       const v = formValues(form);
       const { school } = await call('create_school', v);
-      const text = `Leap Attendance Hub\nEnlace: ${APP_URL}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
+      const text = `Leap Attendance Hub\nEnlace: ${APP_URL}?escuela=${encodeURIComponent(school.code)}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
       const pending = dialog({
         title: 'Escuela creada ✅',
         body: html`<div class="credentials">
@@ -124,7 +128,7 @@ function platformLogin({ el, reload }) {
   el.innerHTML = String(html`
     <div class="auth">
       <div class="auth-brand">
-        <img src="icons/icon.svg" alt="" class="auth-logo" width="64" height="64">
+        <img src="icons/icon-192.png" alt="" class="auth-logo" width="64" height="64">
         <h1>Panel de plataforma</h1>
         <p>Crea y administra las escuelas que usan Leap Attendance Hub.</p>
       </div>

@@ -54,7 +54,10 @@ export function pushSupported() {
 }
 
 async function registration() {
-  return swRegistration || navigator.serviceWorker.ready;
+  if (swRegistration) return swRegistration;
+  // `ready` never settles when the service worker could not be registered (e.g. private browsing),
+  // which would otherwise freeze sign-out.
+  return Promise.race([navigator.serviceWorker.ready, new Promise((resolve) => setTimeout(() => resolve(null), 3000))]);
 }
 
 function urlBase64ToUint8Array(base64) {
@@ -67,7 +70,7 @@ function urlBase64ToUint8Array(base64) {
 export async function currentPushSubscription() {
   if (!pushSupported()) return null;
   const reg = await registration();
-  return reg.pushManager.getSubscription();
+  return reg ? reg.pushManager.getSubscription() : null;
 }
 
 export async function enablePush() {
@@ -83,6 +86,7 @@ export async function enablePush() {
     throw new Error('Permiso denegado. Actívalo en la configuración del navegador para este sitio.');
   }
   const reg = await registration();
+  if (!reg) throw new Error('No se pudo activar el servicio de notificaciones. Recarga la app e inténtalo de nuevo.');
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
     sub = await reg.pushManager.subscribe({

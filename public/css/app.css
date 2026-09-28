@@ -1738,6 +1738,34 @@ select {
   text-align: center;
 }
 
+.school-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 6px 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.school-chip > .icon {
+  color: var(--primary-text);
+}
+
+.school-chip small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.school-chip strong {
+  display: block;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- Settings, profile, platform ----------------------------------------- */
 
 .code-box {
@@ -1953,4 +1981,62 @@ body.bare #toasts {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---- Icon tool (platform panel) ------------------------------------------ */
+
+.icon-previews {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.icon-previews figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.icon-previews img {
+  width: 88px;
+  height: 88px;
+  border-radius: 12px;
+  background: repeating-conic-gradient(var(--surface-2) 0% 25%, var(--surface) 0% 50%) 50% / 16px 16px;
+  box-shadow: var(--shadow);
+}
+
+.icon-previews img.squircle {
+  border-radius: 22%;
+}
+
+.icon-previews img.circle {
+  border-radius: 50%;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14.5px;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+input[type='color'] {
+  height: 46px;
+  padding: 4px;
+  cursor: pointer;
 }

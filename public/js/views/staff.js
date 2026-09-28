@@ -45,7 +45,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
       </section>
 
       <div class="button-row">
-        <a class="btn btn-secondary" href="#/report">${icon('plus', 18)} Registrar ausencia de un empleado</a>
+        <a class="btn btn-secondary" href="#/report">${icon('plus', 18)} ${me.role === 'admin' ? 'Registrar ausencia de un empleado' : 'Reportar mi ausencia'}</a>
         <a class="btn btn-ghost" href="#/absences">${icon('list', 18)} Ver todas</a>
       </div>`);
 
