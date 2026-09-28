@@ -1,10 +1,10 @@
-import { api } from './lib.js';
+import { signOut, unreadCount } from './backend.js';
 import { unlinkPush } from './pwa.js';
 
 export const state = {
   me: null, // { user, school }
-  platform: false,
-  config: null,
+  platformPassword: null,
+  nextPath: null,
   unread: 0,
 };
 
@@ -15,9 +15,8 @@ export function go(path, { replace = false } = {}) {
 }
 
 export function homePath() {
-  if (state.platform) return '/platform';
   const role = state.me?.user?.role;
-  if (!role) return '/login';
+  if (!role) return state.platformPassword ? '/platform' : '/login';
   return role === 'teacher' ? '/home' : '/dashboard';
 }
 
@@ -35,8 +34,7 @@ export function setUnread(n) {
 export async function refreshUnread() {
   if (!state.me || state.me.user.must_change_password) return;
   try {
-    const { unread } = await api('/notifications/unread-count');
-    setUnread(unread);
+    setUnread(await unreadCount());
   } catch {
     /* ignore */
   }
@@ -44,9 +42,10 @@ export async function refreshUnread() {
 
 export async function logout() {
   await unlinkPush();
-  await api('/auth/logout', { method: 'POST' }).catch(() => {});
+  // Clear state first so the SIGNED_OUT event isn't treated as an expired session.
   state.me = null;
-  state.platform = false;
+  state.platformPassword = null;
+  await signOut();
   setUnread(0);
   document.getElementById('toasts')?.replaceChildren();
   go('/login', { replace: true });

@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://pdyrlbfuoqafrxehbljx.supabase.co; connect-src 'self' https://pdyrlbfuoqafrxehbljx.supabase.co wss://pdyrlbfuoqafrxehbljx.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta name="referrer" content="same-origin">
     <meta name="description" content="Leap Attendance Hub: reporta ausencias del personal escolar y mantén informada a la dirección.">
     <meta name="theme-color" content="#1e4fd8">
     <meta name="mobile-web-app-capable" content="yes">
@@ -10,13 +12,14 @@
     <meta name="apple-mobile-web-app-title" content="Leap Hub">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="format-detection" content="telephone=no">
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="/css/app.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="css/app.css">
     <title>Leap Attendance Hub</title>
-    <script type="module" src="/js/app.js"></script>
+    <script src="vendor/supabase.js" defer></script>
+    <script type="module" src="js/app.js"></script>
   </head>
   <body>
     <div id="app">

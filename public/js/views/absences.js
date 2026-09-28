@@ -3,7 +3,6 @@ import {
   CATEGORIES,
   ROLE_LABELS,
   addDays,
-  api,
   busy,
   dialog,
   fileSize,
@@ -19,17 +18,30 @@ import {
   todayStr,
   weekdays,
 } from '../lib.js';
+import {
+  addAttachments,
+  addComment,
+  cancelAbsence,
+  checkFile,
+  createAbsence,
+  deleteAttachment,
+  getAbsence,
+  listEmployees,
+  myAbsences,
+  receiveAbsence,
+  setCoverage,
+} from '../backend.js';
+import { MAX_FILES, MAX_UPLOAD_MB as maxMb } from '../config.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { absenceList, avatar, empty, installHint, statusBadge } from './common.js';
 
-const MAX_FILES = 5;
 const ACCEPT = 'image/*,application/pdf,.pdf,.heic,.heif,.doc,.docx';
 
 // ---- Mis ausencias --------------------------------------------------------
 
 export async function homeView({ el }) {
-  const { absences } = await api('/absences?scope=mine');
+  const absences = await myAbsences(state.me.user.id);
   const today = todayStr();
   const current = absences
     .filter((a) => a.status !== 'cancelled' && a.end_date >= today)
@@ -64,10 +76,9 @@ export async function homeView({ el }) {
 export async function reportView({ el, query }) {
   const me = state.me.user;
   const staff = isStaff(me);
-  const employees = staff ? (await api('/employees')).employees : [];
+  const employees = staff ? (await listEmployees()).filter((e) => e.active) : [];
   const today = todayStr();
   const preselect = query.get('user_id') || (me.role === 'admin' ? '' : String(me.id));
-  const maxMb = state.config?.max_upload_mb || 10;
   const files = [];
 
   el.innerHTML = String(html`
@@ -214,8 +225,9 @@ export async function reportView({ el, query }) {
         toast(`Máximo ${MAX_FILES} archivos.`, 'error');
         break;
       }
-      if (f.size > maxMb * 1024 * 1024) {
-        toast(`“${f.name}” pesa más de ${maxMb} MB.`, 'error');
+      const problem = checkFile(f);
+      if (problem) {
+        toast(problem, 'error');
         continue;
       }
       files.push(f);
@@ -231,18 +243,10 @@ export async function reportView({ el, query }) {
       if (staff && !v.user_id) throw new Error('Selecciona el empleado que va a faltar.');
       if (!v.start_date) throw new Error('Selecciona la fecha.');
       if (v.partial === '1' && !v.start_time) throw new Error('Indica desde qué hora vas a faltar.');
-      const fd = new FormData();
-      for (const [k, val] of Object.entries(v)) {
-        if (val === '' || val === null || val === undefined) continue;
-        if (v.partial !== '1' && (k === 'start_time' || k === 'end_time')) continue;
-        if (!multi && k === 'end_date') continue;
-        fd.append(k, val);
-      }
-      fd.append('today', today);
-      for (const f of files) fd.append('files', f, f.name);
-      const { absence } = await api('/absences', { method: 'POST', form: fd });
+      if (!multi) v.end_date = null;
+      const id = await createAbsence(state.me, v, files);
       toast('Ausencia enviada. La dirección fue notificada.', 'ok');
-      go(`/absence/${absence.id}`, { replace: true });
+      go(`/absence/${id}`, { replace: true });
     });
   });
 }
@@ -255,9 +259,8 @@ export async function absenceView({ el, params }) {
   const id = params[0];
   const me = state.me.user;
   const staff = isStaff(me);
-  let data = await api(`/absences/${id}`);
-  const employees = staff ? (await api('/employees').catch(() => ({ employees: [] }))).employees : [];
-  const maxMb = state.config?.max_upload_mb || 10;
+  let data = await getAbsence(id);
+  const employees = staff ? await listEmployees().catch(() => []) : [];
 
   const render = () => {
     const { absence: a, attachments, comments } = data;
@@ -321,9 +324,9 @@ export async function absenceView({ el, params }) {
           ${attachments.length
             ? html`<div class="attachments">${attachments.map(
                 (f) => html`<div class="att">
-                  <a href="/api/attachments/${f.id}" target="_blank" rel="noopener" class="att-link">
-                    ${IMAGE_MIME.includes(f.mime)
-                      ? html`<img src="/api/attachments/${f.id}" alt="" loading="lazy">`
+                  <a href="${f.url || '#'}" target="_blank" rel="noopener" class="att-link">
+                    ${IMAGE_MIME.includes(f.mime) && f.url
+                      ? html`<img src="${f.url}" alt="" loading="lazy">`
                       : html`<span class="att-icon">${icon('file', 28)}</span>`}
                     <span class="att-name">${f.original_name}</span>
                     <small>${fileSize(f.size)} · ${f.uploaded_by_name || ''}</small>
@@ -368,7 +371,7 @@ export async function absenceView({ el, params }) {
   };
 
   const reload = async () => {
-    data = await api(`/absences/${id}`);
+    data = await getAbsence(id);
     render();
   };
 
@@ -383,7 +386,7 @@ export async function absenceView({ el, params }) {
       });
       if (message === null) return;
       await busy(btn, async () => {
-        await api(`/absences/${id}/receive`, { method: 'POST', body: { comment: message || null } });
+        await receiveAbsence(id, message);
         toast('Ausencia marcada como recibida', 'ok');
         await reload();
       });
@@ -393,7 +396,7 @@ export async function absenceView({ el, params }) {
     coverage?.addEventListener('submit', (e) => {
       e.preventDefault();
       busy(coverage.querySelector('button'), async () => {
-        await api(`/absences/${id}`, { method: 'PATCH', body: { substitute: coverage.substitute.value } });
+        await setCoverage(id, coverage.substitute.value);
         toast('Cobertura guardada', 'ok');
         await reload();
       });
@@ -405,7 +408,7 @@ export async function absenceView({ el, params }) {
       const body = comment.body.value.trim();
       if (!body) return;
       busy(comment.querySelector('button'), async () => {
-        await api(`/absences/${id}/comments`, { method: 'POST', body: { body } });
+        await addComment(id, body);
         await reload();
         $('.thread .bubble:last-child', el)?.scrollIntoView({ block: 'center' });
       });
@@ -415,14 +418,12 @@ export async function absenceView({ el, params }) {
       const input = e.currentTarget;
       const chosen = [...input.files];
       input.value = '';
-      const tooBig = chosen.find((f) => f.size > maxMb * 1024 * 1024);
-      if (tooBig) return toast(`“${tooBig.name}” pesa más de ${maxMb} MB.`, 'error');
+      const problem = chosen.map(checkFile).find(Boolean);
+      if (problem) return toast(problem, 'error');
       if (!chosen.length) return;
-      const fd = new FormData();
-      for (const f of chosen.slice(0, MAX_FILES)) fd.append('files', f, f.name);
       const label = input.closest('label');
       label.classList.add('is-busy');
-      api(`/absences/${id}/attachments`, { method: 'POST', form: fd })
+      addAttachments(state.me, Number(id), chosen.slice(0, MAX_FILES))
         .then(async () => {
           toast('Documento añadido', 'ok');
           await reload();
@@ -438,7 +439,7 @@ export async function absenceView({ el, params }) {
         const ok = await dialog({ title: '¿Eliminar este archivo?', confirmText: 'Eliminar', danger: true });
         if (!ok) return;
         await busy(btn, async () => {
-          await api(`/attachments/${btn.dataset.delAtt}`, { method: 'DELETE' });
+          await deleteAttachment(Number(btn.dataset.delAtt));
           await reload();
         });
       });
@@ -455,7 +456,7 @@ export async function absenceView({ el, params }) {
       });
       if (!ok) return;
       await busy(btn, async () => {
-        await api(`/absences/${id}/cancel`, { method: 'POST' });
+        await cancelAbsence(id);
         toast('Ausencia cancelada', 'ok');
         await reload();
       });

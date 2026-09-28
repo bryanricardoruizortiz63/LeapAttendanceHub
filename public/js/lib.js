@@ -35,41 +35,6 @@ export function html(strings, ...values) {
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-// ---- API --------------------------------------------------------------------
-
-export class ApiError extends Error {
-  constructor(message, status) {
-    super(message);
-    this.status = status;
-  }
-}
-
-export async function api(path, { method = 'GET', body, form } = {}) {
-  const opts = { method, headers: { Accept: 'application/json' }, credentials: 'same-origin' };
-  if (form) opts.body = form;
-  else if (body !== undefined) {
-    opts.headers['Content-Type'] = 'application/json';
-    opts.body = JSON.stringify(body);
-  }
-  let res;
-  try {
-    res = await fetch(`/api${path}`, opts);
-  } catch {
-    throw new ApiError('Sin conexión. Revisa tu internet e inténtalo de nuevo.', 0);
-  }
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    /* empty body */
-  }
-  if (!res.ok) {
-    if (res.status === 401) window.dispatchEvent(new CustomEvent('lah:unauthorized'));
-    throw new ApiError(data?.error || 'Ocurrió un error. Inténtalo de nuevo.', res.status);
-  }
-  return data;
-}
-
 // ---- Labels -----------------------------------------------------------------
 
 export const CATEGORIES = {

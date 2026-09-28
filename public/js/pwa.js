@@ -1,4 +1,5 @@
-import { api } from './lib.js';
+import { deletePushSubscription, savePushSubscription } from './backend.js';
+import { VAPID_PUBLIC_KEY } from './config.js';
 
 let deferredInstall = null;
 let swRegistration = null;
@@ -14,14 +15,14 @@ export function initPwa() {
   });
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register('./sw.js')
       .then((reg) => {
         swRegistration = reg;
       })
       .catch((err) => console.warn('No se pudo registrar el service worker', err));
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'navigate' && e.data.url) {
-        const hash = new URL(e.data.url, location.origin).hash;
+        const hash = new URL(e.data.url, location.href).hash;
         if (hash) location.hash = hash;
       } else if (e.data?.type === 'push') {
         window.dispatchEvent(new CustomEvent('lah:push'));
@@ -84,20 +85,19 @@ export async function enablePush() {
   const reg = await registration();
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
-    const { public_key } = await api('/config');
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(public_key),
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
   }
-  await api('/push/subscribe', { method: 'POST', body: { subscription: sub.toJSON() } });
+  await savePushSubscription(sub);
   return sub;
 }
 
 export async function disablePush() {
   const sub = await currentPushSubscription();
   if (!sub) return;
-  await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } }).catch(() => {});
+  await deletePushSubscription(sub.endpoint).catch(() => {});
   await sub.unsubscribe();
 }
 
@@ -106,7 +106,7 @@ export async function syncPush() {
   try {
     if (!pushSupported() || Notification.permission !== 'granted') return;
     const sub = await currentPushSubscription();
-    if (sub) await api('/push/subscribe', { method: 'POST', body: { subscription: sub.toJSON() } });
+    if (sub) await savePushSubscription(sub);
   } catch {
     /* best effort */
   }
@@ -116,7 +116,7 @@ export async function syncPush() {
 export async function unlinkPush() {
   try {
     const sub = await currentPushSubscription();
-    if (sub) await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } });
+    if (sub) await deletePushSubscription(sub.endpoint);
   } catch {
     /* best effort */
   }

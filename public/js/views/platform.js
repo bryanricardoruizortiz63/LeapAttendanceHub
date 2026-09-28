@@ -1,4 +1,5 @@
-import { $, api, busy, copyText, dialog, fmtDateTime, formValues, html, toast } from '../lib.js';
+import { platform } from '../backend.js';
+import { $, busy, copyText, dialog, fmtDateTime, formValues, html, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { logout, state } from '../store.js';
 import { bindPasswordToggles } from './auth.js';
@@ -18,13 +19,14 @@ export async function platformView(ctx) {
       <a class="btn btn-secondary" href="#/login">Volver</a></div></div>`);
     return;
   }
-  if (!state.platform) return platformLogin(ctx);
+  if (!state.platformPassword) return platformLogin(ctx);
 
-  const { schools } = await api('/platform/schools');
+  const call = (action, payload) => platform(state.platformPassword, action, payload);
+  const { schools } = await call('list_schools');
   el.innerHTML = String(html`
     <div class="platform">
       <header class="platform-head">
-        <div class="row"><img src="/icons/icon.svg" alt="" width="36" height="36">
+        <div class="row"><img src="icons/icon.svg" alt="" width="36" height="36">
           <div><h1>Panel de plataforma</h1><small class="muted">Leap Attendance Hub · ${schools.length} escuela(s)</small></div></div>
         <button class="btn btn-ghost btn-sm" data-logout>${icon('logout', 16)} Salir</button>
       </header>
@@ -72,7 +74,7 @@ export async function platformView(ctx) {
     e.preventDefault();
     busy(form.querySelector('[type=submit]'), async () => {
       const v = formValues(form);
-      const { school } = await api('/platform/schools', { method: 'POST', body: v });
+      const { school } = await call('create_school', v);
       const text = `Leap Attendance Hub\nEnlace: ${location.origin}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
       const pending = dialog({
         title: 'Escuela creada ✅',
@@ -101,7 +103,7 @@ export async function platformView(ctx) {
       });
       if (!ok) return;
       await busy(btn, async () => {
-        await api(`/platform/schools/${btn.dataset.reset}/admin-password`, { method: 'POST', body: { password } });
+        await call('reset_admin_password', { school_id: btn.dataset.reset, password });
         await copyText(password);
         toast('Contraseña cambiada y copiada', 'ok');
       });
@@ -110,7 +112,7 @@ export async function platformView(ctx) {
   for (const btn of el.querySelectorAll('[data-toggle]')) {
     btn.addEventListener('click', () =>
       busy(btn, async () => {
-        await api(`/platform/schools/${btn.dataset.toggle}`, { method: 'PATCH', body: { active: btn.dataset.active !== '1' } });
+        await call('set_school_active', { school_id: btn.dataset.toggle, active: btn.dataset.active !== 'true' });
         ctx.reload();
       }),
     );
@@ -121,7 +123,7 @@ function platformLogin({ el, reload }) {
   el.innerHTML = String(html`
     <div class="auth">
       <div class="auth-brand">
-        <img src="/icons/icon.svg" alt="" class="auth-logo" width="64" height="64">
+        <img src="icons/icon.svg" alt="" class="auth-logo" width="64" height="64">
         <h1>Panel de plataforma</h1>
         <p>Crea y administra las escuelas que usan Leap Attendance Hub.</p>
       </div>
@@ -137,8 +139,9 @@ function platformLogin({ el, reload }) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     busy(form.querySelector('[type=submit]'), async () => {
-      await api('/auth/platform-login', { method: 'POST', body: formValues(form) });
-      state.platform = true;
+      const { password } = formValues(form);
+      await platform(password, 'list_schools');
+      state.platformPassword = password;
       reload();
     });
   });

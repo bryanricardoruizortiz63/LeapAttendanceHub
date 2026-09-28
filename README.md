@@ -1,6 +1,17 @@
 # Leap Attendance Hub
 
-Aplicación web móvil (PWA) para que el personal de una escuela **reporte sus ausencias** y la **dirección y secretaría** las gestionen. Se instala desde el navegador con “Añadir a pantalla de inicio”, así que no necesita App Store ni Google Play.
+Aplicación web móvil (PWA) para que el personal de una escuela **reporte sus ausencias** y la **dirección y secretaría** las gestionen. Se instala desde el navegador con “Añadir a pantalla de inicio”, sin App Store ni Google Play.
+
+**App:** https://bryanricardoruizortiz63.github.io/LeapAttendanceHub/
+
+Funciona con servicios gratuitos:
+
+| Parte | Dónde vive | Costo |
+|---|---|---|
+| Pantallas (HTML/CSS/JS) | **GitHub Pages** (carpeta `public/`; el `index.html` de la raíz redirige a ella) | Gratis |
+| Base de datos, inicios de sesión y archivos de excusas | **Supabase** (proyecto `leap-attendance-hub`) | Plan gratis |
+| Avisos a Teams y notificaciones push | **Supabase Edge Functions** (`supabase/functions/`) | Plan gratis |
+| “Mantener activo” y comprobaciones | **GitHub Actions** (`.github/workflows/`) | Gratis |
 
 ## Qué hace
 
@@ -11,29 +22,25 @@ Aplicación web móvil (PWA) para que el personal de una escuela **reporte sus a
 - **Suben su excusa**: foto desde la cámara, PDF o Word (hasta 5 archivos, 10 MB c/u). También pueden añadirla después.
 - Dejan instrucciones para quien cubra su clase.
 - Ven si la dirección **recibió** su ausencia, quién los cubre y los **comentarios** que les dejaron.
-- Pueden cancelar una ausencia.
 
 **Dirección y secretaría**
-- **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en los próximos 14 días.
-- **Marcar como recibida** (con un mensaje opcional al empleado), registrar **cobertura/arreglos** y conversar por comentarios.
+- **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
+- **Marcar como recibida** (con mensaje opcional al empleado), registrar **cobertura/arreglos** y comentar.
 - Registrar una ausencia a nombre de un empleado (por ejemplo, si llamó por teléfono).
-- Lista de todas las ausencias con búsqueda y filtros por fecha y estado.
+- Lista de todas las ausencias con búsqueda y filtros.
 
 **Administración (directora)**
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
 - **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles.
-- **Escuela y Teams**: nombre, código, webhook de Microsoft Teams y contraseña de administración.
-- **Datos y reportes**: estadísticas por empleado y por tipo, exportación a Excel (CSV) y respaldo completo (JSON) con la información de *esa* escuela.
+- **Escuela y Teams**: nombre, webhook de Microsoft Teams y contraseña de administración.
+- **Datos y reportes**: estadísticas, exportación a Excel (CSV) y respaldo completo (JSON) de *esa* escuela.
 
 **Notificaciones**
 - **Microsoft Teams**: cada ausencia nueva (o cancelada) se publica en el canal que elija la escuela.
 - **En la app**: campana con avisos y contador.
-- **Push al teléfono**: el personal activa las notificaciones en *Perfil*. Funcionan en Android, en computadoras y en iPhone (iOS 16.4+ con la app añadida a la pantalla de inicio).
+- **Push al teléfono**: se activan en *Perfil*. Funcionan en Android, computadoras e iPhone (iOS 16.4+ con la app añadida a la pantalla de inicio).
 
-**Varias escuelas**
-Todo está separado por escuela: cada una tiene su propio código, personal, ausencias, archivos y configuración. Desde el **Panel de plataforma** (`/#/platform`) puedes crear escuelas nuevas cuando abras el servicio a otras.
-
-### Roles
+**Varias escuelas:** cada una tiene su código, su personal, sus ausencias y sus archivos, separados por reglas de seguridad en la base de datos. Desde el **Panel de plataforma** (`#/platform`) se crean escuelas nuevas.
 
 | Rol | Reporta sus ausencias | Ve y confirma las de todos | Personal, Teams y datos |
 |---|:-:|:-:|:-:|
@@ -44,130 +51,86 @@ Todo está separado por escuela: cada una tiene su propio código, personal, aus
 
 ---
 
-## Probarlo en tu computadora
+## Primeros pasos
 
-Necesitas [Node.js](https://nodejs.org) 20 o superior.
+1. **GitHub Pages (una sola vez):** *Settings → Pages → Build and deployment → Source:* **Deploy from a branch**, rama **`main`**, carpeta **`/ (root)`**. Cada cambio en `main` se publica solo en uno o dos minutos.
+2. **Crear tu escuela:** abre la app, toca **Panel de plataforma** (abajo en la pantalla de inicio de sesión), entra con la contraseña de plataforma y crea la escuela. Obtendrás el **código de escuela** y la **contraseña de administración**.
+3. **Añadir al personal:** entra en la pestaña **Administración** con el código y esa contraseña → **Personal → Nuevo**. La app muestra los datos de acceso de cada empleado para copiarlos o compartirlos.
 
-```bash
-npm install
-npm run seed:demo      # crea la escuela de prueba DEMO
-npm start              # abre http://localhost:3000
-```
+### Conectar Microsoft Teams
 
-Datos de la escuela de prueba (código **DEMO**):
-
-| Quién | Pestaña | Usuario | Contraseña |
-|---|---|---|---|
-| Administración | Administración | — | `admin1234` |
-| Directora | Personal | `directora` | `demo1234` |
-| Secretaria | Personal | `secretaria` | `demo1234` |
-| Maestra | Personal | `maestra` | `demo1234` |
-
-## Crear tu escuela
-
-**Opción A, desde la terminal:**
-
-```bash
-npm run create-school -- --name "Leap Academy" --code LEAP
-# Si no pasas --code se genera uno (ej. LA-4821). Si no pasas --password se genera una segura.
-```
-
-**Opción B, desde el Panel de plataforma:** define `PLATFORM_ADMIN_PASSWORD` en el servidor, entra en `https://tu-dominio/#/platform` y crea la escuela.
-
-En ambos casos obtienes el **código de escuela** y la **contraseña de administración**. La directora entra en la pestaña **Administración**, va a **Personal → Nuevo** y crea a cada empleado. La app le muestra al instante los datos de acceso (código, usuario y contraseña temporal) para copiarlos o compartirlos por WhatsApp o correo.
-
-## Conectar Microsoft Teams
-
-1. En Teams, ve al canal donde quieres recibir los avisos (por ejemplo, “Dirección”).
+1. En Teams, ve al canal donde quieres los avisos (por ejemplo, “Dirección”).
 2. Toca **⋯** junto al canal → **Workflows** (Flujos de trabajo).
-3. Elige la plantilla **“Publicar en un canal cuando se reciba una solicitud de webhook”** (*Post to a channel when a webhook request is received*).
+3. Elige **“Publicar en un canal cuando se reciba una solicitud de webhook”** (*Post to a channel when a webhook request is received*).
 4. Confirma el equipo y el canal, y copia la URL que aparece al final.
-5. En la app: **Más → Escuela y Teams**, pega la URL, toca **Guardar** y luego **Enviar prueba**.
+5. En la app: **Más → Escuela y Teams**, pega la URL, **Guardar** y **Enviar prueba**.
 
-También funcionan las URLs antiguas de “Incoming Webhook” (`*.webhook.office.com`). Puedes decidir si el mensaje incluye la causa de la ausencia (por privacidad, se puede apagar).
+### Instalar en los teléfonos
 
-## Instalar en los teléfonos
+- **iPhone (Safari):** abre la app → **Compartir** → **Añadir a pantalla de inicio**.
+- **Android (Chrome):** abre la app → **Instalar app** (o menú ⋮ → *Instalar app*).
 
-- **iPhone (Safari):** abre la dirección de la app → botón **Compartir** → **Añadir a pantalla de inicio**.
-- **Android (Chrome):** abre la dirección → aparece **Instalar app** (o menú ⋮ → *Instalar app / Añadir a pantalla de inicio*).
-
-Después, en **Perfil → Activar notificaciones** para recibir avisos push. La app muestra estas instrucciones a quien aún no la ha instalado.
-
-> Para poder instalarla y usar notificaciones push, la app **tiene que estar publicada con HTTPS**.
+Después, en **Perfil → Activar notificaciones**.
 
 ---
 
-## Publicarla en internet
+## Cómo está hecho
 
-La app es un solo servidor Node.js con una base de datos SQLite. Solo necesitas un lugar que ejecute Node o Docker y un **disco persistente** para la carpeta de datos (base de datos + archivos subidos).
-
-### Con Docker (VPS, Railway, Fly.io, Render…)
-
-```bash
-docker build -t leap-attendance-hub .
-docker run -d -p 3000:3000 \
-  -v leap-data:/data \
-  -e PUBLIC_URL=https://asistencia.tuescuela.org \
-  -e PLATFORM_ADMIN_PASSWORD='una-contraseña-larga' \
-  -e VAPID_SUBJECT=mailto:tu-correo@tuescuela.org \
-  --name leap leap-attendance-hub
-
-# Crear la primera escuela dentro del contenedor:
-docker exec -it leap node scripts/create-school.js --name "Leap Academy" --code LEAP
+```
+public/                   La app (sin paso de compilación)
+  js/config.js            URL de Supabase, clave pública y clave VAPID pública
+  js/backend.js           Todo el acceso a datos (Auth, base de datos, Storage, funciones)
+  js/views/               Pantallas
+  sw.js                   Service worker (offline + notificaciones push)
+  vendor/supabase.js      Cliente oficial de Supabase (supabase-js, MIT)
+supabase/
+  migrations/             Tablas, reglas de seguridad (RLS) y funciones SQL
+  functions/notify/       Envía push y mensajes de Teams (lo llama la base de datos)
+  functions/admin/        Acciones de la dirección que requieren permisos de Auth
+  functions/platform/     Crear y administrar escuelas
+  functions/_shared/      Código común (Web Push con WebCrypto, tarjetas de Teams)
+index.html                Redirige de la raíz del sitio a public/ (conservando #/rutas)
+.github/workflows/        “Mantener activo” y comprobaciones
 ```
 
-- **Railway / Render / Fly.io:** conecta este repositorio, añade un **volumen persistente** montado en `/data` y define las variables de entorno. Estas plataformas ya dan HTTPS.
-- **VPS propio:** usa Docker o `npm ci --omit=dev && npm start` detrás de Nginx/Caddy con HTTPS. Si usas Nginx, reenvía el host (`proxy_set_header Host $host;` y `X-Forwarded-Proto`).
+**Inicio de sesión:** Supabase Auth usa correo, así que cada cuenta recibe un correo interno calculado a partir de *código de escuela + usuario* (por ejemplo `u3f9…@users.leap-hub.local`). Nadie tiene que saberlo ni se envían correos.
 
-⚠️ Sin disco persistente, los datos se borran cada vez que se reinicia el servidor.
+**Seguridad:**
+- Row Level Security en todas las tablas: cada persona solo ve datos de su escuela; los maestros solo sus propias ausencias.
+- Todos los cambios pasan por funciones SQL que validan permisos (`create_absence`, `receive_absence`, …).
+- Las excusas se guardan en un bucket privado y se ven con enlaces temporales; cada quien solo sube a su propia carpeta.
+- El webhook de Teams solo acepta dominios de Microsoft.
+- Las claves privadas (VAPID, contraseña de plataforma) están en la tabla `app_settings`, solo accesible para el servidor.
 
-### Variables de entorno
+**Avisos:** al crear una notificación, un *trigger* la pone en la tabla `outbox` y `pg_net` llama a la función `notify`, que envía el push y/o el mensaje de Teams. Cada aviso se procesa una sola vez.
 
-| Variable | Para qué | Por defecto |
-|---|---|---|
-| `PORT` | Puerto HTTP | `3000` |
-| `DATA_DIR` | Carpeta de la base de datos y archivos | `./data` |
-| `PUBLIC_URL` | URL pública, usada en los enlaces de Teams | la del navegador |
-| `PLATFORM_ADMIN_PASSWORD` | Activa el Panel de plataforma (`/#/platform`) | vacío = desactivado |
-| `VAPID_SUBJECT` | Correo de contacto para notificaciones push | `mailto:soporte@leapattendancehub.app` |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Claves push fijas (opcional) | se generan y guardan solas |
-| `MAX_UPLOAD_MB` | Tamaño máximo por archivo | `10` |
-| `SESSION_DAYS` | Días que dura una sesión abierta | `30` |
-| `TRUST_PROXY` | Proxies de confianza (Express `trust proxy`) | redes privadas |
+### Plan gratis de Supabase
 
-### Respaldos
+- Pausa el proyecto tras **una semana sin uso**. El workflow “Mantener Supabase activo” lo visita a diario. Si aun así se pausa (por ejemplo, si GitHub desactiva las tareas programadas de un repositorio sin cambios en 60 días), se reactiva con un botón en el panel de Supabase; los datos no se pierden.
+- Límites actuales aproximados: 500 MB de base de datos y 1 GB de archivos, suficiente para varias escuelas.
 
-Todo vive en `DATA_DIR`: `leap.db` (base de datos) y `uploads/` (excusas). Haz copia de esa carpeta periódicamente. Cada directora también puede descargar el respaldo JSON de su escuela en **Datos y reportes**.
+### Montar un proyecto de Supabase nuevo
 
----
+1. Aplica los archivos de `supabase/migrations/` en orden.
+2. Despliega las funciones de `supabase/functions/` (`notify`, `admin` y `platform`, con *verify JWT* desactivado: cada una valida por su cuenta).
+3. Guarda la configuración privada (con tus valores):
 
-## Seguridad
+```sql
+insert into public.app_settings (key, value) values
+  ('vapid', jsonb_build_object('publicKey', '<clave pública>', 'privateKey', '<clave privada>', 'subject', '<URL de la app>')),
+  ('notify_url', jsonb_build_object('url', 'https://<proyecto>.supabase.co/functions/v1/notify')),
+  ('app_url', jsonb_build_object('url', '<URL de la app>')),
+  ('platform_password', jsonb_build_object('hash', extensions.crypt('<contraseña de plataforma>', extensions.gen_salt('bf', 10))));
+```
 
-- Contraseñas guardadas con `scrypt`, sesiones en cookies `HttpOnly` + `SameSite` y límite de intentos de inicio de sesión.
-- Cada consulta se filtra por escuela: una escuela nunca ve datos de otra.
-- Los archivos se sirven solo al empleado dueño y a la dirección/secretaría de su escuela, con encabezados que impiden ejecutar contenido.
-- Al desactivar a un empleado o cambiar su rol se cierran sus sesiones de inmediato.
-- El webhook de Teams solo acepta dominios de Microsoft (`webhook.office.com`, `logic.azure.com`, `powerplatform.com`).
+4. Pon la URL, la clave pública y la clave VAPID pública en `public/js/config.js` y en `.github/workflows/keepalive.yml`.
+
+Las claves VAPID se pueden generar con `npx web-push generate-vapid-keys`.
 
 ## Desarrollo
 
 ```bash
-npm run dev    # reinicia el servidor al guardar cambios
-npm test       # pruebas de la API
-```
-
-```
-server.js            Arranque del servidor
-src/
-  app.js             Express: seguridad, rutas y archivos estáticos
-  db.js              Esquema SQLite y migraciones
-  auth.js            Contraseñas, sesiones y permisos
-  notifier.js        Avisos en la app, push y Teams
-  teams.js / push.js Integraciones
-  routes/            API: auth, absences, employees, school, data, notifications, platform
-public/              La PWA (HTML/CSS/JS sin paso de compilación)
-  js/views/          Pantallas
-  sw.js              Service worker (offline + notificaciones push)
-scripts/             create-school y seed-demo
-test/                Pruebas de integración
+npm run dev               # sirve public/ en http://localhost:3000 (usa el proyecto de Supabase real)
+npm run check:functions   # revisa los tipos de las Edge Functions (Deno)
+npm run test:functions    # pruebas del cifrado push y de las tarjetas de Teams
 ```

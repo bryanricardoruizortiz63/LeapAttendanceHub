@@ -1,4 +1,5 @@
-import { $, api, busy, formValues, html, toast } from '../lib.js';
+import { changePassword, signIn } from '../backend.js';
+import { $, busy, formValues, html, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { syncPush } from '../pwa.js';
 import { go, homePath, logout, state } from '../store.js';
@@ -48,7 +49,7 @@ export async function loginView({ el, query }) {
     el.innerHTML = String(html`
       <div class="auth">
         <div class="auth-brand">
-          <img src="/icons/icon.svg" alt="" class="auth-logo" width="72" height="72">
+          <img src="icons/icon.svg" alt="" class="auth-logo" width="72" height="72">
           <h1>Leap Attendance Hub</h1>
           <p>Reporta tus ausencias en segundos y mantén informada a la dirección.</p>
         </div>
@@ -80,7 +81,7 @@ export async function loginView({ el, query }) {
           </p>
         </div>
         <div data-install-slot></div>
-        ${state.config?.platform_enabled ? html`<p class="auth-foot"><a href="#/platform">Panel de plataforma</a></p>` : ''}
+        <p class="auth-foot"><a href="#/platform">Panel de plataforma</a></p>
       </div>`);
 
     for (const btn of el.querySelectorAll('[data-mode]')) {
@@ -101,14 +102,17 @@ export async function loginView({ el, query }) {
         if (!v.school_code || !v.password || (mode === 'staff' && !v.username)) {
           throw new Error('Completa todos los campos.');
         }
-        const path = mode === 'admin' ? '/auth/admin-login' : '/auth/login';
-        const me = await api(path, { method: 'POST', body: v });
+        // The school administration account is the user "admin" of that school.
+        const me = await signIn(v.school_code, mode === 'admin' ? 'admin' : v.username, v.password);
         remember('lah:school', me.school.code);
         if (mode === 'staff') remember('lah:username', v.username.trim());
         state.me = me;
-        state.platform = false;
+        state.platformPassword = null;
         syncPush();
-        go(me.user.must_change_password ? '/change-password' : homePath(), { replace: true });
+        if (me.user.must_change_password) return go('/change-password', { replace: true });
+        const next = state.nextPath;
+        state.nextPath = null;
+        go(next || homePath(), { replace: true });
       });
     });
   };
@@ -120,7 +124,7 @@ export async function changePasswordView({ el }) {
   el.innerHTML = String(html`
     <div class="auth">
       <div class="auth-brand">
-        <img src="/icons/icon.svg" alt="" class="auth-logo" width="64" height="64">
+        <img src="icons/icon.svg" alt="" class="auth-logo" width="64" height="64">
         <h1>${forced ? 'Crea tu contraseña' : 'Cambiar contraseña'}</h1>
         <p>${forced
           ? `Hola, ${state.me.user.full_name}. Por seguridad, cambia la contraseña temporal que te dieron.`
@@ -143,10 +147,12 @@ export async function changePasswordView({ el }) {
       const v = formValues(form);
       if (v.new_password.length < 8) throw new Error('La nueva contraseña debe tener al menos 8 caracteres.');
       if (v.new_password !== v.confirm) throw new Error('Las contraseñas no coinciden.');
-      await api('/me/password', { method: 'POST', body: v });
+      await changePassword(v.current_password, v.new_password);
       state.me.user.must_change_password = false;
       toast('Contraseña actualizada', 'ok');
-      go(homePath(), { replace: true });
+      const next = state.nextPath;
+      state.nextPath = null;
+      go(next || homePath(), { replace: true });
     });
   });
 }

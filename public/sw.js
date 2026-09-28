@@ -1,31 +1,37 @@
 // Leap Attendance Hub service worker: offline app shell + push notifications.
-const VERSION = 'lah-v1';
+// Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
+const VERSION = 'lah-v2';
 const SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/css/app.css',
-  '/js/app.js',
-  '/js/lib.js',
-  '/js/icons.js',
-  '/js/pwa.js',
-  '/js/store.js',
-  '/js/views/common.js',
-  '/js/views/auth.js',
-  '/js/views/absences.js',
-  '/js/views/staff.js',
-  '/js/views/admin.js',
-  '/js/views/account.js',
-  '/js/views/platform.js',
-  '/icons/icon.svg',
-  '/icons/icon-192.png',
+  './',
+  'index.html',
+  'manifest.webmanifest',
+  'css/app.css',
+  'vendor/supabase.js',
+  'js/app.js',
+  'js/backend.js',
+  'js/config.js',
+  'js/lib.js',
+  'js/icons.js',
+  'js/pwa.js',
+  'js/store.js',
+  'js/views/common.js',
+  'js/views/auth.js',
+  'js/views/absences.js',
+  'js/views/staff.js',
+  'js/views/admin.js',
+  'js/views/account.js',
+  'js/views/platform.js',
+  'icons/icon.svg',
+  'icons/icon-192.png',
+  'icons/badge-72.png',
 ];
+const scoped = (path) => new URL(path, self.registration.scope).href;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(VERSION)
-      .then((cache) => cache.addAll(SHELL))
+      .then((cache) => cache.addAll(SHELL.map(scoped)))
       .then(() => self.skipWaiting()),
   );
 });
@@ -39,11 +45,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Network first (so updates arrive right away), cache as fallback when offline. The API is never cached.
+// Network first (so updates arrive right away), cache as fallback when offline.
+// Only the app's own files are handled; Supabase requests always go to the network.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
-  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  if (request.method !== 'GET' || !request.url.startsWith(self.registration.scope)) return;
   event.respondWith(
     fetch(request)
       .then((response) => {
@@ -55,7 +61,7 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(async () => {
         const cached = await caches.match(request, { ignoreSearch: request.mode === 'navigate' });
-        return cached || (request.mode === 'navigate' ? caches.match('/index.html') : Response.error());
+        return cached || (request.mode === 'navigate' ? caches.match(scoped('index.html')) : Response.error());
       }),
   );
 });
@@ -67,14 +73,14 @@ self.addEventListener('push', (event) => {
   } catch {
     data = { body: event.data?.text() };
   }
-  const title = data.title || 'Leap Attendance Hub';
+  const url = scoped(data.url || '');
   event.waitUntil(
     Promise.all([
-      self.registration.showNotification(title, {
+      self.registration.showNotification(data.title || 'Leap Attendance Hub', {
         body: data.body || '',
-        icon: '/icons/icon-192.png',
-        badge: '/icons/badge-72.png',
-        data: { url: data.url || '/' },
+        icon: scoped('icons/icon-192.png'),
+        badge: scoped('icons/badge-72.png'),
+        data: { url },
         tag: data.url || undefined,
         renotify: !!data.url,
       }),
@@ -87,10 +93,10 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  const url = event.notification.data?.url || self.registration.scope;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const client = clients.find((c) => c.url.startsWith(self.location.origin));
+      const client = clients.find((c) => c.url.startsWith(self.registration.scope));
       if (client) {
         client.postMessage({ type: 'navigate', url });
         return client.focus();
