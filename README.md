@@ -23,6 +23,7 @@ Funciona con servicios gratuitos:
 - **Suben su excusa**: foto desde la cámara, PDF o Word (hasta 5 archivos, 10 MB c/u). También pueden añadirla después.
 - Dejan instrucciones para quien cubra su clase.
 - Ven si la dirección **recibió** su ausencia, quién los cubre y los **comentarios** que les dejaron.
+- **Modifican o cancelan** su propia ausencia mientras no haya pasado. Al cancelar eligen el motivo; si la fecha o la hora estaban mal, la app los lleva a corregirla. Cada cambio queda en el **historial** de la ausencia, y si cambia la fecha u hora de una ausencia ya recibida, la dirección debe confirmarla de nuevo.
 
 **Dirección y secretaría**
 - **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
@@ -32,23 +33,25 @@ Funciona con servicios gratuitos:
 **Administración (directora)**
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
 - **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles. Quien pidió ayuda con su contraseña aparece marcado.
-- **Registrar una ausencia a nombre de un empleado** (por ejemplo, si llamó por teléfono o para corregir un error). Solo la cuenta de Administración puede hacerlo.
+- **Registrar, modificar o cancelar una ausencia a nombre de un empleado** (por ejemplo, si llamó por teléfono o para corregir un error). Solo la cuenta de Administración puede hacerlo; la directora y la secretaría no.
 - **Escuela y Teams**: nombre, webhooks de Microsoft Teams (ausencias y, opcionalmente, otro canal para contraseñas) y contraseña de administración.
-- **Datos y reportes**: estadísticas, exportación a Excel (CSV) y respaldo completo (JSON) de *esa* escuela.
+- **Datos y reportes**: estadísticas, exportación a Excel (.xlsx) y respaldo completo (JSON) de *esa* escuela.
+- **Archivo anual**: al terminar el año escolar (1 ago – 31 jul), descarga un Excel con todas sus ausencias (hojas de ausencias, resumen por empleado, historial, comentarios y documentos) y un ZIP con las excusas. Después, la cuenta de Administración puede **liberar espacio**: borra de la app las ausencias recibidas y canceladas de ese año con sus archivos (las que están sin confirmar se quedan).
+- Las ausencias **canceladas se borran solas 15 días** después de cancelarse, con sus archivos.
 
 **Notificaciones**
-- **Microsoft Teams**: cada ausencia nueva (o cancelada) se publica en el canal que elija la escuela. Las solicitudes de contraseña van al mismo canal o a otro distinto.
+- **Microsoft Teams**: cada ausencia nueva, modificada (con qué cambió) o cancelada (quién y por qué) se publica en el canal que elija la escuela. Las solicitudes de contraseña van al mismo canal o a otro distinto.
 - **En la app**: campana con avisos y contador.
 - **Push al teléfono**: se activan en *Perfil*. Funcionan en Android, computadoras e iPhone (iOS 16.4+ con la app añadida a la pantalla de inicio).
 
 **Varias escuelas:** cada una tiene su código, su personal, sus ausencias y sus archivos, separados por reglas de seguridad en la base de datos. Desde el **Panel de plataforma** (`#/platform`) se crean escuelas nuevas.
 
-| Rol | Reporta sus ausencias | Ve y confirma las de todos | Personal, Teams y datos |
+| Rol | Reporta, modifica y cancela | Ve y confirma las de todos | Personal, Teams y datos |
 |---|:-:|:-:|:-:|
-| Maestro(a) | ✅ | | |
-| Secretaría | ✅ | ✅ | |
-| Director(a) | ✅ | ✅ | ✅ |
-| Administración (código + contraseña) | Registra las de cualquier empleado | ✅ | ✅ |
+| Maestro(a) | Las suyas | | |
+| Secretaría | Las suyas | ✅ | |
+| Director(a) | Las suyas | ✅ | ✅ (sin liberar espacio) |
+| Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ |
 
 ---
 
@@ -109,12 +112,16 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 
 **Seguridad:**
 - Row Level Security en todas las tablas: cada persona solo ve datos de su escuela; los maestros solo sus propias ausencias.
-- Todos los cambios pasan por funciones SQL que validan permisos (`create_absence`, `receive_absence`, …).
+- Todos los cambios pasan por funciones SQL que validan permisos (`create_absence`, `update_absence`, `cancel_absence`, `receive_absence`, …) y quedan en `absence_history`.
 - Las excusas se guardan en un bucket privado y se ven con enlaces temporales; cada quien solo sube a su propia carpeta.
 - El webhook de Teams solo acepta dominios de Microsoft.
 - Las claves privadas (VAPID, contraseña de plataforma) están en la tabla `app_settings`, solo accesible para el servidor.
 
 **Avisos:** al crear una notificación, un *trigger* la pone en la tabla `outbox` y `pg_net` llama a la función `notify`, que envía el push y/o el mensaje de Teams. Cada aviso se procesa una sola vez.
+
+**Mantenimiento diario:** `pg_cron` (7:23 UTC) pone una tarea en `outbox` y `notify` borra las ausencias canceladas hace más de 15 días (con sus archivos), los registros de envío de más de 30 días y los avisos de más de 180 días.
+
+**Excel sin librerías:** `js/xlsx.js` y `js/zip.js` generan los .xlsx y el ZIP de documentos en el navegador.
 
 ### Plan gratis de Supabase
 

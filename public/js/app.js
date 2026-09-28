@@ -4,7 +4,7 @@ import { icon } from './icons.js';
 import { initPwa, syncPush } from './pwa.js';
 import { go, homePath, refreshUnread, setUnread, state } from './store.js';
 import { adoptSchoolFromUrl, changePasswordView, loginView } from './views/auth.js';
-import { absenceView, homeView, reportView } from './views/absences.js';
+import { absenceView, editAbsenceView, homeView, reportView } from './views/absences.js';
 import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
@@ -21,6 +21,7 @@ const ROUTES = [
   { re: /^\/home$/, view: homeView, title: 'Mis ausencias', roles: PEOPLE },
   { re: /^\/report$/, view: reportView, title: 'Reportar ausencia', back: true },
   { re: /^\/absence\/(\d+)$/, view: absenceView, title: 'Ausencia', back: true },
+  { re: /^\/absence\/(\d+)\/edit$/, view: editAbsenceView, title: 'Modificar ausencia', back: true },
   { re: /^\/dashboard$/, view: dashboardView, title: 'Panel', roles: STAFF },
   { re: /^\/absences$/, view: absencesListView, title: 'Ausencias', roles: STAFF },
   { re: /^\/employees$/, view: employeesView, title: 'Personal', roles: MANAGER },

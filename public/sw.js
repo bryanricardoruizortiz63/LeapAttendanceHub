@@ -1,6 +1,6 @@
 // Leap Attendance Hub service worker: offline app shell + push notifications.
 // Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
-const VERSION = 'lah-v3';
+const VERSION = 'lah-v4';
 const SHELL = [
   './',
   'index.html',
@@ -14,6 +14,8 @@ const SHELL = [
   'js/icons.js',
   'js/pwa.js',
   'js/store.js',
+  'js/xlsx.js',
+  'js/zip.js',
   'js/views/common.js',
   'js/views/auth.js',
   'js/views/absences.js',
@@ -22,6 +24,7 @@ const SHELL = [
   'js/views/account.js',
   'js/views/platform.js',
   'js/views/icon-tool.js',
+  'js/views/archive.js',
   'icons/icon-192.png',
   'icons/badge-72.png',
 ];
