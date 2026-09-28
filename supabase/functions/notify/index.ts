@@ -2,10 +2,12 @@
 // Called by the database (pg_net) right after the row is inserted. Each row is processed only once,
 // so calling it again is harmless.
 import { json, serve, serviceClient } from '../_shared/http.ts';
+import { deleteAbsences } from '../_shared/cleanup.ts';
 import { buildCard, CATEGORIES, fmtRangeEs, postToTeams, scheduleText } from '../_shared/teams.ts';
 import { sendWebPush, type VapidKeys } from '../_shared/webpush.ts';
 
 const db = serviceClient();
+const DAY = 86_400_000;
 
 async function setting<T>(key: string): Promise<T | null> {
   const { data } = await db.from('app_settings').select('value').eq('key', key).maybeSingle();
@@ -39,9 +41,12 @@ async function handlePush(payload: { notification_id: number }): Promise<string>
   return `push: ${results.join(', ')}`;
 }
 
-type TeamsPayload = { event: string; absence_id?: number; user_id?: string };
+type TeamsPayload = { event: string; absence_id?: number; user_id?: string; history_id?: number; reopened?: boolean };
+type Change = { label: string; before?: string | null; after?: string | null };
 // deno-lint-ignore no-explicit-any
 type Settings = Record<string, any>;
+
+const clip = (s: string | null | undefined, max = 300) => (s && s.length > max ? `${s.slice(0, max - 1)}…` : s || '');
 
 async function appLink(route: string): Promise<string | null> {
   const app = await setting<{ url: string }>('app_url');
@@ -70,33 +75,72 @@ async function absenceCard(schoolName: string | undefined, settings: Settings, p
   if (!a) return null;
   const linkUrl = await appLink(`/absence/${a.id}`);
   const range = fmtRangeEs(a.start_date, a.end_date);
+  const employee = { title: 'Empleado', value: a.employee_name };
+
+  if (payload.event === 'cancelled') {
+    const { data: h } = await db
+      .from('absence_history')
+      .select('actor_name, note')
+      .eq('absence_id', a.id)
+      .eq('action', 'cancelled')
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return buildCard({
+      title: '↩️ Ausencia cancelada',
+      subtitle: schoolName,
+      facts: [
+        employee,
+        { title: 'Fecha', value: range },
+        { title: 'Cancelada por', value: h?.actor_name },
+        { title: 'Motivo', value: clip(h?.note) },
+      ],
+      linkUrl,
+    });
+  }
+
+  if (payload.event === 'edited') {
+    const { data: h } = await db.from('absence_history').select('actor_name, note, changes').eq('id', payload.history_id).maybeSingle();
+    const changes = (h?.changes || []) as Change[];
+    return buildCard({
+      title: '✏️ Ausencia modificada',
+      subtitle: schoolName,
+      facts: [
+        employee,
+        { title: 'Fecha', value: range },
+        { title: 'Horario', value: scheduleText(a) },
+        ...changes.map((c) => ({
+          title: `Cambio: ${c.label}`,
+          value:
+            c.label === 'Causa' && !settings.teams_include_reason
+              ? 'Modificada'
+              : `${clip(c.before, 150) || '—'} → ${clip(c.after, 150) || '—'}`,
+        })),
+        { title: 'Modificada por', value: h?.actor_name },
+        { title: 'Nota', value: clip(h?.note) },
+      ],
+      text: payload.reopened ? 'Cambió la fecha o la hora: hay que confirmarla de nuevo en la app.' : undefined,
+      linkUrl,
+    });
+  }
+
   const onBehalf = a.created_by && a.created_by !== a.user_id;
-  return payload.event === 'cancelled'
-    ? buildCard({
-        title: '↩️ Ausencia cancelada',
-        subtitle: schoolName,
-        facts: [
-          { title: 'Empleado', value: a.employee_name },
-          { title: 'Fecha', value: range },
-        ],
-        linkUrl,
-      })
-    : buildCard({
-        title: '🗓️ Nueva ausencia reportada',
-        subtitle: schoolName,
-        facts: [
-          { title: 'Empleado', value: a.employee_name },
-          { title: 'Puesto', value: a.employee_position },
-          { title: 'Fecha', value: range },
-          { title: 'Horario', value: scheduleText(a) },
-          { title: 'Tipo', value: a.category ? CATEGORIES[a.category] : null },
-          { title: 'Causa', value: settings.teams_include_reason ? a.reason : null },
-          { title: 'Notas para cubrir', value: a.coverage_notes },
-          { title: 'Documentos', value: a.attachment_count ? `${a.attachment_count} adjunto(s)` : null },
-          { title: 'Registrada por', value: onBehalf ? a.created_by_name : null },
-        ],
-        linkUrl,
-      });
+  return buildCard({
+    title: '🗓️ Nueva ausencia reportada',
+    subtitle: schoolName,
+    facts: [
+      employee,
+      { title: 'Puesto', value: a.employee_position },
+      { title: 'Fecha', value: range },
+      { title: 'Horario', value: scheduleText(a) },
+      { title: 'Tipo', value: a.category ? CATEGORIES[a.category] : null },
+      { title: 'Causa', value: settings.teams_include_reason ? a.reason : null },
+      { title: 'Notas para cubrir', value: a.coverage_notes },
+      { title: 'Documentos', value: a.attachment_count ? `${a.attachment_count} adjunto(s)` : null },
+      { title: 'Registrada por', value: onBehalf ? a.created_by_name : null },
+    ],
+    linkUrl,
+  });
 }
 
 async function handleTeams(schoolId: string, payload: TeamsPayload): Promise<string> {
@@ -125,6 +169,21 @@ async function handleTeams(schoolId: string, payload: TeamsPayload): Promise<str
   return `teams: ${status}`;
 }
 
+/** Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days and notifications 180 days. */
+async function maintenance(jobId: number): Promise<string> {
+  const { data: old, error } = await db
+    .from('absences')
+    .select('id')
+    .eq('status', 'cancelled')
+    .lt('cancelled_at', new Date(Date.now() - 15 * DAY).toISOString())
+    .limit(1000);
+  if (error) throw new Error(error.message);
+  const removed = await deleteAbsences(db, (old || []).map((a) => a.id as number));
+  await db.from('outbox').delete().lt('created_at', new Date(Date.now() - 30 * DAY).toISOString()).neq('id', jobId);
+  await db.from('notifications').delete().lt('created_at', new Date(Date.now() - 180 * DAY).toISOString());
+  return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos`;
+}
+
 serve(async (req) => {
   let id: unknown;
   try {
@@ -146,7 +205,12 @@ serve(async (req) => {
 
   let result: string;
   try {
-    result = job.kind === 'push' ? await handlePush(job.payload) : await handleTeams(job.school_id, job.payload);
+    result =
+      job.kind === 'push'
+        ? await handlePush(job.payload)
+        : job.kind === 'maintenance'
+          ? await maintenance(job.id)
+          : await handleTeams(job.school_id, job.payload);
   } catch (err) {
     result = `error: ${(err as Error).message}`;
   }

@@ -232,6 +232,7 @@ export function dialog({
   danger = false,
   input = null,
   collect = false,
+  onOpen = null,
 }) {
   return new Promise((resolve) => {
     const dlg = document.createElement('dialog');
@@ -267,5 +268,6 @@ export function dialog({
       done(input ? dlg.querySelector('textarea').value.trim() : collect ? formValues(form) : true);
     });
     dlg.showModal();
+    onOpen?.(dlg);
   });
 }

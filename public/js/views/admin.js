@@ -15,9 +15,9 @@ import {
 import {
   createEmployee,
   deleteEmployee,
-  exportAbsencesCsv,
+  exportAbsencesXlsx,
   exportBackupJson,
-  exportEmployeesCsv,
+  exportEmployeesXlsx,
   getEmployee,
   getSchool,
   listEmployees,
@@ -32,6 +32,7 @@ import { APP_URL } from '../config.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { bindPasswordToggles } from './auth.js';
+import { archiveSection } from './archive.js';
 import { avatar, empty } from './common.js';
 
 /** Asked for a new password from the login screen in the last 3 days. */
@@ -426,21 +427,22 @@ export async function dataView({ el, isCurrent }) {
       <div data-stats><div class="loading"><span class="spinner"></span></div></div>
       <section class="card stack">
         <h2 class="card-title">${icon('download')} Exportar datos de la escuela</h2>
-        <p class="muted">Los archivos CSV se abren en Excel o Google Sheets.</p>
-        <button type="button" class="btn btn-secondary btn-block" data-export="range">${icon('download', 18)} Ausencias del período (CSV)</button>
-        <button type="button" class="btn btn-secondary btn-block" data-export="all">${icon('download', 18)} Todas las ausencias (CSV)</button>
-        <button type="button" class="btn btn-secondary btn-block" data-export="employees">${icon('download', 18)} Lista de personal (CSV)</button>
+        <p class="muted">Archivos de Excel (también abren en Google Sheets y Numbers).</p>
+        <button type="button" class="btn btn-secondary btn-block" data-export="range">${icon('download', 18)} Ausencias del período (Excel)</button>
+        <button type="button" class="btn btn-secondary btn-block" data-export="all">${icon('download', 18)} Todas las ausencias (Excel)</button>
+        <button type="button" class="btn btn-secondary btn-block" data-export="employees">${icon('download', 18)} Lista de personal (Excel)</button>
         <button type="button" class="btn btn-ghost btn-block" data-export="backup">${icon('shield', 18)} Respaldo completo (JSON)</button>
       </section>
+      <div data-archive-slot></div>
     </div>`);
 
   const fromInput = $('[data-from]', el);
   const toInput = $('[data-to]', el);
   const { school } = state.me;
   const exporters = {
-    range: () => exportAbsencesCsv(school.code, range),
-    all: () => exportAbsencesCsv(school.code),
-    employees: () => exportEmployeesCsv(school.code),
+    range: () => exportAbsencesXlsx(school.code, range),
+    all: () => exportAbsencesXlsx(school.code),
+    employees: () => exportEmployeesXlsx(school.code),
     backup: () => exportBackupJson(school),
   };
   for (const btn of el.querySelectorAll('[data-export]')) {
@@ -497,5 +499,6 @@ export async function dataView({ el, isCurrent }) {
       load();
     });
   }
+  archiveSection($('[data-archive-slot]', el)).catch((err) => toast(err.message, 'error'));
   await load();
 }

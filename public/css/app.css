@@ -2040,3 +2040,154 @@ input[type='color'] {
   padding: 4px;
   cursor: pointer;
 }
+
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.button-row.split > * {
+  flex: 1 1 160px;
+}
+
+/* ---- Cancel reasons ------------------------------------------------------ */
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.choice input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 1px 0 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  accent-color: var(--primary);
+}
+
+.choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 500;
+}
+
+.choice small {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.dialog [hidden] {
+  display: none !important;
+}
+
+/* ---- History ------------------------------------------------------------- */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid var(--border);
+}
+
+.timeline > li {
+  position: relative;
+  padding: 0 0 14px 4px;
+  overflow-wrap: anywhere;
+}
+
+.timeline > li:last-child {
+  padding-bottom: 0;
+}
+
+.timeline > li::before {
+  content: '';
+  position: absolute;
+  left: -25px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--muted);
+}
+
+.timeline > li.t-received::before {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.timeline > li.t-edited::before {
+  border-color: var(--primary);
+}
+
+.timeline > li.t-cancelled::before {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+.timeline small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.timeline .changes {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 14px;
+}
+
+.timeline del {
+  color: var(--muted);
+}
+
+.timeline ins {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.timeline p {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+/* ---- Archive ------------------------------------------------------------- */
+
+.archive-runs h3 {
+  margin: 4px 0 6px;
+  font-size: 14px;
+}
+
+.archive-runs ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.archive-runs li span {
+  display: block;
+  color: var(--muted);
+}

@@ -1,6 +1,6 @@
 // School administration actions that need Supabase Auth admin rights:
-// employees (create, edit, deactivate, reset password, delete), the school admin password and the Teams test.
-// Only the school's "admin" account and directors can use it.
+// employees (create, edit, deactivate, reset password, delete), the school admin password, the Teams test
+// and freeing space after an archive. Only the school's "admin" account and directors can use it.
 import {
   anonClient,
   authEmail,
@@ -14,6 +14,7 @@ import {
   serviceClient,
   validatePassword,
 } from '../_shared/http.ts';
+import { deleteAbsences } from '../_shared/cleanup.ts';
 import { buildCard, postToTeams } from '../_shared/teams.ts';
 
 const db = serviceClient();
@@ -73,6 +74,14 @@ function parseRole(value: unknown): string {
 /** Two people creating the same username at once: the second hits a unique constraint instead of our check. */
 function isDuplicate(error: { code?: string; message?: string } | null): boolean {
   return !!error && (error.code === 'email_exists' || error.code === '23505' || /already (been )?registered|duplicate/i.test(error.message || ''));
+}
+
+function parseDate(value: unknown, label: string): string {
+  const s = String(value || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || Number.isNaN(Date.parse(`${s}T00:00:00Z`))) {
+    throw new HttpError(400, `${label} no es una fecha válida.`);
+  }
+  return s;
 }
 
 function check(error: { code?: string; message: string } | null, message = 'No se pudo guardar. Inténtalo de nuevo.') {
@@ -235,6 +244,54 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     }
     if (status !== 'ok') throw new HttpError(502, `No se pudo enviar a Teams: ${status.replace(/^error: /, '')}`);
     return json({ ok: true });
+  },
+
+  /**
+   * After downloading the Excel archive, the school deletes a finished period to free space.
+   * Only received and cancelled absences go; pending ones stay until someone handles them.
+   */
+  async archive_purge(me, b) {
+    if (me.role !== 'admin') throw new HttpError(403, 'Solo la cuenta de Administración puede liberar espacio.');
+    if (b.confirm !== 'BORRAR') throw new HttpError(400, 'Escribe BORRAR para confirmar.');
+    const from = parseDate(b.from, 'La fecha inicial');
+    const to = parseDate(b.to, 'La fecha final');
+    const today = new Date().toISOString().slice(0, 10);
+    if (from > to) throw new HttpError(400, 'La fecha inicial debe ser antes de la final.');
+    if (to >= today) throw new HttpError(400, 'Solo se pueden borrar períodos que ya terminaron.');
+    // Same rule as the Excel archive: an absence belongs to the period in which it starts.
+    const ids: number[] = [];
+    for (let page = 0; ; page++) {
+      const { data, error } = await db
+        .from('absences')
+        .select('id')
+        .eq('school_id', me.school_id)
+        .in('status', ['received', 'cancelled'])
+        .gte('start_date', from)
+        .lte('start_date', to)
+        .lt('end_date', today)
+        .order('id')
+        .range(page * 1000, page * 1000 + 999);
+      check(error, 'No se pudieron leer las ausencias.');
+      ids.push(...(data || []).map((r) => r.id as number));
+      if (!data || data.length < 1000) break;
+    }
+    if (!ids.length) throw new HttpError(400, 'No hay ausencias recibidas o canceladas en ese período.');
+    let removed;
+    try {
+      removed = await deleteAbsences(db, ids);
+    } catch (err) {
+      console.error(err);
+      throw new HttpError(500, 'No se pudo terminar de liberar el espacio. Inténtalo de nuevo.');
+    }
+    await db.from('archive_runs').insert({
+      school_id: me.school_id,
+      date_from: from,
+      date_to: to,
+      ...removed,
+      actor_id: me.id,
+      actor_name: me.full_name,
+    });
+    return json(removed);
   },
 };
 

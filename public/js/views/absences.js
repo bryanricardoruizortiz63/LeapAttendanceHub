@@ -30,6 +30,7 @@ import {
   myAbsences,
   receiveAbsence,
   setCoverage,
+  updateAbsence,
 } from '../backend.js';
 import { MAX_FILES, MAX_UPLOAD_MB as maxMb } from '../config.js';
 import { icon } from '../icons.js';
@@ -71,16 +72,40 @@ export async function homeView({ el }) {
   installHint($('[data-install-slot]', el));
 }
 
-// ---- Reportar -------------------------------------------------------------
+// ---- Reportar / modificar ---------------------------------------------------
 
-export async function reportView({ el, query }) {
+/** Only the employee (while the absence hasn't passed) or the Administración account can edit or cancel it. */
+function canChange(a, me) {
+  return a.status !== 'cancelled' && (me.role === 'admin' || (a.user_id === me.id && a.end_date >= todayStr()));
+}
+
+export const reportView = (ctx) => absenceForm(ctx, null);
+
+export async function editAbsenceView(ctx) {
+  const { absence } = await getAbsence(ctx.params[0]);
+  if (!canChange(absence, state.me.user)) {
+    throw new Error(
+      absence.status === 'cancelled'
+        ? 'La ausencia está cancelada.'
+        : 'Solo el empleado o la cuenta de Administración pueden modificar esta ausencia.',
+    );
+  }
+  return absenceForm(ctx, absence);
+}
+
+async function absenceForm({ el, query }, absence) {
   const me = state.me.user;
+  const editing = !!absence;
   // Only the school's Administración account registers absences for other people.
-  const forOthers = me.role === 'admin';
+  const forOthers = !editing && me.role === 'admin';
   const employees = forOthers ? (await listEmployees()).filter((e) => e.active) : [];
   const today = todayStr();
   const preselect = query.get('user_id') || '';
   const files = [];
+  const v0 = absence || { start_date: today, end_date: today, partial: false, category: '', reason: '', coverage_notes: '' };
+  const startTime = absence?.start_time?.slice(0, 5) || '08:00';
+  const endTime = absence?.end_time?.slice(0, 5) || '';
+  const category = v0.category || '';
 
   el.innerHTML = String(html`
     <form class="stack" data-form novalidate>
@@ -97,6 +122,10 @@ export async function reportView({ el, query }) {
             </label>
           </section>`
         : ''}
+      ${editing && absence.user_id !== me.id
+        ? html`<section class="card row">${avatar(absence.employee_name)}<div><strong>${absence.employee_name}</strong>
+            <p class="muted">Estás modificando su ausencia.</p></div></section>`
+        : ''}
 
       <section class="card stack">
         <h2 class="card-title">${icon('calendar')} ¿Cuándo?</h2>
@@ -107,19 +136,19 @@ export async function reportView({ el, query }) {
         </div>
         <div class="grid2">
           <label class="field"><span data-start-label>Fecha</span>
-            <input type="date" name="start_date" value="${today}" min="${addDays(today, -60)}" max="${addDays(today, 365)}" required>
+            <input type="date" name="start_date" value="${v0.start_date}" min="${addDays(today, -60)}" max="${addDays(today, 365)}" required>
           </label>
           <label class="field" data-end hidden><span>Hasta</span>
-            <input type="date" name="end_date" value="${today}" min="${today}" max="${addDays(today, 365)}">
+            <input type="date" name="end_date" value="${v0.end_date}" min="${v0.start_date}" max="${addDays(today, 365)}">
           </label>
         </div>
         <div class="segmented" role="radiogroup" aria-label="Duración">
-          <label class="seg active"><input type="radio" name="partial" value="0" checked> Día completo</label>
-          <label class="seg"><input type="radio" name="partial" value="1"> Parte del día</label>
+          <label class="seg"><input type="radio" name="partial" value="0" ${v0.partial ? '' : 'checked'}> Día completo</label>
+          <label class="seg"><input type="radio" name="partial" value="1" ${v0.partial ? 'checked' : ''}> Parte del día</label>
         </div>
         <div class="grid2" data-times hidden>
-          <label class="field"><span>Desde</span><input type="time" name="start_time" value="08:00"></label>
-          <label class="field"><span>Hasta <em class="optional">opcional</em></span><input type="time" name="end_time"></label>
+          <label class="field"><span>Desde</span><input type="time" name="start_time" value="${startTime}"></label>
+          <label class="field"><span>Hasta <em class="optional">opcional</em></span><input type="time" name="end_time" value="${endTime}"></label>
         </div>
         <p class="hint" data-summary></p>
       </section>
@@ -127,13 +156,13 @@ export async function reportView({ el, query }) {
       <section class="card stack">
         <h2 class="card-title">${icon('chat')} Motivo <em class="optional">opcional</em></h2>
         <div class="chips" role="radiogroup" aria-label="Tipo de ausencia">
-          <label class="chip"><input type="radio" name="category" value="" checked><span>Prefiero no decir</span></label>
+          <label class="chip"><input type="radio" name="category" value="" ${category ? '' : 'checked'}><span>Prefiero no decir</span></label>
           ${Object.entries(CATEGORIES).map(
-            ([value, label]) => html`<label class="chip"><input type="radio" name="category" value="${value}"><span>${label}</span></label>`,
+            ([value, label]) => html`<label class="chip"><input type="radio" name="category" value="${value}" ${category === value ? 'checked' : ''}><span>${label}</span></label>`,
           )}
         </div>
         <label class="field"><span>Causa</span>
-          <textarea name="reason" rows="3" maxlength="1000" placeholder="Puedes dejarlo en blanco si prefieres no especificar."></textarea>
+          <textarea name="reason" rows="3" maxlength="1000" placeholder="Puedes dejarlo en blanco si prefieres no especificar.">${v0.reason || ''}</textarea>
         </label>
       </section>
 
@@ -141,23 +170,36 @@ export async function reportView({ el, query }) {
         <h2 class="card-title">${icon('users')} Para cubrir la clase <em class="optional">opcional</em></h2>
         <label class="field"><span>Instrucciones para quien te cubra</span>
           <textarea name="coverage_notes" rows="3" maxlength="1000"
-            placeholder="Ej.: El plan está en el escritorio. Grupo 3-B: lectura pág. 45."></textarea>
+            placeholder="Ej.: El plan está en el escritorio. Grupo 3-B: lectura pág. 45.">${v0.coverage_notes || ''}</textarea>
         </label>
       </section>
 
-      <section class="card stack">
-        <h2 class="card-title">${icon('clip')} Excusa o evidencia <em class="optional">opcional</em></h2>
-        <label class="dropzone">
-          <input type="file" name="files" multiple accept="${ACCEPT}">
-          ${icon('camera', 26)}
-          <strong>Tomar foto o elegir archivo</strong>
-          <small>PDF, foto o Word · máx. ${maxMb} MB · hasta ${MAX_FILES} archivos</small>
-        </label>
-        <ul class="file-list" data-files></ul>
-      </section>
+      ${editing
+        ? html`<section class="card stack">
+            <h2 class="card-title">${icon('edit')} ¿Qué corregiste? <em class="optional">opcional</em></h2>
+            <label class="field"><span>Queda en el historial de la ausencia</span>
+              <textarea name="note" rows="2" maxlength="500" placeholder="Ej.: Puse el lunes por error, era el martes."></textarea>
+            </label>
+            <p class="hint">Los documentos se añaden o quitan desde la ausencia.</p>
+          </section>`
+        : html`<section class="card stack">
+            <h2 class="card-title">${icon('clip')} Excusa o evidencia <em class="optional">opcional</em></h2>
+            <label class="dropzone">
+              <input type="file" name="files" multiple accept="${ACCEPT}">
+              ${icon('camera', 26)}
+              <strong>Tomar foto o elegir archivo</strong>
+              <small>PDF, foto o Word · máx. ${maxMb} MB · hasta ${MAX_FILES} archivos</small>
+            </label>
+            <ul class="file-list" data-files></ul>
+          </section>`}
 
-      <button class="btn btn-primary btn-block btn-lg" type="submit">${icon('send')} Enviar ausencia</button>
-      <p class="hint center">La dirección recibirá una notificación al instante.</p>
+      <button class="btn btn-primary btn-block btn-lg" type="submit">
+        ${editing ? html`${icon('check')} Guardar cambios` : html`${icon('send')} Enviar ausencia`}</button>
+      <p class="hint center">${!editing
+        ? 'La dirección recibirá una notificación al instante.'
+        : absence.status === 'received'
+          ? 'La dirección verá el cambio. Si cambias la fecha o la hora, tendrá que confirmarla de nuevo.'
+          : 'La dirección verá el cambio y quedará en el historial.'}</p>
     </form>`);
 
   const form = $('[data-form]', el);
@@ -166,7 +208,7 @@ export async function reportView({ el, query }) {
   const endWrap = $('[data-end]', el);
   const times = $('[data-times]', el);
   const summary = $('[data-summary]', el);
-  let multi = false;
+  let multi = v0.start_date !== v0.end_date;
 
   function update() {
     const partial = form.querySelector('[name=partial]:checked').value === '1';
@@ -220,7 +262,7 @@ export async function reportView({ el, query }) {
       });
     }
   }
-  fileInput.addEventListener('change', () => {
+  fileInput?.addEventListener('change', () => {
     for (const f of fileInput.files) {
       if (files.length >= MAX_FILES) {
         toast(`Máximo ${MAX_FILES} archivos.`, 'error');
@@ -245,6 +287,12 @@ export async function reportView({ el, query }) {
       if (!v.start_date) throw new Error('Selecciona la fecha.');
       if (v.partial === '1' && !v.start_time) throw new Error('Indica desde qué hora vas a faltar.');
       if (!multi) v.end_date = null;
+      if (editing) {
+        await updateAbsence(absence.id, v);
+        toast('Cambios guardados', 'ok');
+        go(`/absence/${absence.id}`, { replace: true });
+        return;
+      }
       const id = await createAbsence(state.me, v, files);
       toast('Ausencia enviada. La dirección fue notificada.', 'ok');
       go(`/absence/${id}`, { replace: true });
@@ -255,6 +303,30 @@ export async function reportView({ el, query }) {
 // ---- Detalle ----------------------------------------------------------------
 
 const IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const HISTORY_LABELS = { edited: 'Modificó la ausencia', cancelled: 'Canceló la ausencia', received: 'La marcó como recibida' };
+// Cancelled absences are removed by the daily maintenance job after this many days.
+const CANCELLED_KEEP_DAYS = 15;
+
+function historySection(a, history) {
+  if (!history.length) return '';
+  return html`<section class="card stack">
+    <h3 class="card-title">${icon('clock')} Historial</h3>
+    <ol class="timeline">
+      <li><strong>Reportada</strong> · ${a.created_by_name || a.employee_name}<small>${fmtDateTime(a.created_at)}</small></li>
+      ${history.map(
+        (h) => html`<li class="t-${h.action}">
+          <strong>${HISTORY_LABELS[h.action] || h.action}</strong> · ${h.actor_name}<small>${fmtDateTime(h.created_at)}</small>
+          ${h.changes?.length
+            ? html`<ul class="changes">${h.changes.map(
+                (c) => html`<li><b>${c.label}:</b> <del>${c.before || '—'}</del> <span aria-hidden="true">→</span> <ins>${c.after || '—'}</ins></li>`,
+              )}</ul>`
+            : ''}
+          ${h.note ? html`<p class="pre">${h.action === 'cancelled' ? 'Motivo: ' : ''}${h.note}</p>` : ''}
+        </li>`,
+      )}
+    </ol>
+  </section>`;
+}
 
 export async function absenceView({ el, params }) {
   const id = params[0];
@@ -264,11 +336,18 @@ export async function absenceView({ el, params }) {
   const employees = staff ? await listEmployees().catch(() => []) : [];
 
   const render = () => {
-    const { absence: a, attachments, comments } = data;
+    const { absence: a, attachments, comments, history } = data;
     const mine = a.user_id === me.id;
     const cancelled = a.status === 'cancelled';
     const days = a.partial ? null : weekdays(a.start_date, a.end_date);
-    const canCancel = !cancelled && (staff || (mine && a.end_date >= todayStr()));
+    const editable = canChange(a, me);
+    const cancellation = [...history].reverse().find((h) => h.action === 'cancelled');
+    const purgeDay = cancelled
+      ? new Date(new Date(a.cancelled_at).getTime() + CANCELLED_KEEP_DAYS * 86_400_000).toLocaleDateString('es', {
+          day: 'numeric',
+          month: 'long',
+        })
+      : '';
     const range =
       a.start_date === a.end_date
         ? fmtLongDate(a.start_date)
@@ -296,7 +375,9 @@ export async function absenceView({ el, params }) {
             ? html`<p class="status-note ok">${icon('check', 16)} Recibida por ${a.received_by_name || 'la dirección'} · ${fmtDateTime(a.received_at)}</p>`
             : a.status === 'pending'
               ? html`<p class="status-note warn">${icon('clock', 16)} ${staff ? 'Pendiente de confirmar recibo' : 'Enviada · esperando que la dirección la confirme'}</p>`
-              : html`<p class="status-note muted">${icon('x', 16)} Cancelada · ${fmtDateTime(a.cancelled_at)}</p>`}
+              : html`<p class="status-note muted">${icon('x', 16)} Cancelada${cancellation ? ` por ${cancellation.actor_name}` : ''} · ${fmtDateTime(a.cancelled_at)}</p>
+                ${cancellation?.note ? html`<p class="pre">Motivo: ${cancellation.note}</p>` : ''}
+                <p class="hint">Se borrará automáticamente a partir del ${purgeDay}.</p>`}
         </section>
 
         <section class="card">
@@ -363,7 +444,14 @@ export async function absenceView({ el, params }) {
           </form>
         </section>
 
-        ${canCancel ? html`<button class="btn btn-ghost-danger btn-block" data-cancel>${icon('x', 18)} Cancelar ausencia</button>` : ''}
+        ${historySection(a, history)}
+
+        ${editable
+          ? html`<div class="button-row split">
+              <a class="btn btn-secondary" href="#/absence/${a.id}/edit">${icon('edit', 18)} Modificar</a>
+              <button class="btn btn-ghost-danger" data-cancel>${icon('x', 18)} Cancelar ausencia</button>
+            </div>`
+          : ''}
       </div>
       ${staff && a.status === 'pending'
         ? html`<div class="action-bar"><button class="btn btn-primary btn-block btn-lg" data-receive>${icon('check')} Marcar como recibida</button></div>`
@@ -448,16 +536,47 @@ export async function absenceView({ el, params }) {
 
     $('[data-cancel]', el)?.addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      const ok = await dialog({
-        title: '¿Cancelar esta ausencia?',
-        message: 'La dirección será notificada de que ya no vas a faltar.',
-        confirmText: 'Sí, cancelar',
-        cancelText: 'No',
+      const own = data.absence.user_id === me.id;
+      const answer = await dialog({
+        title: '¿Por qué la cancelas?',
+        message: 'La dirección recibirá un aviso con el motivo (también por Teams).',
+        body: html`<div class="choices">
+            <label class="choice"><input type="radio" name="reason" value="no_absence" required>
+              <span>${own ? 'Ya no voy a faltar' : 'Ya no va a faltar'}</span></label>
+            <label class="choice"><input type="radio" name="reason" value="error">
+              <span>${own ? 'La registré por error' : 'Se registró por error'}</span></label>
+            <label class="choice"><input type="radio" name="reason" value="wrong_date">
+              <span>La fecha o la hora están mal<small>No hace falta cancelarla: corrígela y el cambio queda en el historial.</small></span></label>
+            <label class="choice"><input type="radio" name="reason" value="other"><span>Otra razón</span></label>
+          </div>
+          <label class="field" data-note><span>Detalles <em class="optional" data-optional>opcional</em></span>
+            <textarea name="note" rows="2" maxlength="450"></textarea></label>`,
+        collect: true,
+        confirmText: 'Cancelar ausencia',
+        cancelText: 'Volver',
         danger: true,
+        onOpen(dlg) {
+          const note = dlg.querySelector('[name=note]');
+          const submit = dlg.querySelector('[type=submit]');
+          for (const radio of dlg.querySelectorAll('[name=reason]')) {
+            radio.addEventListener('change', () => {
+              const fix = radio.value === 'wrong_date';
+              note.required = radio.value === 'other';
+              dlg.querySelector('[data-optional]').hidden = note.required;
+              dlg.querySelector('[data-note]').hidden = fix;
+              submit.textContent = fix ? 'Corregir fecha u hora' : 'Cancelar ausencia';
+              submit.className = `btn ${fix ? 'btn-primary' : 'btn-danger'}`;
+            });
+          }
+        },
       });
-      if (!ok) return;
+      if (!answer) return;
+      if (answer.reason === 'wrong_date') {
+        go(`/absence/${id}/edit`);
+        return;
+      }
       await busy(btn, async () => {
-        await cancelAbsence(id);
+        await cancelAbsence(id, answer.reason, answer.note);
         toast('Ausencia cancelada', 'ok');
         await reload();
       });

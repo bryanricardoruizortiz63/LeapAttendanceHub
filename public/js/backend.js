@@ -1,6 +1,8 @@
 // All data access for the app: Supabase Auth, database (RLS + RPC functions), Storage and Edge Functions.
 import { MAX_UPLOAD_MB, SUPABASE_KEY, SUPABASE_URL } from './config.js';
 import { CATEGORIES, ROLE_LABELS, STATUS, addDays, todayStr, weekdays } from './lib.js';
+import { buildXlsx, xDate, xDateTime } from './xlsx.js';
+import { zip } from './zip.js';
 
 export const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'lah-auth' },
@@ -43,6 +45,25 @@ async function run(query) {
 }
 
 const rpc = (name, args) => run(sb.rpc(name, args));
+
+/** Reads every row of a query in pages (the API returns at most 1000 at a time). Keep the query ordered. */
+async function fetchAll(makeQuery) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const page = await run(makeQuery().range(from, from + 999));
+    rows.push(...page);
+    if (page.length < 1000) return rows;
+  }
+}
+
+/** Runs `.in(column, ids)` in chunks so the request URL stays short. */
+async function fetchByIds(table, column, ids, select = '*') {
+  const rows = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    rows.push(...(await run(sb.from(table).select(select).in(column, ids.slice(i, i + 150)).order('id'))));
+  }
+  return rows;
+}
 
 async function callFunction(name, body, { auth = true } = {}) {
   const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY };
@@ -179,10 +200,11 @@ export async function dashboard(today = todayStr()) {
 }
 
 export async function getAbsence(id) {
-  const [absence, attachments, comments] = await Promise.all([
+  const [absence, attachments, comments, history] = await Promise.all([
     run(sb.from('absences_v').select('*').eq('id', id).maybeSingle()),
     run(sb.from('attachments').select('*').eq('absence_id', id).order('id')),
     run(sb.from('comments').select('*').eq('absence_id', id).order('id')),
+    run(sb.from('absence_history').select('*').eq('absence_id', id).order('id')),
   ]);
   if (!absence) throw new ApiError('No se encontró la ausencia.', 404);
   if (attachments.length) {
@@ -190,7 +212,7 @@ export async function getAbsence(id) {
     const urls = new Map((data || []).map((d) => [d.path, d.signedUrl]));
     for (const a of attachments) a.url = urls.get(a.path) || null;
   }
-  return { absence, attachments, comments };
+  return { absence, attachments, comments, history };
 }
 
 const EXT_TYPES = {
@@ -286,7 +308,24 @@ export async function deleteAttachment(id) {
 export const receiveAbsence = (id, comment) => rpc('receive_absence', { p_id: id, p_comment: comment || null });
 export const setCoverage = (id, substitute) => rpc('set_coverage', { p_id: id, p_substitute: substitute || null });
 export const addComment = (id, body) => rpc('add_comment', { p_id: id, p_body: body });
-export const cancelAbsence = (id) => rpc('cancel_absence', { p_id: id });
+/** reason: 'no_absence' | 'error' | 'other' (note required for 'other'). */
+export const cancelAbsence = (id, reason, note) =>
+  rpc('cancel_absence', { p_id: id, p_reason: reason, p_note: note || null });
+
+export const updateAbsence = (id, v) =>
+  rpc('update_absence', {
+    p_id: id,
+    p_start_date: v.start_date,
+    p_end_date: v.end_date || null,
+    p_partial: v.partial === '1',
+    p_start_time: v.partial === '1' ? v.start_time || null : null,
+    p_end_time: v.partial === '1' ? v.end_time || null : null,
+    p_category: v.category || null,
+    p_reason: v.reason || null,
+    p_coverage_notes: v.coverage_notes || null,
+    p_note: v.note || null,
+    p_today: todayStr(),
+  });
 
 // ---- Avisos -----------------------------------------------------------------
 
@@ -401,70 +440,260 @@ export async function stats(from, to) {
   };
 }
 
-function toCsv(rows) {
-  const cell = (v) => {
-    if (v === null || v === undefined) return '';
-    let s = String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // avoid spreadsheet formula injection
-    return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return '﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
-}
-
 function download(filename, content, type) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+  const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
   document.body.append(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-const fmtStamp = (iso) => (iso ? new Date(iso).toLocaleString('es') : '');
+const HISTORY_ACTIONS = { edited: 'Modificada', cancelled: 'Cancelada', received: 'Recibida' };
 
-export async function exportAbsencesCsv(code, { from, to } = {}) {
-  const rows = await schoolAbsences({ from, to, status: 'all' });
-  const csv = toCsv([
-    [
-      'ID', 'Empleado', 'Puesto', 'Desde', 'Hasta', 'Días laborables', 'Parcial', 'Hora inicio', 'Hora fin', 'Tipo',
-      'Causa', 'Notas para cubrir', 'Estado', 'Recibida por', 'Fecha recibida', 'Cubierto por', 'Documentos',
-      'Comentarios', 'Registrada por', 'Creada',
-    ],
-    ...rows.map((a) => [
-      a.id, a.employee_name, a.employee_position, a.start_date, a.end_date, absenceDays(a), a.partial ? 'Sí' : 'No',
-      a.start_time?.slice(0, 5), a.end_time?.slice(0, 5), CATEGORIES[a.category] || '', a.reason, a.coverage_notes,
-      STATUS[a.status]?.label, a.received_by_name, fmtStamp(a.received_at), a.substitute, a.attachment_count,
-      a.comment_count, a.created_by_name, fmtStamp(a.created_at),
-    ]),
-  ]);
+const ABSENCE_COLUMNS = [
+  { header: 'ID', width: 7 },
+  { header: 'Empleado', width: 26 },
+  { header: 'Puesto', width: 18 },
+  { header: 'Desde', width: 12 },
+  { header: 'Hasta', width: 12 },
+  { header: 'Días laborables', width: 10 },
+  { header: 'Horario', width: 15 },
+  { header: 'Tipo', width: 20 },
+  { header: 'Causa', width: 40, wrap: true },
+  { header: 'Instrucciones para cubrir', width: 40, wrap: true },
+  { header: 'Estado', width: 11 },
+  { header: 'Recibida por', width: 22 },
+  { header: 'Fecha recibida', width: 17 },
+  { header: 'Cubierto por', width: 24 },
+  { header: 'Documentos', width: 11 },
+  { header: 'Comentarios', width: 12 },
+  { header: 'Registrada por', width: 22 },
+  { header: 'Creada', width: 17 },
+  { header: 'Cancelada', width: 17 },
+  { header: 'Motivo de cancelación', width: 30, wrap: true },
+];
+
+function scheduleLabel(a) {
+  if (!a.partial) return 'Día completo';
+  const t = (v) => (v ? v.slice(0, 5) : '');
+  return a.end_time ? `${t(a.start_time)} – ${t(a.end_time)}` : `Desde ${t(a.start_time)}`;
+}
+
+function absenceRow(a, cancelReasons = new Map()) {
+  return [
+    a.id, a.employee_name, a.employee_position, xDate(a.start_date), xDate(a.end_date), absenceDays(a),
+    scheduleLabel(a), CATEGORIES[a.category] || '', a.reason, a.coverage_notes, STATUS[a.status]?.label,
+    a.received_by_name, xDateTime(a.received_at), a.substitute, a.attachment_count, a.comment_count,
+    a.created_by_name, xDateTime(a.created_at), xDateTime(a.cancelled_at), cancelReasons.get(a.id),
+  ];
+}
+
+const absencesQuery = ({ from, to } = {}) => () => {
+  let q = sb.from('absences_v').select('*');
+  if (from) q = q.gte('end_date', from);
+  if (to) q = q.lte('start_date', to);
+  return q.order('start_date').order('id');
+};
+
+export async function exportAbsencesXlsx(code, { from, to } = {}) {
+  const rows = await fetchAll(absencesQuery({ from, to }));
+  const history = await fetchByIds('absence_history', 'absence_id', rows.filter((a) => a.status === 'cancelled').map((a) => a.id));
+  const reasons = new Map(history.filter((h) => h.action === 'cancelled').map((h) => [h.absence_id, h.note]));
   const suffix = from || to ? `_${from || 'inicio'}_${to || 'hoy'}` : '';
-  download(`ausencias_${code}${suffix}.csv`, csv, 'text/csv;charset=utf-8');
+  download(
+    `ausencias_${code}${suffix}.xlsx`,
+    buildXlsx([{ name: 'Ausencias', columns: ABSENCE_COLUMNS, rows: rows.map((a) => absenceRow(a, reasons)) }]),
+  );
 }
 
-export async function exportEmployeesCsv(code) {
+export async function exportEmployeesXlsx(code) {
   const rows = await listEmployees();
-  const csv = toCsv([
-    ['Nombre', 'Usuario', 'Rol', 'Puesto', 'Correo', 'Teléfono', 'Núm. empleado', 'Activo', 'Ausencias', 'Último acceso', 'Creado'],
-    ...rows.map((u) => [
-      u.full_name, u.username, ROLE_LABELS[u.role], u.position, u.email, u.phone, u.employee_number,
-      u.active ? 'Sí' : 'No', u.absence_count, fmtStamp(u.last_login_at), fmtStamp(u.created_at),
-    ]),
-  ]);
-  download(`empleados_${code}.csv`, csv, 'text/csv;charset=utf-8');
+  const columns = [
+    { header: 'Nombre', width: 28 }, { header: 'Usuario', width: 18 }, { header: 'Rol', width: 14 },
+    { header: 'Puesto', width: 20 }, { header: 'Correo', width: 28 }, { header: 'Teléfono', width: 15 },
+    { header: 'Núm. empleado', width: 14 }, { header: 'Activo', width: 8 }, { header: 'Ausencias', width: 10 },
+    { header: 'Último acceso', width: 17 }, { header: 'Creado', width: 17 },
+  ];
+  download(
+    `empleados_${code}.xlsx`,
+    buildXlsx([{
+      name: 'Personal',
+      columns,
+      rows: rows.map((u) => [
+        u.full_name, u.username, ROLE_LABELS[u.role], u.position, u.email, u.phone, u.employee_number,
+        u.active ? 'Sí' : 'No', u.absence_count, xDateTime(u.last_login_at), xDateTime(u.created_at),
+      ]),
+    }]),
+  );
 }
 
 export async function exportBackupJson(school) {
-  const [employees, absences, comments, attachments] = await Promise.all([
+  const all = (table, select = '*') => fetchAll(() => sb.from(table).select(select).order('id'));
+  const [employees, absences, history, comments, attachments] = await Promise.all([
     run(sb.from('profiles').select('id, role, username, full_name, email, phone, employee_number, position, active, last_login_at, created_at')),
-    run(sb.from('absences').select('*').order('id')),
-    run(sb.from('comments').select('*').order('id')),
-    run(sb.from('attachments').select('id, absence_id, uploaded_by, uploaded_by_name, original_name, mime, size, created_at').order('id')),
+    all('absences'),
+    all('absence_history'),
+    all('comments'),
+    all('attachments', 'id, absence_id, uploaded_by, uploaded_by_name, original_name, mime, size, created_at'),
   ]);
-  const backup = { generated_at: new Date().toISOString(), school: { code: school.code, name: school.name }, employees, absences, comments, attachments };
+  const backup = {
+    generated_at: new Date().toISOString(),
+    school: { code: school.code, name: school.name },
+    employees, absences, absence_history: history, comments, attachments,
+  };
   download(`respaldo_${school.code}_${todayStr()}.json`, JSON.stringify(backup, null, 2), 'application/json');
 }
+
+// ---- Archivo anual -------------------------------------------------------------------
+// A period is archived by the day each absence starts, so an absence that crosses the end of the
+// school year belongs to the year in which it began.
+
+/** First day with data, to offer the school years that exist. */
+export async function firstAbsenceDate() {
+  const rows = await run(sb.from('absences').select('start_date').order('start_date').limit(1));
+  return rows[0]?.start_date || null;
+}
+
+export const archiveRuns = () => run(sb.from('archive_runs').select('*').order('created_at', { ascending: false }).limit(5));
+
+export async function archiveData(from, to) {
+  const absences = await fetchAll(() =>
+    sb.from('absences_v').select('*').gte('start_date', from).lte('start_date', to).order('start_date').order('id'),
+  );
+  const ids = absences.map((a) => a.id);
+  const [attachments, comments, history] = await Promise.all([
+    fetchByIds('attachments', 'absence_id', ids),
+    fetchByIds('comments', 'absence_id', ids),
+    fetchByIds('absence_history', 'absence_id', ids),
+  ]);
+  const byStatus = { pending: 0, received: 0, cancelled: 0 };
+  for (const a of absences) byStatus[a.status]++;
+  return {
+    from, to, absences, attachments, comments, history, byStatus,
+    bytes: attachments.reduce((n, f) => n + (f.size || 0), 0),
+  };
+}
+
+const safeName = (s) => String(s || '').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'archivo';
+
+/** Where each document goes inside the ZIP: one folder per absence. */
+function zipPaths(data) {
+  const absences = new Map(data.absences.map((a) => [a.id, a]));
+  const used = new Set();
+  const paths = new Map();
+  for (const f of data.attachments) {
+    const a = absences.get(f.absence_id);
+    const folder = `${a.start_date} ${safeName(a.employee_name)} (#${a.id})`;
+    let name = safeName(f.original_name);
+    for (let n = 2; used.has(`${folder}/${name}`); n++) name = safeName(f.original_name).replace(/(\.[^.]*)?$/, ` (${n})$1`);
+    used.add(`${folder}/${name}`);
+    paths.set(f.id, `${folder}/${name}`);
+  }
+  return paths;
+}
+
+export function exportArchiveXlsx(school, data) {
+  const names = new Map(data.absences.map((a) => [a.id, a.employee_name]));
+  const reasons = new Map(data.history.filter((h) => h.action === 'cancelled').map((h) => [h.absence_id, h.note]));
+  const paths = zipPaths(data);
+
+  const perEmployee = new Map();
+  for (const a of data.absences) {
+    if (a.status === 'cancelled') continue;
+    const e = perEmployee.get(a.user_id) || [a.employee_name, a.employee_position, 0, 0, 0];
+    e[2]++;
+    e[3] += absenceDays(a);
+    if (a.status === 'pending') e[4]++;
+    perEmployee.set(a.user_id, e);
+  }
+
+  const blob = buildXlsx([
+    { name: 'Ausencias', columns: ABSENCE_COLUMNS, rows: data.absences.map((a) => absenceRow(a, reasons)) },
+    {
+      name: 'Por empleado',
+      columns: [
+        { header: 'Empleado', width: 28 }, { header: 'Puesto', width: 20 }, { header: 'Ausencias', width: 11 },
+        { header: 'Días laborables', width: 15 }, { header: 'Sin confirmar', width: 13 },
+      ],
+      rows: [...perEmployee.values()].sort((x, y) => y[3] - x[3]),
+    },
+    {
+      name: 'Historial',
+      columns: [
+        { header: 'Ausencia', width: 9 }, { header: 'Empleado', width: 26 }, { header: 'Fecha', width: 17 },
+        { header: 'Acción', width: 12 }, { header: 'Por', width: 22 }, { header: 'Cambios', width: 60, wrap: true },
+        { header: 'Nota', width: 40, wrap: true },
+      ],
+      rows: data.history.map((h) => [
+        h.absence_id, names.get(h.absence_id), xDateTime(h.created_at), HISTORY_ACTIONS[h.action], h.actor_name,
+        (h.changes || []).map((c) => `${c.label}: ${c.before || '—'} → ${c.after || '—'}`).join('\n'), h.note,
+      ]),
+    },
+    {
+      name: 'Comentarios',
+      columns: [
+        { header: 'Ausencia', width: 9 }, { header: 'Empleado', width: 26 }, { header: 'Fecha', width: 17 },
+        { header: 'Autor', width: 22 }, { header: 'Rol', width: 14 }, { header: 'Comentario', width: 60, wrap: true },
+      ],
+      rows: data.comments.map((c) => [
+        c.absence_id, names.get(c.absence_id), xDateTime(c.created_at), c.author_name, ROLE_LABELS[c.author_role], c.body,
+      ]),
+    },
+    {
+      name: 'Documentos',
+      columns: [
+        { header: 'Ausencia', width: 9 }, { header: 'Empleado', width: 26 }, { header: 'Archivo', width: 30 },
+        { header: 'Tamaño (KB)', width: 12 }, { header: 'Subido por', width: 22 }, { header: 'Fecha', width: 17 },
+        { header: 'Carpeta en el ZIP', width: 60 },
+      ],
+      rows: data.attachments.map((f) => [
+        f.absence_id, names.get(f.absence_id), f.original_name, Math.round((f.size || 0) / 1024), f.uploaded_by_name,
+        xDateTime(f.created_at), paths.get(f.id),
+      ]),
+    },
+  ]);
+  download(`archivo_${school.code}_${data.from}_${data.to}.xlsx`, blob);
+}
+
+/** Downloads every document of the period and saves them in one ZIP. onProgress(done, total). */
+export async function exportArchiveZip(school, data, onProgress = () => {}) {
+  const paths = zipPaths(data);
+  const files = [];
+  const failed = [];
+  let done = 0;
+  for (let i = 0; i < data.attachments.length; i += 100) {
+    const batch = data.attachments.slice(i, i + 100);
+    const { data: signed, error } = await sb.storage.from(BUCKET).createSignedUrls(batch.map((f) => f.path), 600);
+    if (error) throw toApiError(error);
+    const urls = new Map((signed || []).map((d) => [d.path, d.signedUrl]));
+    // A few downloads at a time.
+    const queue = [...batch];
+    await Promise.all(
+      Array.from({ length: 4 }, async () => {
+        for (let f = queue.shift(); f; f = queue.shift()) {
+          try {
+            const res = await fetch(urls.get(f.path));
+            if (!res.ok) throw new Error(String(res.status));
+            files.push({ name: paths.get(f.id), data: new Uint8Array(await res.arrayBuffer()) });
+          } catch {
+            failed.push(f.original_name);
+          }
+          onProgress(++done, data.attachments.length);
+        }
+      }),
+    );
+  }
+  if (failed.length) {
+    throw new ApiError(`No se pudieron descargar ${failed.length} documento(s). Revisa tu conexión e inténtalo de nuevo.`);
+  }
+  files.sort((a, b) => a.name.localeCompare(b.name));
+  download(`documentos_${school.code}_${data.from}_${data.to}.zip`, zip(files));
+}
+
+export const archivePurge = (from, to) => callFunction('admin', { action: 'archive_purge', from, to, confirm: 'BORRAR' });
 
 // ---- Plataforma --------------------------------------------------------------------
 
