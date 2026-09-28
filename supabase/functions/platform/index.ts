@@ -107,7 +107,8 @@ const actions: Record<string, (b: Record<string, unknown>) => Promise<Response>>
 
   async reset_admin_password(b) {
     const admin = await adminOf(b.school_id);
-    const password = validatePassword(b.password);
+    // b.password is the platform password; the new admin password comes in new_password.
+    const password = validatePassword(b.new_password);
     const { error } = await db.auth.admin.updateUserById(admin.id, { password });
     if (error) throw error;
     return json({ ok: true });

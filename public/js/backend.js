@@ -461,7 +461,9 @@ export async function exportBackupJson(school) {
 
 // ---- Plataforma --------------------------------------------------------------------
 
-export const platform = (password, action, payload = {}) => callFunction('platform', { password, action, ...payload }, { auth: false });
+// The platform password goes last so a payload field can never replace it.
+export const platform = (password, action, payload = {}) =>
+  callFunction('platform', { ...payload, action, password }, { auth: false });
 
 // ---- Keep the app in sync when the session ends elsewhere ----------------------
 
