@@ -24,7 +24,8 @@ const ROUTES = [
   { re: /^\/dashboard$/, view: dashboardView, title: 'Panel', roles: STAFF },
   { re: /^\/absences$/, view: absencesListView, title: 'Ausencias', roles: STAFF },
   { re: /^\/employees$/, view: employeesView, title: 'Personal', roles: MANAGER },
-  { re: /^\/employees\/(new|\d+)$/, view: employeeFormView, title: 'Empleado', roles: MANAGER, back: true },
+  // Employee ids are Supabase Auth UUIDs.
+  { re: /^\/employees\/(new|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, view: employeeFormView, title: 'Empleado', roles: MANAGER, back: true },
   { re: /^\/settings$/, view: settingsView, title: 'Escuela y Teams', roles: MANAGER, back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', roles: MANAGER, back: true },
   { re: /^\/notifications$/, view: notificationsView, title: 'Avisos' },
