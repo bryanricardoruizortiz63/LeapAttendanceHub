@@ -169,7 +169,7 @@ async function handleTeams(schoolId: string, payload: TeamsPayload): Promise<str
   return `teams: ${status}`;
 }
 
-/** Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days and notifications 180 days. */
+/** Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days, notifications 180 days, messages a year. */
 async function maintenance(jobId: number): Promise<string> {
   const { data: old, error } = await db
     .from('absences')
@@ -181,6 +181,7 @@ async function maintenance(jobId: number): Promise<string> {
   const removed = await deleteAbsences(db, (old || []).map((a) => a.id as number));
   await db.from('outbox').delete().lt('created_at', new Date(Date.now() - 30 * DAY).toISOString()).neq('id', jobId);
   await db.from('notifications').delete().lt('created_at', new Date(Date.now() - 180 * DAY).toISOString());
+  await db.from('messages').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
   return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos`;
 }
 

@@ -9,6 +9,7 @@ import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
+import { composeView, messageView, messagesView } from './views/messages.js';
 
 const STAFF = ['admin', 'director', 'secretary'];
 const MANAGER = ['admin', 'director'];
@@ -29,6 +30,9 @@ const ROUTES = [
   { re: /^\/employees\/(new|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, view: employeeFormView, title: 'Empleado', roles: MANAGER, back: true },
   { re: /^\/settings$/, view: settingsView, title: 'Escuela y Teams', roles: MANAGER, back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', roles: MANAGER, back: true },
+  { re: /^\/messages$/, view: messagesView, title: 'Mensajes', roles: MANAGER },
+  { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', roles: MANAGER, back: true },
+  { re: /^\/message\/(\d+)$/, view: messageView, title: 'Mensaje', back: true },
   { re: /^\/notifications$/, view: notificationsView, title: 'Avisos' },
   { re: /^\/profile$/, view: profileView, title: 'Mi perfil' },
   { re: /^\/more$/, view: moreView, title: 'Más', roles: STAFF },
@@ -39,7 +43,7 @@ function navItems(role) {
     return [
       { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] },
       { path: '/report', icon: 'plus', label: 'Reportar' },
-      { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true },
+      { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] },
       { path: '/profile', icon: 'user', label: 'Perfil' },
     ];
   }
@@ -49,11 +53,11 @@ function navItems(role) {
   ];
   if (MANAGER.includes(role)) items.push({ path: '/employees', icon: 'users', label: 'Personal' });
   else items.push({ path: '/report', icon: 'plus', label: 'Reportar' });
-  const moreMatch = ['/more', '/settings', '/data', '/profile', '/home', '/report'].filter(
+  const moreMatch = ['/more', '/settings', '/data', '/messages', '/profile', '/home', '/report'].filter(
     (p) => !items.some((i) => i.path === p),
   );
   items.push(
-    { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true },
+    { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] },
     { path: '/more', icon: 'menu', label: 'Más', match: moreMatch },
   );
   return items;

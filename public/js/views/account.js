@@ -195,7 +195,8 @@ export async function moreView({ el }) {
     user.role === 'admin' ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error'] : null,
     user.role === 'director' ? ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'] : null,
     user.role !== 'admin' ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
-    manager ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams y contraseña de administración'] : null,
+    manager ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
+    manager ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
     manager ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
     ['#/profile', 'user', 'Mi perfil', 'Notificaciones, contraseña e instalar la app'],
   ].filter(Boolean);

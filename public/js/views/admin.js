@@ -21,9 +21,14 @@ import {
   getEmployee,
   getSchool,
   listEmployees,
+  removeEmailAccount,
   resetEmployeePassword,
+  saveEmailAccount,
+  saveWelcomeTemplate,
+  sendCredentials,
   setAdminPassword,
   stats,
+  testEmail,
   testTeams,
   updateEmployee,
   updateSchool,
@@ -42,34 +47,57 @@ function recentHelp(e) {
 
 // ---- Credentials card ------------------------------------------------------
 
-function credentialsText(employee, password) {
-  return [
-    'Leap Attendance Hub',
-    `Enlace: ${APP_URL}?escuela=${encodeURIComponent(state.me.school.code)}`,
-    `Código de escuela: ${state.me.school.code}`,
-    `Usuario: ${employee.username}`,
-    `Contraseña temporal: ${password}`,
-    'Al entrar te pedirá crear tu propia contraseña.',
-  ].join('\n');
+/** The school's welcome text (Escuela y Teams → Mensaje con usuario y contraseña) filled in for one person. */
+function renderWelcome(school, employee, password) {
+  const vars = {
+    nombre: employee.full_name,
+    usuario: employee.username,
+    'contraseña': password,
+    contrasena: password,
+    escuela: school.name,
+    codigo: school.code,
+    enlace: `${APP_URL}?escuela=${encodeURIComponent(school.code)}`,
+  };
+  const fill = (t) => String(t || '').replace(/\{([a-zñáéíóú]+)\}/gi, (m, k) => vars[k.toLowerCase()] ?? m);
+  return { subject: fill(school.welcome_subject), text: fill(school.welcome_body) };
 }
 
-async function showCredentials(employee, password, title) {
-  const text = credentialsText(employee, password);
+function emailSlot(school, employee) {
+  if (!employee.email) return html`<p class="hint">Añade su correo en la ficha para poder enviárselo por correo.</p>`;
+  if (!school.email_provider) {
+    return html`<p class="hint">Para enviarlo por correo, conecta una cuenta en <b>Más → Escuela y Teams → Correo electrónico</b>.</p>`;
+  }
+  return html`<button type="button" class="btn btn-primary btn-block" data-send-email>${icon('mail', 18)} Enviar por correo a ${employee.email}</button>`;
+}
+
+async function showCredentials(employee, password, title, school) {
+  const { text } = renderWelcome(school, employee, password);
   const body = html`
     <div class="credentials">
-      <div><span>Código de escuela</span><strong>${state.me.school.code}</strong></div>
+      <div><span>Código de escuela</span><strong>${school.code}</strong></div>
       <div><span>Usuario</span><strong>${employee.username}</strong></div>
       <div><span>Contraseña temporal</span><strong class="mono">${password}</strong></div>
     </div>
-    <p class="hint">Compártelos con ${employee.full_name}. Esta contraseña no se volverá a mostrar.</p>
+    <p class="hint">Envíaselos a ${employee.full_name} con las instrucciones. Esta contraseña no se volverá a mostrar.</p>
+    <div data-email-slot>${emailSlot(school, employee)}</div>
     <div class="button-row">
-      <button type="button" class="btn btn-secondary btn-sm" data-copy>${icon('copy', 16)} Copiar</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-copy>${icon('copy', 16)} Copiar mensaje</button>
       ${navigator.share ? html`<button type="button" class="btn btn-secondary btn-sm" data-share>${icon('share', 16)} Compartir</button>` : ''}
     </div>`;
   const pending = dialog({ title, body, confirmText: 'Listo', cancelText: '' });
   const dlg = document.querySelector('dialog.dialog:last-of-type');
   dlg.querySelector('[data-copy]').addEventListener('click', () => copyText(text));
   dlg.querySelector('[data-share]')?.addEventListener('click', () => navigator.share({ text }).catch(() => {}));
+  const send = dlg.querySelector('[data-send-email]');
+  send?.addEventListener('click', () =>
+    busy(send, async () => {
+      const res = await sendCredentials(employee.id, password);
+      dlg.querySelector('[data-email-slot]').innerHTML = String(
+        html`<p class="status-note ok">${icon('check', 16)} Enviado a ${res.to}</p>`,
+      );
+      toast('Correo enviado', 'ok');
+    }),
+  );
   return pending;
 }
 
@@ -141,7 +169,10 @@ export async function employeesView({ el }) {
 export async function employeeFormView({ el, params, setTitle }) {
   const isNew = params[0] === 'new';
   const me = state.me.user;
-  const employee = isNew ? { role: 'teacher', active: true } : await getEmployee(params[0]);
+  const [employee, school] = await Promise.all([
+    isNew ? { role: 'teacher', active: true } : getEmployee(params[0]),
+    getSchool(state.me.school.id),
+  ]);
   const self = employee.id === me.id;
   setTitle(isNew ? 'Nuevo empleado' : employee.full_name);
 
@@ -198,6 +229,7 @@ export async function employeeFormView({ el, params, setTitle }) {
                   Toca “Restablecer contraseña” y compártele la temporal.</p>`
               : ''}
             <a class="btn btn-secondary btn-block" href="#/absences?user_id=${employee.id}&status=all&from=">${icon('calendar', 18)} Ver sus ausencias</a>
+            ${self ? '' : html`<a class="btn btn-secondary btn-block" href="#/messages/new?to=${employee.id}">${icon('mail', 18)} Enviar mensaje</a>`}
             ${me.role === 'admin'
               ? html`<a class="btn btn-secondary btn-block" href="#/report?user_id=${employee.id}">${icon('plus', 18)} Registrar una ausencia</a>`
               : ''}
@@ -217,7 +249,7 @@ export async function employeeFormView({ el, params, setTitle }) {
         if (!v.username.trim() && !v.email.trim()) throw new Error('Escribe un usuario o un correo.');
         if (!v.password) delete v.password;
         const res = await createEmployee(v);
-        await showCredentials(res.employee, res.temp_password, 'Empleado creado ✅');
+        await showCredentials(res.employee, res.temp_password, 'Empleado creado ✅', school);
         go('/employees', { replace: true });
       } else {
         if (self) {
@@ -241,7 +273,7 @@ export async function employeeFormView({ el, params, setTitle }) {
     if (!ok) return;
     await busy(btn, async () => {
       const res = await resetEmployeePassword(employee.id);
-      await showCredentials(employee, res.temp_password, 'Nueva contraseña temporal');
+      await showCredentials(employee, res.temp_password, 'Nueva contraseña temporal', school);
     });
   });
 
@@ -264,7 +296,7 @@ export async function employeeFormView({ el, params, setTitle }) {
 
 // ---- Escuela y Teams -----------------------------------------------------------
 
-export async function settingsView({ el }) {
+export async function settingsView({ el, reload }) {
   let school = await getSchool(state.me.school.id);
 
   const teamsStatus = () => {
@@ -275,6 +307,18 @@ export async function settingsView({ el }) {
     }
     return html`<p class="status-note danger">${icon('alert', 16)} ${school.teams_last_status} · ${fmtDateTime(school.teams_last_at)}</p>`;
   };
+
+  const emailStatus = () => {
+    if (!school.email_provider) return html`<p class="status-note muted">${icon('alert', 16)} Sin configurar</p>`;
+    if (!school.email_last_status) {
+      return html`<p class="status-note muted">${icon('mail', 16)} Conectado: ${school.email_from} · aún no se ha enviado nada</p>`;
+    }
+    if (school.email_last_status === 'ok') {
+      return html`<p class="status-note ok">${icon('check', 16)} Conectado: ${school.email_from} · último envío correcto ${fmtDateTime(school.email_last_at)}</p>`;
+    }
+    return html`<p class="status-note danger">${icon('alert', 16)} ${school.email_last_status.replace(/^error: /, '')} · ${fmtDateTime(school.email_last_at)}</p>`;
+  };
+  const gmail = school.email_provider !== 'smtp';
 
   el.innerHTML = String(html`
     <div class="stack">
@@ -322,6 +366,74 @@ export async function settingsView({ el }) {
           </ol>
           <p class="hint">Si tu organización todavía usa “Conectores → Incoming Webhook”, esa URL también funciona.</p>
         </details>
+      </form>
+
+      <form class="card stack" data-email novalidate>
+        <h2 class="card-title">${icon('mail')} Correo electrónico</h2>
+        <p class="muted">Conecta una cuenta para enviar a cada persona su usuario y contraseña, y tus mensajes por correo.</p>
+        <div data-email-status>${emailStatus()}</div>
+        <div class="segmented" role="radiogroup" aria-label="Tipo de cuenta">
+          <label class="seg"><input type="radio" name="provider" value="gmail" ${gmail ? 'checked' : ''}> Gmail</label>
+          <label class="seg"><input type="radio" name="provider" value="smtp" ${gmail ? '' : 'checked'}> Otro (SMTP)</label>
+        </div>
+        <label class="field"><span>Correo que envía</span>
+          <input name="from_email" type="email" maxlength="200" value="${school.email_from || ''}" autocapitalize="none" spellcheck="false"
+            placeholder="ej. asistencia.leap@gmail.com"></label>
+        <label class="field"><span>Nombre que verán <em class="optional">opcional</em></span>
+          <input name="from_name" maxlength="100" value="${school.email_from_name || ''}" placeholder="${school.name}"></label>
+        <div class="stack" data-smtp ${gmail ? 'hidden' : ''}>
+          <div class="grid2">
+            <label class="field"><span>Servidor SMTP</span>
+              <input name="smtp_host" maxlength="253" value="${school.email_provider === 'smtp' ? school.smtp_host || '' : ''}" autocapitalize="none"
+                spellcheck="false" placeholder="smtp-relay.brevo.com"></label>
+            <label class="field"><span>Puerto</span>
+              <input name="smtp_port" type="number" min="1" max="65535" value="${school.email_provider === 'smtp' ? school.smtp_port || 465 : 465}"></label>
+          </div>
+          <label class="field"><span>Usuario SMTP <em class="optional">vacío = el correo que envía</em></span>
+            <input name="smtp_user" maxlength="200" value="${school.email_provider === 'smtp' && school.smtp_user !== school.email_from ? school.smtp_user || '' : ''}"
+              autocapitalize="none" spellcheck="false"></label>
+          <p class="hint">Usa el puerto 465 (SSL) o el 2525. Supabase bloquea el 25 y el 587, así que Outlook / Microsoft 365 no sirven.</p>
+        </div>
+        <label class="field"><span data-pw-label>${gmail ? 'Contraseña de aplicación de Google' : 'Contraseña o clave SMTP'}</span>
+          <span class="pw"><input name="password" type="password" maxlength="500" autocomplete="new-password"
+            placeholder="${school.email_provider ? 'Guardada · escribe otra solo para cambiarla' : ''}"><button type="button" class="pw-toggle" data-pw>Ver</button></span></label>
+        <div class="button-row">
+          <button class="btn btn-primary" type="submit">Guardar</button>
+          <button class="btn btn-secondary" type="button" data-test-email ${school.email_provider ? '' : 'disabled'}>${icon('send', 16)} Enviar prueba</button>
+          ${school.email_provider ? html`<button class="btn btn-ghost-danger" type="button" data-remove-email>Desconectar</button>` : ''}
+        </div>
+        <details class="help">
+          <summary>¿Cómo conecto una cuenta de Gmail?</summary>
+          <ol>
+            <li>Usa una cuenta de Gmail para la escuela (puedes crear una solo para esto, por ejemplo <i>asistencia.tuescuela@gmail.com</i>).</li>
+            <li>Activa la <b>verificación en 2 pasos</b> en <a href="https://myaccount.google.com/security" target="_blank" rel="noopener">myaccount.google.com/security</a>.</li>
+            <li>Entra a <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>,
+              escribe “Leap Attendance Hub” y toca <b>Crear</b>.</li>
+            <li>Copia la contraseña de 16 letras, pégala aquí con el correo y toca <b>Guardar</b>. Luego <b>Enviar prueba</b>.</li>
+          </ol>
+          <p class="hint">Gmail permite unos 500 correos al día. La contraseña se guarda cifrada y nadie puede verla, ni siquiera desde la app.</p>
+        </details>
+      </form>
+
+      <form class="card stack" data-welcome novalidate>
+        <h2 class="card-title">${icon('key')} Mensaje con usuario y contraseña</h2>
+        <p class="muted">Lo recibe cada persona por correo (y es el texto que se copia o comparte) cuando creas su cuenta o restableces su contraseña.</p>
+        <label class="field"><span>Asunto</span>
+          <input name="subject" maxlength="200" value="${school.welcome_subject || ''}"></label>
+        <label class="field"><span>Mensaje</span>
+          <textarea name="body" rows="16" maxlength="5000">${school.welcome_body || ''}</textarea></label>
+        <div class="placeholders">
+          <span class="hint">Toca para insertar:</span>
+          ${['{nombre}', '{usuario}', '{contraseña}', '{enlace}', '{escuela}', '{codigo}'].map(
+            (p) => html`<button type="button" class="chip-btn" data-insert="${p}">${p}</button>`,
+          )}
+        </div>
+        <p class="hint">{enlace} abre la app con el código de la escuela ya puesto. {usuario} y {contraseña} son obligatorios.</p>
+        <div class="button-row">
+          <button class="btn btn-primary" type="submit">Guardar</button>
+          <button class="btn btn-secondary" type="button" data-preview>Vista previa</button>
+          <button class="btn btn-ghost" type="button" data-restore>Restaurar texto original</button>
+        </div>
       </form>
 
       <form class="card stack" data-admin-pw>
@@ -382,6 +494,106 @@ export async function settingsView({ el }) {
       }),
     );
   }
+
+  // ---- Correo electrónico
+  const emailForm = $('[data-email]', el);
+  const refreshEmail = async () => {
+    school = await getSchool(state.me.school.id);
+    $('[data-email-status]', el).innerHTML = String(emailStatus());
+  };
+  const syncProvider = () => {
+    const smtp = emailForm.querySelector('[name=provider]:checked').value === 'smtp';
+    $('[data-smtp]', emailForm).hidden = !smtp;
+    $('[data-pw-label]', emailForm).textContent = smtp ? 'Contraseña o clave SMTP' : 'Contraseña de aplicación de Google';
+    for (const seg of emailForm.querySelectorAll('.seg')) seg.classList.toggle('active', seg.querySelector('input').checked);
+  };
+  for (const r of emailForm.querySelectorAll('[name=provider]')) r.addEventListener('change', syncProvider);
+  syncProvider();
+  const saveEmail = async () => {
+    const v = formValues(emailForm);
+    if (!v.from_email.trim()) throw new Error('Escribe el correo que envía.');
+    if (!school.email_provider && !v.password) throw new Error('Escribe la contraseña de aplicación.');
+    await saveEmailAccount(v);
+    emailForm.password.value = '';
+  };
+  emailForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    busy(emailForm.querySelector('[type=submit]'), async () => {
+      await saveEmail();
+      toast('Correo conectado. Toca “Enviar prueba” para comprobarlo.', 'ok');
+      reload();
+    });
+  });
+  $('[data-test-email]', el).addEventListener('click', (e) =>
+    busy(e.currentTarget, async () => {
+      if (emailForm.password.value) await saveEmail();
+      try {
+        const res = await testEmail();
+        toast(`Correo de prueba enviado a ${res.to}. Revisa la bandeja de entrada.`, 'ok');
+      } finally {
+        await refreshEmail();
+      }
+    }),
+  );
+  $('[data-remove-email]', el)?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const ok = await dialog({
+      title: '¿Desconectar el correo?',
+      message: 'La app dejará de enviar correos hasta que conectes otra cuenta. Se borra la contraseña guardada.',
+      confirmText: 'Desconectar',
+      danger: true,
+    });
+    if (!ok) return;
+    await busy(btn, async () => {
+      await removeEmailAccount();
+      toast('Correo desconectado', 'ok');
+      reload();
+    });
+  });
+
+  // ---- Mensaje con usuario y contraseña
+  const welcome = $('[data-welcome]', el);
+  for (const chip of welcome.querySelectorAll('[data-insert]')) {
+    chip.addEventListener('click', () => {
+      const ta = welcome.body;
+      const start = ta.selectionStart ?? ta.value.length;
+      ta.setRangeText(chip.dataset.insert, start, ta.selectionEnd ?? start, 'end');
+      ta.focus();
+    });
+  }
+  welcome.addEventListener('submit', (e) => {
+    e.preventDefault();
+    busy(welcome.querySelector('[type=submit]'), async () => {
+      const v = formValues(welcome);
+      if (!v.body.includes('{usuario}') || !v.body.includes('{contraseña}')) {
+        throw new Error('El mensaje debe incluir {usuario} y {contraseña}.');
+      }
+      await saveWelcomeTemplate(v.subject, v.body);
+      school = await getSchool(state.me.school.id);
+      toast('Mensaje guardado', 'ok');
+    });
+  });
+  $('[data-preview]', el).addEventListener('click', () => {
+    const v = formValues(welcome);
+    const sample = { full_name: 'María González', username: 'maria.gonzalez' };
+    const out = renderWelcome({ ...school, welcome_subject: v.subject, welcome_body: v.body }, sample, 'Kp7mWq2xTz');
+    dialog({
+      title: 'Vista previa',
+      body: html`<p><b>Asunto:</b> ${out.subject}</p><div class="preview-box pre">${out.text}</div>`,
+      confirmText: 'Cerrar',
+      cancelText: '',
+    });
+  });
+  $('[data-restore]', el).addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const ok = await dialog({ title: '¿Restaurar el texto original?', message: 'Se perderán tus cambios al mensaje.', confirmText: 'Restaurar' });
+    if (!ok) return;
+    await busy(btn, async () => {
+      await saveWelcomeTemplate(null, null);
+      reload();
+      toast('Texto original restaurado', 'ok');
+    });
+  });
 
   const pw = $('[data-admin-pw]', el);
   pw.addEventListener('submit', (e) => {
