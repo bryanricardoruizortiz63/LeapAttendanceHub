@@ -16,8 +16,9 @@ import {
   validatePassword,
 } from '../_shared/http.ts';
 import { deleteAbsences } from '../_shared/cleanup.ts';
-import { loadEmailAccount, sendEmails } from '../_shared/email.ts';
+import { loadBranding, loadEmailAccount, schoolIconUrl, sendEmails } from '../_shared/email.ts';
 import { isEmail, renderTemplate } from '../_shared/email_format.ts';
+import { brandedHtml, LOGO_CID } from '../_shared/email_template.ts';
 import { buildCard, postToTeams } from '../_shared/teams.ts';
 
 const db = serviceClient();
@@ -40,7 +41,7 @@ type Me = {
   role: string;
   full_name: string;
   email: string | null;
-  school: { code: string; name: string };
+  school: { code: string; name: string; icon_version: number | null };
 };
 
 async function currentManager(req: Request): Promise<Me> {
@@ -49,7 +50,7 @@ async function currentManager(req: Request): Promise<Me> {
   if (!data.user) throw new HttpError(401, 'Tu sesión expiró. Vuelve a iniciar sesión.');
   const { data: me } = await db
     .from('profiles')
-    .select('id, school_id, role, full_name, email, active, must_change_password, school:schools(code, name, active)')
+    .select('id, school_id, role, full_name, email, active, must_change_password, school:schools(code, name, active, icon_version)')
     .eq('id', data.user.id)
     .maybeSingle();
   // deno-lint-ignore no-explicit-any
@@ -120,6 +121,50 @@ async function recordEmailStatus(me: Me, status: string) {
     .from('school_settings')
     .update({ email_last_status: (status === 'sent' ? 'ok' : status).slice(0, 300), email_last_at: new Date().toISOString() })
     .eq('school_id', me.school_id);
+}
+
+type Template = { welcome_subject: string; welcome_body: string };
+
+/** The access email: the school's editable text in the branded layout. */
+function welcomeEmail(me: Me, tpl: Template, person: { full_name: string; username: string }, password: string, url: string, logoSrc: string) {
+  const vars = {
+    nombre: person.full_name,
+    usuario: person.username,
+    'contraseña': password,
+    contrasena: password,
+    escuela: me.school.name,
+    codigo: me.school.code,
+    enlace: `${url}?escuela=${encodeURIComponent(me.school.code)}`,
+  };
+  const subject = renderTemplate(tpl.welcome_subject, vars);
+  const text = renderTemplate(tpl.welcome_body, vars);
+  const html = brandedHtml({
+    title: subject,
+    text,
+    schoolName: me.school.name,
+    logoSrc,
+    preheader: 'Tu usuario y tu contraseña temporal para entrar a Leap Attendance Hub.',
+    highlights: [person.username, password],
+    note: 'Este correo incluye una contraseña temporal. Al entrar, la app te pedirá crear la tuya.',
+  });
+  return { subject, text, html };
+}
+
+function messageEmail(me: Me, subject: string, body: string, link: string, logoSrc: string) {
+  return {
+    subject,
+    text: `${body}\n\n— ${me.full_name} · ${me.school.name}\n\nVer en Leap Attendance Hub: ${link}`,
+    html: brandedHtml({
+      title: subject,
+      intro: `De ${me.full_name} · ${me.school.name}`,
+      text: body,
+      schoolName: me.school.name,
+      logoSrc,
+      preheader: body.slice(0, 140),
+      buttonLabel: 'Abrir enlace',
+      cta: { url: link, label: 'Ver en Leap Attendance Hub' },
+    }),
+  };
 }
 
 function check(error: { code?: string; message: string } | null, message = 'No se pudo guardar. Inténtalo de nuevo.') {
@@ -304,22 +349,14 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       .select('welcome_subject, welcome_body')
       .eq('school_id', me.school_id)
       .single();
-    const vars = {
-      nombre: employee.full_name,
-      usuario: employee.username,
-      'contraseña': password,
-      contrasena: password,
-      escuela: me.school.name,
-      codigo: me.school.code,
-      enlace: `${await appUrl()}?escuela=${encodeURIComponent(me.school.code)}`,
-    };
-    const [status] = await sendEmails(account, [{
-      to: employee.email,
-      toName: employee.full_name,
-      replyTo: isEmail(me.email) ? me.email : null,
-      subject: renderTemplate(tpl!.welcome_subject, vars),
-      text: renderTemplate(tpl!.welcome_body, vars),
-    }]);
+    const url = await appUrl();
+    const branding = await loadBranding(url, schoolIconUrl({ id: me.school_id, icon_version: me.school.icon_version }));
+    const email = welcomeEmail(me, tpl as Template, employee, password, url, branding.logoSrc);
+    const [status] = await sendEmails(
+      account,
+      [{ ...email, to: employee.email, toName: employee.full_name, replyTo: isEmail(me.email) ? me.email : null }],
+      branding,
+    );
     await recordEmailStatus(me, status);
     if (status !== 'sent') throw new HttpError(502, `No se pudo enviar el correo: ${status.replace(/^error: /, '')}`);
     return json({ ok: true, to: employee.email });
@@ -399,16 +436,13 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     let failed = 0;
     const withEmail = people.filter((p) => isEmail(p.email));
     if (account && withEmail.length) {
-      const link = `${await appUrl()}#/message/${id}`;
+      const url = await appUrl();
+      const branding = await loadBranding(url, schoolIconUrl({ id: me.school_id, icon_version: me.school.icon_version }));
+      const email = messageEmail(me, subject, body, `${url}#/message/${id}`, branding.logoSrc);
       const results = await sendEmails(
         account,
-        withEmail.map((p) => ({
-          to: p.email!,
-          toName: p.full_name,
-          replyTo: isEmail(me.email) ? me.email : null,
-          subject,
-          text: `${body}\n\n— ${me.full_name} · ${me.school.name}\n\nVer en Leap Attendance Hub: ${link}`,
-        })),
+        withEmail.map((p) => ({ ...email, to: p.email!, toName: p.full_name, replyTo: isEmail(me.email) ? me.email : null })),
+        branding,
       );
       const statusById = new Map(withEmail.map((p, i) => [p.id, results[i]]));
       emailed = results.filter((r) => r === 'sent').length;
@@ -425,16 +459,152 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
   /** Sends a test email to the school's own address. */
   async test_email(me) {
     const account = await requireEmailAccount(me);
+    const url = await appUrl();
+    const branding = await loadBranding(url, schoolIconUrl({ id: me.school_id, icon_version: me.school.icon_version }));
+    const text =
+      `Este es un correo de prueba de ${me.school.name}.\n\nSi lo recibiste, el correo está bien configurado: ` +
+      `la app ya puede enviar los accesos del personal y tus mensajes.\n\nEnviado por ${me.full_name}.`;
     const [status] = await sendEmails(account, [{
       to: account.from_email,
       subject: 'Prueba de Leap Attendance Hub',
-      text:
-        `Este es un correo de prueba de ${me.school.name}.\n\nSi lo recibiste, el correo está bien configurado: ` +
-        `la app ya puede enviar los accesos del personal y tus mensajes.\n\nEnviado por ${me.full_name}.`,
-    }]);
+      text,
+      html: brandedHtml({
+        title: 'El correo funciona ✅',
+        text,
+        schoolName: me.school.name,
+        logoSrc: branding.logoSrc,
+        preheader: 'El correo de la escuela está bien configurado.',
+        cta: { url, label: 'Abrir Leap Attendance Hub' },
+      }),
+    }], branding);
     await recordEmailStatus(me, status);
     if (status !== 'sent') throw new HttpError(502, status.replace(/^error: /, ''));
     return json({ ok: true, to: account.from_email });
+  },
+
+  /**
+   * New school code. Every login is "code + username", so all the school's accounts move to the new
+   * code (all or nothing), the old code is kept so old links keep working, and everyone is told.
+   */
+  async change_school_code(me, b) {
+    if (me.role !== 'admin') throw new HttpError(403, 'Solo la cuenta de Administración puede cambiar el código.');
+    const code = String(b.code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9-]{2,19}$/.test(code)) {
+      throw new HttpError(400, 'El código debe tener de 3 a 20 letras (sin acentos), números o guiones, sin espacios.');
+    }
+    const oldCode = me.school.code;
+    if (code === oldCode) throw new HttpError(400, 'Ese ya es el código de la escuela.');
+    const [{ data: other }, { data: usedBefore }] = await Promise.all([
+      db.from('schools').select('id').eq('code', code).maybeSingle(),
+      db.from('school_code_history').select('school_id').eq('code', code).neq('school_id', me.school_id).maybeSingle(),
+    ]);
+    if (other || usedBefore) throw new HttpError(409, 'Ese código ya lo usa otra escuela. Elige otro.');
+
+    const { data: people, error } = await db
+      .from('profiles')
+      .select('id, role, username, full_name, email, active')
+      .eq('school_id', me.school_id);
+    check(error, 'No se pudo leer el personal.');
+    const moveTo = async (c: string, list: typeof people) => {
+      const failed: string[] = [];
+      for (const p of list!) {
+        const { error: e } = await db.auth.admin.updateUserById(p.id, { email: await authEmail(c, p.username), email_confirm: true });
+        if (e) failed.push(p.id);
+      }
+      return failed;
+    };
+    const moved: NonNullable<typeof people> = [];
+    for (const p of people!) {
+      const { error: e } = await db.auth.admin.updateUserById(p.id, { email: await authEmail(code, p.username), email_confirm: true });
+      if (e) {
+        console.error('change_school_code', p.id, e);
+        const stuck = await moveTo(oldCode, moved);
+        if (stuck.length) console.error('change_school_code rollback failed for', stuck);
+        throw new HttpError(500, 'No se pudo cambiar el código. No se cambió nada; inténtalo de nuevo.');
+      }
+      moved.push(p);
+    }
+    const { error: updateError } = await db.from('schools').update({ code }).eq('id', me.school_id);
+    if (updateError) {
+      await moveTo(oldCode, moved);
+      if (isDuplicate(updateError)) throw new HttpError(409, 'Ese código ya lo usa otra escuela. Elige otro.');
+      check(updateError, 'No se pudo cambiar el código.');
+    }
+    await db.from('school_code_history').delete().eq('code', code).eq('school_id', me.school_id);
+    await db.from('school_code_history').upsert({ code: oldCode, school_id: me.school_id, changed_at: new Date().toISOString() });
+
+    // Everyone has to know: in-app notice + push, and an email when the school has one connected.
+    const staff = people!.filter((p) => p.active && p.role !== 'admin' && p.id !== me.id);
+    if (staff.length) {
+      await db.from('notifications').insert(staff.map((p) => ({
+        user_id: p.id,
+        title: `Nuevo código de escuela: ${code}`,
+        body: `Tu usuario y tu contraseña no cambian. Si la app te pide el código, escribe ${code}.`,
+        link: '#/notifications',
+      })));
+    }
+    let emailed = 0;
+    let failed = 0;
+    const account = await loadEmailAccount(db, me.school_id);
+    const withEmail = staff.filter((p) => isEmail(p.email));
+    if (account && withEmail.length) {
+      const url = await appUrl();
+      const link = `${url}?escuela=${encodeURIComponent(code)}`;
+      const branding = await loadBranding(url, schoolIconUrl({ id: me.school_id, icon_version: me.school.icon_version }));
+      const subject = `Nuevo código de ${me.school.name}: ${code}`;
+      const results = await sendEmails(
+        account,
+        withEmail.map((p) => {
+          const text = `Hola ${p.full_name}:\n\n${me.school.name} tiene un nuevo código para entrar a Leap Attendance Hub.\n\n` +
+            `   Código de escuela: ${code}\n   Tu usuario: ${p.username}\n\n` +
+            'Tu usuario y tu contraseña siguen siendo los mismos. Si ya tienes la sesión abierta, no tienes que hacer nada.\n\n' +
+            `Si la app te pide el código, escribe el nuevo o entra con este enlace, que ya lo trae puesto:\n${link}`;
+          return {
+            to: p.email!,
+            toName: p.full_name,
+            replyTo: isEmail(me.email) ? me.email : null,
+            subject,
+            text,
+            html: brandedHtml({
+              title: 'Cambió el código de la escuela',
+              text,
+              schoolName: me.school.name,
+              logoSrc: branding.logoSrc,
+              preheader: `El nuevo código para entrar es ${code}. Tu usuario y contraseña no cambian.`,
+              highlights: [code, p.username],
+            }),
+          };
+        }),
+        branding,
+      );
+      emailed = results.filter((r) => r === 'sent').length;
+      failed = results.length - emailed;
+      await recordEmailStatus(me, results.find((r) => r !== 'sent') ?? 'sent');
+    }
+    return json({ code, notified: staff.length, emailed, email_failed: failed, no_email: account ? staff.length - withEmail.length : staff.length });
+  },
+
+  /** How an email will look, with sample data, for the preview in the app (logo as cid:leap-logo). */
+  async preview_email(me, b) {
+    const url = await appUrl();
+    const logoSrc = `cid:${LOGO_CID}`;
+    if (b.kind === 'message') {
+      const subject = reqText(b.subject, 150, 'El asunto').replace(/[\r\n]+/g, ' ');
+      const body = reqText(b.body, 5000, 'El mensaje');
+      const email = messageEmail(me, subject, body, `${url}#/messages`, logoSrc);
+      return json({ subject: email.subject, html: email.html });
+    }
+    const { data: saved } = await db
+      .from('school_settings')
+      .select('welcome_subject, welcome_body')
+      .eq('school_id', me.school_id)
+      .single();
+    const tpl: Template = {
+      welcome_subject: optText(b.subject, 200, 'El asunto') ?? saved!.welcome_subject,
+      welcome_body: optText(b.body, 5000, 'El mensaje') ?? saved!.welcome_body,
+    };
+    const email = welcomeEmail(me, tpl, { full_name: 'María González', username: 'maria.gonzalez' }, 'Kp7mWq2xTz', url, logoSrc);
+    return json({ subject: email.subject, html: email.html });
   },
 
   /**

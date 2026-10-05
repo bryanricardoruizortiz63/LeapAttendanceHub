@@ -108,10 +108,18 @@ export async function getMe() {
 }
 
 export async function signIn(schoolCode, username, password) {
-  const code = String(schoolCode || '').trim();
+  let code = String(schoolCode || '').trim().toUpperCase();
   const user = String(username || '').trim();
   if (!code || !user || !password) throw new ApiError('Completa todos los campos.');
-  const { error } = await sb.auth.signInWithPassword({ email: await authEmail(code, user), password });
+  let { error } = await sb.auth.signInWithPassword({ email: await authEmail(code, user), password });
+  if (error?.status === 400) {
+    // The school may have changed its code: an old code (or an old link) still works.
+    const current = await rpc('current_school_code', { p_code: code }).catch(() => null);
+    if (current && current !== code) {
+      code = current;
+      ({ error } = await sb.auth.signInWithPassword({ email: await authEmail(code, user), password }));
+    }
+  }
   if (error) {
     if (error.code === 'user_banned') throw new ApiError('Tu cuenta está desactivada. Habla con la dirección.');
     if (error.status === 429) throw new ApiError('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.');
@@ -126,6 +134,9 @@ export async function signIn(schoolCode, username, password) {
   rpc('touch_login').catch(() => {});
   return me;
 }
+
+/** Icon of the school with this code (current or old), for the login screen. Null if unknown. */
+export const schoolBranding = (code) => rpc('school_branding', { p_code: code }).catch(() => null);
 
 /** Tells the school's administration someone forgot their password. Never reveals if the account exists. */
 export const requestPasswordHelp = (schoolCode, username) =>
@@ -401,6 +412,12 @@ export const sendCredentials = (id, password) => callFunction('admin', { action:
 /** to: 'all' | 'teacher' | 'secretary' | 'director' | [employee ids] */
 export const sendMessage = ({ to, subject, body, email }) =>
   callFunction('admin', { action: 'send_message', to, subject, body, email: !!email });
+
+/** kind 'welcome' (subject/body = template being edited) or 'message'. Returns { subject, html }. */
+export const previewEmail = (kind, subject, body) => callFunction('admin', { action: 'preview_email', kind, subject, body });
+
+/** Moves every account of the school to the new code and tells everyone. */
+export const changeSchoolCode = (code) => callFunction('admin', { action: 'change_school_code', code });
 
 export const listMessages = () =>
   run(sb.from('messages').select('*').order('created_at', { ascending: false }).limit(100));

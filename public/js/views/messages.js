@@ -1,10 +1,10 @@
 // Mensajes: the dirección writes to everyone, a role or specific people. Each person gets an in-app
 // notice and a push notification, and optionally an email.
-import { getMessage, getSchool, listEmployees, listMessages, sendMessage } from '../backend.js';
+import { getMessage, getSchool, listEmployees, listMessages, previewEmail, sendMessage } from '../backend.js';
 import { $, busy, fmtDateTime, formValues, html, isManager, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
-import { avatar, empty } from './common.js';
+import { avatar, empty, showEmailPreview } from './common.js';
 
 const GROUPS = [
   ['all', 'Todo el personal'],
@@ -88,6 +88,7 @@ export async function composeView({ el, query }) {
         <label class="toggle"><input type="checkbox" name="email" ${emailReady ? '' : 'disabled'}>
           <span class="toggle-ui"></span><span>También enviar por correo electrónico</span></label>
         <p class="hint" data-email-hint></p>
+        ${emailReady ? html`<button type="button" class="btn btn-ghost btn-sm" data-preview-email>${icon('mail', 16)} Ver cómo llega el correo</button>` : ''}
       </section>
 
       <button class="btn btn-primary btn-block btn-lg" type="submit">${icon('send')} Enviar mensaje</button>
@@ -120,6 +121,15 @@ export async function composeView({ el, query }) {
     for (const row of peopleBox.querySelectorAll('.person')) row.hidden = !!q && !row.dataset.name.includes(q);
   });
   update();
+
+  $('[data-preview-email]', el)?.addEventListener('click', (e) =>
+    busy(e.currentTarget, async () => {
+      const v = formValues(form);
+      if (!v.subject.trim() || !v.body.trim()) throw new Error('Escribe el asunto y el mensaje para ver la vista previa.');
+      const { subject, html: page } = await previewEmail('message', v.subject, v.body);
+      showEmailPreview(subject, page);
+    }),
+  );
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();

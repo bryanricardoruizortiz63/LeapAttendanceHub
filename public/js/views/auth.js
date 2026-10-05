@@ -1,4 +1,5 @@
-import { changePassword, requestPasswordHelp, signIn } from '../backend.js';
+import { changePassword, requestPasswordHelp, schoolBranding, signIn } from '../backend.js';
+import { appIcon, applyBranding } from '../branding.js';
 import { $, busy, dialog, formValues, html, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { syncPush } from '../pwa.js';
@@ -19,6 +20,13 @@ function recall(key) {
   } catch {
     return '';
   }
+}
+
+/** Keeps this device's remembered school in sync (e.g. after the school changes its code). */
+export function rememberSchool(school) {
+  if (!school?.code) return;
+  remember('lah:school', school.code);
+  remember('lah:school-name', school.name || '');
 }
 
 function passwordField(name, label, autocomplete) {
@@ -97,6 +105,14 @@ export async function loginView({ el, query }) {
   let editingCode = false;
   let draft = {};
 
+  // The school's own icon, when this device already knows the school.
+  const known = recall('lah:school');
+  if (known) {
+    schoolBranding(known).then((b) => {
+      if (b) applyBranding(b);
+    });
+  }
+
   const render = () => {
     const savedCode = recall('lah:school');
     const savedName = recall('lah:school-name');
@@ -104,7 +120,7 @@ export async function loginView({ el, query }) {
     el.innerHTML = String(html`
       <div class="auth">
         <div class="auth-brand">
-          <img src="icons/icon-192.png" alt="" class="auth-logo" width="72" height="72">
+          <img src="${appIcon()}" alt="" class="auth-logo" width="72" height="72" data-app-icon>
           <h1>Leap Attendance Hub</h1>
           <p>Reporta tus ausencias en segundos y mantén informada a la dirección.</p>
         </div>
@@ -179,8 +195,11 @@ export async function loginView({ el, query }) {
         }
         // The school administration account is the user "admin" of that school.
         const me = await signIn(v.school_code, mode === 'admin' ? 'admin' : v.username, v.password);
-        remember('lah:school', me.school.code);
-        remember('lah:school-name', me.school.name);
+        if (me.school.code !== v.school_code.trim().toUpperCase()) {
+          toast(`El código de tu escuela ahora es ${me.school.code}.`, 'ok');
+        }
+        rememberSchool(me.school);
+        applyBranding(me.school);
         if (mode === 'staff') remember('lah:username', v.username.trim());
         state.me = me;
         state.platformPassword = null;
@@ -200,7 +219,7 @@ export async function changePasswordView({ el }) {
   el.innerHTML = String(html`
     <div class="auth">
       <div class="auth-brand">
-        <img src="icons/icon-192.png" alt="" class="auth-logo" width="64" height="64">
+        <img src="${appIcon()}" alt="" class="auth-logo" width="64" height="64" data-app-icon>
         <h1>${forced ? 'Crea tu contraseña' : 'Cambiar contraseña'}</h1>
         <p>${forced
           ? `Hola, ${state.me.user.full_name}. Por seguridad, cambia la contraseña temporal que te dieron.`

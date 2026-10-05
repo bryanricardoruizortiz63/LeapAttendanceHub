@@ -12,6 +12,30 @@ import {
 } from '../_shared/http.ts';
 
 const db = serviceClient();
+const ICON_FILES = ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'icon-maskable-512.png'];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The schools picked in the panel; all must exist. */
+async function pickSchools(value: unknown): Promise<string[]> {
+  const ids = Array.isArray(value) ? [...new Set(value.map(String).filter((id) => UUID_RE.test(id)))] : [];
+  if (!ids.length) throw new HttpError(400, 'Elige al menos una escuela.');
+  const { data } = await db.from('schools').select('id').in('id', ids);
+  if ((data || []).length !== ids.length) throw new HttpError(404, 'No se encontró alguna de las escuelas.');
+  return ids;
+}
+
+function decodePng(value: unknown, name: string): Uint8Array {
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(String(value || '')), (c) => c.charCodeAt(0));
+  } catch {
+    throw new HttpError(400, `El archivo ${name} no es válido.`);
+  }
+  const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length < 100 || !png.every((b, i) => bytes[i] === b)) throw new HttpError(400, `${name} no es una imagen PNG.`);
+  if (bytes.length > 1_048_576) throw new HttpError(400, `${name} pesa más de 1 MB.`);
+  return bytes;
+}
 
 function normalizeCode(code: unknown): string {
   return String(code || '').trim().toUpperCase();
@@ -23,9 +47,13 @@ function validateCode(code: string) {
   }
 }
 
+/** A code is taken if a school uses it now or used it before (old codes keep working for that school). */
 async function codeExists(code: string): Promise<boolean> {
-  const { data } = await db.from('schools').select('id').eq('code', code).maybeSingle();
-  return !!data;
+  const [{ data: school }, { data: old }] = await Promise.all([
+    db.from('schools').select('id').eq('code', code).maybeSingle(),
+    db.from('school_code_history').select('code').eq('code', code).maybeSingle(),
+  ]);
+  return !!school || !!old;
 }
 
 /** Suggests a readable code from the school name, e.g. "Leap Academy" -> "LA-4821". */
@@ -103,6 +131,37 @@ const actions: Record<string, (b: Record<string, unknown>) => Promise<Response>>
     const { error } = await db.from('schools').update({ active: b.active === true }).eq('id', String(b.school_id));
     if (error) throw error;
     return json({ ok: true });
+  },
+
+  /** The icon the app, emails and notifications show to the people of these schools. */
+  async set_school_icon(b) {
+    const ids = await pickSchools(b.school_ids);
+    const files = (b.files || {}) as Record<string, unknown>;
+    const images = ICON_FILES.map((name) => [name, decodePng(files[name], name)] as const);
+    for (const id of ids) {
+      for (const [name, bytes] of images) {
+        const { error } = await db.storage
+          .from('branding')
+          .upload(`${id}/${name}`, bytes, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
+        if (error) {
+          console.error(error);
+          throw new HttpError(500, 'No se pudo guardar el ícono. Inténtalo de nuevo.');
+        }
+      }
+    }
+    const version = Date.now();
+    const { error } = await db.from('schools').update({ icon_version: version }).in('id', ids);
+    if (error) throw error;
+    return json({ updated: ids.length, icon_version: version });
+  },
+
+  /** Back to the default icon. */
+  async reset_school_icon(b) {
+    const ids = await pickSchools(b.school_ids);
+    await db.storage.from('branding').remove(ids.flatMap((id) => ICON_FILES.map((name) => `${id}/${name}`)));
+    const { error } = await db.from('schools').update({ icon_version: null }).in('id', ids);
+    if (error) throw error;
+    return json({ updated: ids.length });
   },
 
   async reset_admin_password(b) {

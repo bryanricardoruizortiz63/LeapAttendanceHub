@@ -71,7 +71,7 @@ export async function platformView(ctx) {
     </div>`);
 
   bindPasswordToggles(el);
-  iconTool($('[data-icon-slot]', el));
+  iconTool($('[data-icon-slot]', el), { schools, call, onChange: () => ctx.reload() });
   $('[data-logout]', el).addEventListener('click', logout);
 
   const form = $('[data-create]', el);
