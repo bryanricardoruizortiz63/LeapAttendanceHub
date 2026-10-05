@@ -1,4 +1,5 @@
-import { CATEGORIES, STATUS, colorIndex, fmtRange, html, initials, scheduleText, $ } from '../lib.js';
+import { CATEGORIES, STATUS, colorIndex, dialog, fmtRange, html, initials, scheduleText, $ } from '../lib.js';
+import { appIcon } from '../branding.js';
 import { icon } from '../icons.js';
 import { canPromptInstall, isIos, isStandalone, promptInstall } from '../pwa.js';
 
@@ -94,4 +95,19 @@ export function installHint(slot, { dismissible = true } = {}) {
   render();
   const onInstallable = () => slot.isConnected && render();
   window.addEventListener('lah:installable', onInstallable, { once: true });
+}
+
+/** The email exactly as it will arrive (HTML from the server), in a sandboxed frame. */
+export function showEmailPreview(subject, page) {
+  const logo = new URL(appIcon(), location.href).href;
+  dialog({
+    title: 'Vista previa del correo',
+    body: html`<p class="hint"><b>Asunto:</b> ${subject}</p>
+      <iframe class="email-preview" sandbox title="Vista previa del correo"></iframe>`,
+    confirmText: 'Cerrar',
+    cancelText: '',
+    onOpen(dlg) {
+      dlg.querySelector('iframe').srcdoc = page.replaceAll('cid:leap-logo', logo);
+    },
+  });
 }

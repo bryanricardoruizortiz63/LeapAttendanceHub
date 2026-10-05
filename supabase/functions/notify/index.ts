@@ -26,7 +26,13 @@ async function handlePush(payload: { notification_id: number }): Promise<string>
   const vapid = await setting<VapidKeys>('vapid');
   if (!vapid) return 'push: VAPID keys missing';
 
-  const message = JSON.stringify({ title: n.title, body: n.body || '', url: n.link || '#/notifications' });
+  // The school's own icon, when it has one (set from the platform panel).
+  const { data: owner } = await db.from('profiles').select('school:schools(id, icon_version)').eq('id', n.user_id).maybeSingle();
+  const school = owner?.school as unknown as { id: string; icon_version: number | null } | null;
+  const icon = school?.icon_version
+    ? `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/branding/${school.id}/icon-192.png?v=${school.icon_version}`
+    : undefined;
+  const message = JSON.stringify({ title: n.title, body: n.body || '', url: n.link || '#/notifications', icon });
   const results = await Promise.all(
     subs.map(async (s) => {
       try {

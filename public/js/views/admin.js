@@ -20,7 +20,9 @@ import {
   exportEmployeesXlsx,
   getEmployee,
   getSchool,
+  changeSchoolCode,
   listEmployees,
+  previewEmail,
   removeEmailAccount,
   resetEmployeePassword,
   saveEmailAccount,
@@ -36,9 +38,9 @@ import {
 import { APP_URL } from '../config.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
-import { bindPasswordToggles } from './auth.js';
+import { bindPasswordToggles, rememberSchool } from './auth.js';
 import { archiveSection } from './archive.js';
-import { avatar, empty } from './common.js';
+import { avatar, empty, showEmailPreview } from './common.js';
 
 /** Asked for a new password from the login screen in the last 3 days. */
 function recentHelp(e) {
@@ -327,7 +329,10 @@ export async function settingsView({ el, reload }) {
         <label class="field"><span>Nombre</span><input name="name" required maxlength="150" value="${school.name}"></label>
         <div class="field"><span>Código de escuela</span>
           <div class="code-box"><strong class="mono">${school.code}</strong>
-            <button type="button" class="btn btn-ghost btn-sm" data-copy-code>${icon('copy', 16)} Copiar</button></div>
+            <button type="button" class="btn btn-ghost btn-sm" data-copy-code>${icon('copy', 16)} Copiar</button>
+            ${state.me.user.role === 'admin'
+              ? html`<button type="button" class="btn btn-ghost btn-sm" data-change-code>${icon('edit', 16)} Cambiar</button>`
+              : ''}</div>
           <small class="hint">El personal usa este código para entrar. La dirección entra con el código y la contraseña de administración.</small>
         </div>
         <button class="btn btn-secondary" type="submit">Guardar</button>
@@ -451,6 +456,46 @@ export async function settingsView({ el, reload }) {
 
   bindPasswordToggles(el);
   $('[data-copy-code]', el).addEventListener('click', () => copyText(school.code));
+  $('[data-change-code]', el)?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const v = await dialog({
+      title: 'Cambiar el código de la escuela',
+      message: 'Elige uno fácil de recordar para el personal, por ejemplo el nombre corto de la escuela.',
+      body: html`<label class="field"><span>Código nuevo</span>
+          <input name="code" required minlength="3" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false"
+            placeholder="Ej. LEAP"></label>
+        <ul class="hint-list">
+          <li>De 3 a 20 letras (sin acentos), números o guiones. No puede ser el de otra escuela.</li>
+          <li>Todo el personal recibirá un aviso en la app y en el teléfono${school.email_provider ? ', y un correo,' : ''} con el código nuevo.</li>
+          <li>Los usuarios y contraseñas no cambian. El código anterior y los enlaces viejos siguen funcionando.</li>
+        </ul>`,
+      collect: true,
+      confirmText: 'Cambiar código',
+      onOpen(dlg) {
+        const input = dlg.querySelector('[name=code]');
+        input.addEventListener('input', () => {
+          input.value = input.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        });
+        input.focus();
+      },
+    });
+    if (!v) return;
+    const code = String(v.code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9-]{2,19}$/.test(code)) {
+      toast('El código debe tener de 3 a 20 letras, números o guiones.', 'error');
+      return;
+    }
+    await busy(btn, async () => {
+      const res = await changeSchoolCode(code);
+      state.me.school.code = res.code;
+      rememberSchool(state.me.school);
+      toast(
+        `Código cambiado a ${res.code}. Se avisó a ${res.notified} persona(s)${res.emailed ? `, ${res.emailed} por correo` : ''}.`,
+        'ok',
+      );
+      reload();
+    });
+  });
 
   const schoolForm = $('[data-school]', el);
   schoolForm.addEventListener('submit', (e) => {
@@ -573,17 +618,13 @@ export async function settingsView({ el, reload }) {
       toast('Mensaje guardado', 'ok');
     });
   });
-  $('[data-preview]', el).addEventListener('click', () => {
-    const v = formValues(welcome);
-    const sample = { full_name: 'María González', username: 'maria.gonzalez' };
-    const out = renderWelcome({ ...school, welcome_subject: v.subject, welcome_body: v.body }, sample, 'Kp7mWq2xTz');
-    dialog({
-      title: 'Vista previa',
-      body: html`<p><b>Asunto:</b> ${out.subject}</p><div class="preview-box pre">${out.text}</div>`,
-      confirmText: 'Cerrar',
-      cancelText: '',
-    });
-  });
+  $('[data-preview]', el).addEventListener('click', (e) =>
+    busy(e.currentTarget, async () => {
+      const v = formValues(welcome);
+      const { subject, html: page } = await previewEmail('welcome', v.subject, v.body);
+      showEmailPreview(subject, page);
+    }),
+  );
   $('[data-restore]', el).addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const ok = await dialog({ title: '¿Restaurar el texto original?', message: 'Se perderán tus cambios al mensaje.', confirmText: 'Restaurar' });

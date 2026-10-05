@@ -1,6 +1,6 @@
 // Leap Attendance Hub service worker: offline app shell + push notifications.
 // Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
-const VERSION = 'lah-v5';
+const VERSION = 'lah-v6';
 const SHELL = [
   './',
   'index.html',
@@ -14,6 +14,7 @@ const SHELL = [
   'js/icons.js',
   'js/pwa.js',
   'js/store.js',
+  'js/branding.js',
   'js/xlsx.js',
   'js/zip.js',
   'js/views/common.js',
@@ -82,7 +83,8 @@ self.addEventListener('push', (event) => {
     Promise.all([
       self.registration.showNotification(data.title || 'Leap Attendance Hub', {
         body: data.body || '',
-        icon: scoped('icons/icon-192.png'),
+        // The school's own icon (sent by the server) or the app's.
+        icon: typeof data.icon === 'string' && data.icon.startsWith('https://') ? data.icon : scoped('icons/icon-192.png'),
         badge: scoped('icons/badge-72.png'),
         data: { url },
         tag: data.url || undefined,

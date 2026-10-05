@@ -2281,3 +2281,41 @@ input[type='color'] {
   padding-top: 8px;
   padding-bottom: 8px;
 }
+
+.email-preview {
+  display: block;
+  width: 100%;
+  height: min(62vh, 640px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f3f5fa;
+}
+
+.hint-list {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.hint-list li + li {
+  margin-top: 4px;
+}
+
+.school-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.school-row img {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.person .school-icon {
+  flex: none;
+  border-radius: 8px;
+}
