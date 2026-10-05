@@ -54,8 +54,8 @@ export async function homeView({ el }) {
     <section class="hero">
       <div>
         <p class="hero-kicker">Hola, ${firstName} 👋</p>
-        <h2>¿Vas a faltar?</h2>
-        <p>Avísale a la dirección en segundos. La causa es opcional y puedes adjuntar tu excusa.</p>
+        <h2>¿Te ausentarás?</h2>
+        <p>Registra tu ausencia aquí.</p>
       </div>
       <a href="#/report" class="btn btn-light btn-lg btn-block">${icon('plus')} Reportar ausencia</a>
     </section>
@@ -64,7 +64,7 @@ export async function homeView({ el }) {
       <h3 class="section-title">Hoy y próximas</h3>
       ${current.length
         ? absenceList(current, { showName: false })
-        : empty('calendar', 'No tienes ausencias próximas', 'Cuando reportes una, verás aquí si la dirección la recibió.')}
+        : empty('calendar', 'No tienes ausencias próximas', 'Cuando reportes una, verás aquí si la administración la recibió.')}
     </section>
     ${past.length
       ? html`<section class="section"><h3 class="section-title">Historial</h3>${absenceList(past, { showName: false })}</section>`
