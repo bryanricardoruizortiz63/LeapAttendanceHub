@@ -381,6 +381,40 @@ export const setAdminPassword = (current, next) =>
 /** target: 'main' (absences channel) or 'password' (forgotten-password channel). */
 export const testTeams = (target = 'main') => callFunction('admin', { action: 'test_teams', target });
 
+// ---- Correo y mensajes -------------------------------------------------------------
+
+export const saveEmailAccount = (v) =>
+  rpc('save_email_account', {
+    p_provider: v.provider,
+    p_from_email: v.from_email,
+    p_from_name: v.from_name || null,
+    p_password: v.password || null,
+    p_smtp_host: v.smtp_host || null,
+    p_smtp_port: v.smtp_port ? Number(v.smtp_port) : null,
+    p_smtp_user: v.smtp_user || null,
+  });
+export const removeEmailAccount = () => rpc('remove_email_account');
+/** Null subject and body restore the default text. */
+export const saveWelcomeTemplate = (subject, body) => rpc('save_welcome_template', { p_subject: subject, p_body: body });
+export const testEmail = () => callFunction('admin', { action: 'test_email' });
+export const sendCredentials = (id, password) => callFunction('admin', { action: 'send_credentials', id, password });
+/** to: 'all' | 'teacher' | 'secretary' | 'director' | [employee ids] */
+export const sendMessage = ({ to, subject, body, email }) =>
+  callFunction('admin', { action: 'send_message', to, subject, body, email: !!email });
+
+export const listMessages = () =>
+  run(sb.from('messages').select('*').order('created_at', { ascending: false }).limit(100));
+
+export async function getMessage(id) {
+  const [message, recipients] = await Promise.all([
+    run(sb.from('messages').select('*').eq('id', id).maybeSingle()),
+    run(sb.from('message_recipients').select('user_id, email_status, profile:profiles(full_name, email)').eq('message_id', id)),
+  ]);
+  if (!message) throw new ApiError('No se encontró el mensaje.', 404);
+  recipients.sort((a, b) => (a.profile?.full_name || '').localeCompare(b.profile?.full_name || ''));
+  return { message, recipients };
+}
+
 // ---- Escuela ---------------------------------------------------------------------
 
 export async function getSchool(schoolId) {

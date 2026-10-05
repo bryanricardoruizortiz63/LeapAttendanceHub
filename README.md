@@ -34,7 +34,9 @@ Funciona con servicios gratuitos:
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
 - **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles. Quien pidió ayuda con su contraseña aparece marcado.
 - **Registrar, modificar o cancelar una ausencia a nombre de un empleado** (por ejemplo, si llamó por teléfono o para corregir un error). Solo la cuenta de Administración puede hacerlo; la directora y la secretaría no.
-- **Escuela y Teams**: nombre, webhooks de Microsoft Teams (ausencias y, opcionalmente, otro canal para contraseñas) y contraseña de administración.
+- **Escuela y Teams**: nombre, webhooks de Microsoft Teams (ausencias y, opcionalmente, otro canal para contraseñas), cuenta de correo, mensaje de bienvenida y contraseña de administración.
+- **Enviar el acceso por correo**: al crear un empleado o restablecer su contraseña, un botón le envía su usuario y contraseña temporal al correo de su ficha, con las instrucciones. El texto es editable (*Mensaje con usuario y contraseña*, con `{nombre}`, `{usuario}`, `{contraseña}`, `{enlace}`, `{escuela}`, `{codigo}`) y también es el que se copia o comparte.
+- **Mensajes**: escribe a todo el personal, a un grupo (maestros, secretaría, dirección) o a personas concretas. Les llega como aviso en la app y notificación en el teléfono, y si quieres también por correo. Se ve a quién le llegó el correo y a quién no.
 - **Datos y reportes**: estadísticas, exportación a Excel (.xlsx) y respaldo completo (JSON) de *esa* escuela.
 - **Archivo anual**: al terminar el año escolar (1 ago – 31 jul), descarga un Excel con todas sus ausencias (hojas de ausencias, resumen por empleado, historial, comentarios y documentos) y un ZIP con las excusas. Después, la cuenta de Administración puede **liberar espacio**: borra de la app las ausencias recibidas y canceladas de ese año con sus archivos (las que están sin confirmar se quedan).
 - Las ausencias **canceladas se borran solas 15 días** después de cancelarse, con sus archivos.
@@ -69,6 +71,15 @@ Funciona con servicios gratuitos:
 4. Confirma el equipo y el canal, y copia la URL que aparece al final.
 5. En la app: **Más → Escuela y Teams**, pega la URL, **Guardar** y **Probar ausencias**.
 6. *(Opcional)* Para recibir las solicitudes de contraseña en otro chat o canal, repite los pasos 1–4 allí y pega esa URL en **URL para “Olvidé mi contraseña”** → **Probar contraseñas**. Si lo dejas vacío, llegan al canal de ausencias.
+
+### Conectar el correo (Gmail)
+
+1. Usa una cuenta de Gmail para la escuela (puede ser una nueva solo para esto).
+2. Activa la **verificación en 2 pasos** en [myaccount.google.com/security](https://myaccount.google.com/security).
+3. En [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) crea una contraseña de aplicación llamada “Leap Attendance Hub”.
+4. En la app: **Más → Escuela y Teams → Correo electrónico**, escribe el correo y la contraseña de 16 letras, **Guardar** y **Enviar prueba**.
+
+Gmail permite unos 500 correos al día. También sirve cualquier servidor SMTP en el puerto 465 o 2525 (por ejemplo Brevo). Outlook / Microsoft 365 no sirve: solo usa el puerto 587, que Supabase bloquea.
 
 ### Cambiar el ícono de la app
 
@@ -116,10 +127,13 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 - Las excusas se guardan en un bucket privado y se ven con enlaces temporales; cada quien solo sube a su propia carpeta.
 - El webhook de Teams solo acepta dominios de Microsoft.
 - Las claves privadas (VAPID, contraseña de plataforma) están en la tabla `app_settings`, solo accesible para el servidor.
+- La contraseña del correo de cada escuela se guarda cifrada en **Supabase Vault**; solo las Edge Functions la leen (`email_account()`, exclusiva de `service_role`). Antes de enviar una contraseña temporal por correo, el servidor comprueba que sigue siendo la vigente.
 
 **Avisos:** al crear una notificación, un *trigger* la pone en la tabla `outbox` y `pg_net` llama a la función `notify`, que envía el push y/o el mensaje de Teams. Cada aviso se procesa una sola vez.
 
 **Mantenimiento diario:** `pg_cron` (7:23 UTC) pone una tarea en `outbox` y `notify` borra las ausencias canceladas hace más de 15 días (con sus archivos), los registros de envío de más de 30 días y los avisos de más de 180 días.
+
+**Correo:** `functions/_shared/email.ts` envía por SMTP con [nodemailer](https://nodemailer.com) (puerto 465), una sola conexión por envío, y deja de intentar si el servidor rechaza la cuenta.
 
 **Excel sin librerías:** `js/xlsx.js` y `js/zip.js` generan los .xlsx y el ZIP de documentos en el navegador.
 
