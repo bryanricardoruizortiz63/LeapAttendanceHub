@@ -82,24 +82,30 @@ Las decisiones pendientes están al final.
 
 ---
 
-## 3. Seguridad y pases
+## 3. Seguridad: estudiante que no llega y recogidos
 
 **Lo que pidió la escuela**
-- Alerta si un estudiante que va a enfermería se pasa del tiempo (ver Turnos).
-- **Pases**:
-  - el maestro da permiso para ir al baño, a la oficina de la directora u otro lugar;
-  - si el estudiante no aparece, se avisa a **seguridad y a todo el personal**.
-- **Recogido de estudiantes**: si vienen a buscar a un estudiante, el maestro informa a seguridad con nombre y
-  grado/grupo.
+- Alerta a seguridad si un estudiante que va a enfermería se pasa del tiempo (ver Turnos).
+- **Estudiante que no llegó**:
+  - el maestro **no** registra cada salida al baño o a la oficina;
+  - cuando un estudiante debía haber llegado al salón y no llegó, el maestro **avisa a seguridad y a todo el
+    personal**.
+- **Recogido de estudiantes**:
+  1. El maestro informa que vendrán a recoger a un estudiante (nombre y grado/grupo).
+  2. Cuando llega el padre o encargado, hay dos caminos: el maestro le avisa a seguridad, o seguridad le avisa al
+     maestro que el padre o encargado llegó.
+  3. Seguridad pasa al salón a recoger al estudiante.
 
 **Propuesta**
-- Pase digital con destino y tiempo esperado; el maestro (o el destino) marca que llegó o regresó.
-- Escalamiento en dos pasos, para evitar falsas alarmas:
-  1. Al vencer, se avisa al maestro: puede extender el tiempo o marcar **No aparece**.
-  2. Entonces se avisa a seguridad y a todo el personal con nombre, grado-grupo, destino y hora de salida. Si el maestro
-     no responde en unos minutos, sube solo.
-- Recogidos: lista «Salidas de hoy» para seguridad (estudiante, grado-grupo, quién lo recoge, hora); seguridad marca
-  **Salió**.
+- Botón **«No ha llegado»** para el maestro:
+  - pide estudiante, grado-grupo, de dónde venía o a dónde iba, y desde qué hora falta;
+  - avisa con alerta urgente a seguridad y a todo el personal;
+  - quien lo vea toca **«Apareció / está conmigo»**, y se avisa a todos que se resolvió;
+  - queda un historial: quién avisó, cuánto tardó en aparecer y dónde estaba.
+- Recogidos, con una lista **«Salidas de hoy»** para seguridad y para el maestro:
+  - el maestro la anota antes (estudiante, grado-grupo, hora aproximada y, opcional, quién lo recoge);
+  - **Llegó el encargado**: lo marca seguridad (se avisa al maestro) o el maestro (se avisa a seguridad);
+  - seguridad marca **Voy al salón** y luego **Entregado**; el maestro ve cada paso.
 
 ---
 
@@ -128,6 +134,8 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 - **iPhone**: sonido normal de notificación, sin sonidos propios.
 - **Con la app abierta**: alarma fuerte y pantalla de alerta hasta que alguien la reconozca.
 
+**Decisión:** subir la app a las tiendas se hace **al final**, cuando todo esté listo y probado.
+
 Para que suene como alarma aunque el teléfono esté en silencio hace falta una **app nativa**:
 
 - Android, con un canal de alarma.
@@ -153,11 +161,12 @@ automática (con costo por mensaje).
 1. Nombre nuevo (y dominio cuando lo haya).
 2. Base común: grados y grupos, lista de estudiantes (Excel), grupos de cada maestro, permisos nuevos.
 3. Turnos de Enfermería y Trabajo Social (fila, llamar, llegó, regresó, estado del profesional).
-4. Temporizadores y alertas a seguridad; pases y «No aparece»; recogidos.
+4. Temporizadores y alertas a seguridad; botón «No ha llegado»; recogidos.
 5. Códigos de mantenimiento.
 6. Reservas del salón de conferencias.
 7. Paneles con exportación a Excel y tablero en vivo de la directora.
-8. *(Opcional)* Horario por períodos; app nativa para alarmas.
+8. *(Opcional)* Horario por períodos.
+9. Al final, con todo listo: app nativa en las tiendas (alarmas fuertes).
 
 ---
 
@@ -170,13 +179,8 @@ automática (con costo por mensaje).
 5. Grupos de cada maestro: ¿fijos o por período?
 6. Códigos: ¿cuáles usan hoy y qué significa cada uno?
 7. Salón del código: ¿cada maestro tiene un salón fijo o lo elige?
-8. Pases:
-   - ¿tiempo por destino?
-   - ¿escalar solo o preguntar primero al maestro?
-   - ¿avisar a todo el personal o solo a seguridad, dirección y los maestros del grupo?
-9. Reservas:
+8. Reservas:
    - ¿solo el salón de conferencias?
    - ¿por períodos o por horas?
    - ¿la reserva de la directora desplaza una ya aprobada?
-10. Recogidos: ¿los informa el maestro o la oficina? ¿Seguridad confirma la salida?
-11. Alarmas: ¿empezamos con la app web y más adelante vemos la app nativa?
+9. Recogidos: ¿seguridad debe registrar quién lo recogió (nombre del encargado)?
