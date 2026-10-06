@@ -20,6 +20,7 @@ import {
   pickupDetailView,
   reliefDetailView,
 } from './views/alerts.js';
+import { newTurnView, serviceFormView, servicesView, turnDetailView, turnsView } from './views/turns.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
 import { composeView, messageView, messagesView } from './views/messages.js';
@@ -52,6 +53,11 @@ const ROUTES = [
   { re: /^\/alerts\/missing\/(\d+)$/, view: missingDetailView, title: 'No ha llegado', back: true },
   { re: /^\/alerts\/pickup\/(\d+)$/, view: pickupDetailView, title: 'Salida', back: true },
   { re: /^\/alerts\/relief\/(\d+)$/, view: reliefDetailView, title: 'Relevo', back: true },
+  { re: /^\/turns$/, view: turnsView, title: 'Turnos' },
+  { re: /^\/turns\/new$/, view: newTurnView, title: 'Pedir turno', back: true },
+  { re: /^\/turns\/(\d+)$/, view: turnDetailView, title: 'Turno', back: true },
+  { re: /^\/services$/, view: servicesView, title: 'Servicios', allow: may('settings'), back: true },
+  { re: /^\/services\/(new|\d+)$/, view: serviceFormView, title: 'Servicio', allow: may('settings'), back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
   { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages') },
   { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },

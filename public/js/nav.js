@@ -4,12 +4,13 @@ import { isManager, isStaff } from './lib.js';
 export const anyManager = (u) => isStaff(u) || isManager(u);
 
 export function navItems(user) {
-  const report = { path: '/report', icon: 'plus', label: 'Reportar' };
   const alerts = { path: '/alerts', icon: 'alert', label: 'Alertas', match: ['/alerts'] };
+  const turns = { path: '/turns', icon: 'pulse', label: 'Turnos', match: ['/turns'] };
   const notices = { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] };
-  const home = { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] };
+  // Reportar is the big button on Inicio.
+  const home = { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence', '/report'] };
   if (!anyManager(user)) {
-    return [home, alerts, report, notices, { path: '/profile', icon: 'user', label: 'Perfil', match: ['/profile', '/calendar'] }];
+    return [home, alerts, turns, notices, { path: '/profile', icon: 'user', label: 'Perfil', match: ['/profile', '/calendar'] }];
   }
   const items = isStaff(user)
     ? [
@@ -17,10 +18,10 @@ export function navItems(user) {
         { path: '/absences', icon: 'list', label: 'Ausencias', match: ['/absences', '/absence/'] },
         alerts,
       ]
-    : [home, alerts, report];
-  const moreMatch = ['/more', '/employees', '/settings', '/roles', '/calendar', '/data', '/messages', '/profile', '/home', '/report'].filter(
-    (p) => !items.some((i) => i.path === p),
-  );
+    : [{ ...home, match: ['/home', '/absence'] }, alerts, turns];
+  const moreMatch = [
+    '/more', '/employees', '/settings', '/roles', '/calendar', '/services', '/data', '/messages', '/profile', '/home', '/report', '/turns',
+  ].filter((p) => !items.some((i) => i.path === p));
   items.push(notices, { path: '/more', icon: 'menu', label: 'Más', match: moreMatch });
   return items;
 }

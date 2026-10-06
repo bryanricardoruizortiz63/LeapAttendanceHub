@@ -549,8 +549,71 @@ export const requestRelief = (room, note) => rpc('request_relief', { p_room: roo
 export const takeRelief = (id) => rpc('take_relief', { p_id: id });
 export const cancelRelief = (id) => rpc('cancel_relief', { p_id: id });
 
-/** Seen: stops the repeated pushes (all alerts, or one link like '#/alerts/missing/3'). */
+/** Seen: stops the repeated pushes (all alerts, all turns with '#/turns', or one link like '#/alerts/missing/3'). */
 export const markAlertsRead = (link = null) => rpc('mark_alerts_read', { p_link: link });
+
+// ---- Turnos (Enfermería, Trabajo Social…) -----------------------------------------------
+
+/** [{ id, name, mode, arrive_minutes, roles, reasons, active, serves, waiting, staff: [{ id, name, status, until }] }] */
+export const servicesOverview = () => rpc('services_overview');
+
+/** status: 'available' | 'meeting' | 'lunch' | 'away'; until: ISO time (required for 'away'). */
+export const setMyServiceStatus = (status, until) => rpc('set_my_service_status', { p_status: status, p_until: until || null });
+
+export const saveService = ({ id, name, mode, arriveMinutes, roles, reasons, active }) =>
+  rpc('save_service', {
+    p_id: id || null,
+    p_name: name,
+    p_mode: mode,
+    p_arrive_minutes: arriveMinutes,
+    p_roles: roles,
+    p_reasons: reasons,
+    p_active: active,
+  });
+
+/** The turns still open and the ones from today (each person only gets the ones they may see). */
+export function listTurns() {
+  return run(
+    sb
+      .from('service_requests_v')
+      .select('*')
+      .or(`status.in.(waiting,called,sent,arrived,on_the_way,returning),created_at.gte.${startOfToday()}`)
+      .order('created_at')
+      .limit(300),
+  );
+}
+export const getTurn = (id) => one('service_requests_v', id, 'No se encontró el turno.');
+
+/** The same student's earlier turns in that service (only the service sees them). */
+export const turnHistory = (t) =>
+  run(
+    sb
+      .from('service_requests_v')
+      .select('id, created_at, status, outcome, reason, severity')
+      .eq('service_id', t.service_id)
+      .eq('student_key', t.student_key)
+      .eq('group_name', t.group_name)
+      .neq('id', t.id)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  );
+
+/** student: { id } of one noted today, or { name, group }. here: the professional notes a student already in the office. */
+export const requestService = ({ serviceId, student, room, severity, reason, note, here }) =>
+  rpc('request_service', {
+    p_service_id: serviceId,
+    p_student_id: student.id || null,
+    p_name: student.name || null,
+    p_group: student.group || null,
+    p_room: room || null,
+    p_severity: severity,
+    p_reason: reason || null,
+    p_note: note || null,
+    p_here: !!here,
+  });
+
+/** step: call · go · sent · arrived · return · back · finish (value: the outcome) · cancel · take (value: the room). */
+export const advanceTurn = (id, step, value) => rpc('advance_turn', { p_id: id, p_step: step, p_value: value || null });
 
 // ---- Datos y reportes ------------------------------------------------------------
 
@@ -683,18 +746,20 @@ export async function exportEmployeesXlsx(code) {
 
 export async function exportBackupJson(school) {
   const all = (table, select = '*') => fetchAll(() => sb.from(table).select(select).order('id'));
-  const [employees, absences, history, comments, attachments, closures] = await Promise.all([
+  const [employees, absences, history, comments, attachments, closures, services] = await Promise.all([
     run(sb.from('profiles').select('id, role, username, full_name, email, phone, employee_number, position, room, groups, active, last_login_at, created_at')),
     all('absences'),
     all('absence_history'),
     all('comments'),
     all('attachments', 'id, absence_id, uploaded_by, uploaded_by_name, original_name, mime, size, created_at'),
     all('school_closures', 'id, start_date, end_date, name, kind, created_at'),
+    // How the services work (the turns stay with each service).
+    all('school_services', 'id, name, mode, arrive_minutes, roles, reasons, active, position, created_at'),
   ]);
   const backup = {
     generated_at: new Date().toISOString(),
     school: { code: school.code, name: school.name },
-    calendar: school.calendar, school_closures: closures,
+    calendar: school.calendar, school_closures: closures, school_services: services,
     employees, absences, absence_history: history, comments, attachments,
   };
   download(`respaldo_${school.code}_${todayStr()}.json`, JSON.stringify(backup, null, 2), 'application/json');

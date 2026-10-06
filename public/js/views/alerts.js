@@ -13,15 +13,14 @@ import {
   markAlertsRead,
   requestRelief,
   resolveStudentAlert,
-  similarStudents,
   takeRelief,
 } from '../backend.js';
-import { $, busy, can, dialog, fmtTime, html, isStaff, schoolCalendar, timeAgo, toast } from '../lib.js';
+import { $, busy, can, dialog, fmtTime, html, isStaff, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { empty } from './common.js';
+import { confirmStudent, fact, keepFresh, studentFields, studentFrom } from './students.js';
 
-const REFRESH_MS = 15000;
 // A relief request nobody answered in this time is shown as expired.
 const RELIEF_OPEN_MIN = 30;
 // Quick choices for where the student was coming from.
@@ -49,75 +48,6 @@ const reliefExpired = (r) => !r.taken_at && !r.cancelled_at && Date.now() - new 
 const reliefOpen = (r) => !r.taken_at && !r.cancelled_at && !reliefExpired(r);
 const canAskRelief = (u) => u.role !== 'admin' && !!u.coverage;
 const isSecurity = (u) => can(u, 'security');
-
-/** Refreshes while the screen is open: every few seconds and whenever a notice arrives. */
-function keepFresh({ onLeave, isCurrent }, load) {
-  const tick = () => {
-    if (isCurrent() && document.visibilityState === 'visible') load().catch(() => {});
-  };
-  const timer = setInterval(tick, REFRESH_MS);
-  window.addEventListener('lah:push', tick);
-  document.addEventListener('visibilitychange', tick);
-  onLeave(() => {
-    clearInterval(timer);
-    window.removeEventListener('lah:push', tick);
-    document.removeEventListener('visibilitychange', tick);
-  });
-}
-
-// ---- Student name and group -----------------------------------------------------------
-
-function studentFields() {
-  const { groups } = schoolCalendar(state.me.school);
-  return html`
-    <label class="field"><span>Nombre del estudiante</span>
-      <input name="student" required maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"></label>
-    <label class="field"><span>Grado y grupo</span>
-      ${groups.length
-        ? html`<select name="group" required>
-            <option value="" selected disabled>Elige…</option>
-            ${groups.map((g) => html`<option value="${g}">${g}</option>`)}
-          </select>`
-        : html`<input name="group" required maxlength="20" autocomplete="off" placeholder="Ej. 9-B">`}
-    </label>`;
-}
-
-/**
- * The student, checking first whether someone already noted a student with a similar name in that group
- * today ("¿Es José Pérez Rivera (9-B)?"). Resolves { id } for one already noted, { name, group } for a new
- * one, or null if the person cancelled.
- */
-async function confirmStudent(name, group) {
-  const matches = await similarStudents(name, group);
-  const exact = matches.find((m) => m.exact);
-  if (exact) return { id: exact.id };
-  if (!matches.length) return { name, group };
-  const v = await dialog({
-    title: '¿Es el mismo estudiante?',
-    message: `Hoy ya se apuntó en ${group} a alguien con un nombre parecido.`,
-    body: html`<div class="choices" data-same>
-      ${matches.map(
-        (m, i) => html`<label class="choice"><input type="radio" name="same" value="${m.id}" ${i === 0 ? 'checked' : ''}>
-          <span><strong>Sí, es ${m.name} <span class="nowrap">(${m.group_name})</span></strong><small>Se sigue con el mismo estudiante.</small></span></label>`,
-      )}
-      <label class="choice"><input type="radio" name="same" value="new">
-        <span><strong>No, es otro estudiante</strong><small>Se apunta a ${name} (${group}).</small></span></label>
-    </div>`,
-    confirmText: 'Continuar',
-    collect: true,
-  });
-  if (!v) return null;
-  return v.same === 'new' ? { name, group } : { id: Number(v.same) };
-}
-
-/** Reads and checks the name and group of a form; the form's own validation shows what's missing. */
-function studentFrom(form) {
-  const name = form.student.value.trim().replace(/\s+/g, ' ');
-  const group = form.group.value.trim();
-  if (name.length < 2) throw new Error('Escribe el nombre del estudiante.');
-  if (!group) throw new Error('Elige el grado y grupo del estudiante.');
-  return { name, group };
-}
 
 // ---- List --------------------------------------------------------------------------------
 
@@ -398,8 +328,6 @@ export async function newPickupView({ el }) {
 
 // ---- Details ------------------------------------------------------------------------------
 
-const fact = (label, value) => (value ? html`<div class="fact"><span>${label}</span><strong>${value}</strong></div>` : '');
-
 function detailShell(ctx, load, link) {
   markAlertsRead(link).catch(() => {});
   keepFresh(ctx, load);
@@ -414,7 +342,8 @@ export async function missingDetailView(ctx) {
     const a = await getMissingAlert(id);
     if (!isCurrent()) return;
     const open = !a.resolved_at;
-    const mine = a.created_by === me.id;
+    // A turn's alert (the student didn't get to Enfermería in time) has no "Ya llegó al salón".
+    const mine = a.created_by === me.id && !a.turn_id;
     el.innerHTML = String(html`
       <div class="stack">
         <section class="card stack alert-head ${open ? 'is-urgent' : 'is-ok'}">
@@ -422,7 +351,7 @@ export async function missingDetailView(ctx) {
           <h2>${a.student_name || 'Estudiante'} <span class="muted">· ${a.group_name}</span></h2>
           ${a.student_name ? '' : html`<p class="hint">El nombre se borró: los estudiantes se guardan solo 24 horas.</p>`}
           <div class="facts">
-            ${fact('Debía llegar al salón', a.room)}
+            ${fact(a.turn_id ? 'Salió del salón' : 'Debía llegar al salón', a.room)}
             ${fact('Venía de / iba a', a.place)}
             ${fact('Avisó', `${a.created_by_name} · ${timeAgo(a.created_at)}`)}
             ${fact('Se avisó a', a.audience === 'all' ? 'Todo el personal' : 'Seguridad, dirección y secretaría')}
@@ -434,6 +363,9 @@ export async function missingDetailView(ctx) {
         ${open
           ? html`<button type="button" class="btn btn-primary btn-block btn-lg" data-found>${icon('check')} ${mine ? 'Ya llegó al salón' : 'Apareció / está conmigo'}</button>
               ${mine ? html`<button type="button" class="btn btn-secondary btn-block" data-found-elsewhere>Apareció en otro lugar</button>` : ''}`
+          : ''}
+        ${a.turn_id && a.created_by === me.id
+          ? html`<a class="btn btn-secondary btn-block" href="#/turns/${a.turn_id}">${icon('pulse', 18)} Ver el turno</a>`
           : ''}
         <a class="btn btn-ghost btn-block" href="#/alerts">${icon('back', 18)} Todas las alertas</a>
       </div>`);

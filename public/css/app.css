@@ -2653,3 +2653,51 @@ input[type='color'] {
 .nowrap {
   white-space: nowrap;
 }
+
+/* Turnos */
+.tag-info {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.tag.is-late,
+.turn-timer.is-late {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.item-icon.queue-num {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.turn-timer {
+  align-self: flex-start;
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.sev-chips .sev-3 input:checked + span {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.sev-chips .sev-4 input:checked + span {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.alert-action small.is-off {
+  color: var(--warn);
+  font-weight: 600;
+}

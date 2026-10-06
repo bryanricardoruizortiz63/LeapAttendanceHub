@@ -1,7 +1,7 @@
 # Plan: próximos módulos
 
-Ideas y requisitos acordados para la siguiente etapa de la app. Ya están hechos el nombre (Hallway), la base común y
-las alertas (ver la sección 9).
+Ideas y requisitos acordados para la siguiente etapa de la app. Ya están hechos el nombre (Hallway), la base común,
+las alertas y los turnos (ver la sección 9).
 
 ---
 
@@ -84,6 +84,22 @@ mismo grupo.
 - Estado del profesional: Disponible, En reunión, Almuerzo, «Fuera hasta…».
 - El maestro ve el estado del turno, **no el motivo**.
 
+**Hecho**, en la pestaña **Turnos**:
+- Servicios configurables (*Más → Servicios*): modo, minutos para llegar, roles que lo atienden y lista de motivos.
+  Vienen Enfermería y Trabajo Social, con el rol nuevo **Trabajo Social**.
+- Fila por gravedad y orden de llegada; cada 30 minutos de espera un turno sube un nivel (hasta Alta). Si el
+  profesional escoge otro turno, queda anotado.
+- Enfermería: Llamar → «Envía a Juan» (con alarma) → el maestro toca «Ya salió» → Llegó → Regresa al salón → el
+  maestro toca «Llegó al salón»; o Lo recogieron / Referido. Si no llega a tiempo, se avisa a la enfermera, al
+  maestro y a Seguridad (alerta «No ha llegado»). La enfermera anota también a quien llega sin turno.
+- Trabajo Social: Voy en camino → Atendido o Referido.
+- Si el estudiante cambia de salón, el maestro que lo tiene toca «Está conmigo» y los avisos le llegan a él.
+- El motivo y la nota solo los ven quien pidió el turno y el servicio. Los maestros ven los turnos de sus grupos
+  24 horas; el servicio conserva su historial con nombre (como máximo un año) y ve las visitas anteriores de cada
+  estudiante.
+- Quedan para la etapa de **Paneles**: el dashboard y la exportación de Enfermería y Trabajo Social, el tablero en
+  vivo de la directora, y cerrar el historial al terminar el año escolar (descargarlo y borrarlo).
+
 ---
 
 ## 3. Mantenimiento (sin códigos)
@@ -144,8 +160,8 @@ directamente lo que necesita.
 
 **Hecho**, con el permiso nuevo **Seguridad** (Seguridad, Secretaría, Director(a) y Administración) y la pestaña
 **Alertas**. Los avisos urgentes suenan con la app abierta y se repiten cada minuto por 15 minutos hasta que alguien
-los abre o se encarga. Falta la alerta a seguridad cuando un estudiante que va a enfermería se pasa del tiempo: viene
-con los Turnos.
+los abre o se encarga. La alerta a seguridad cuando un estudiante que va a enfermería se pasa del tiempo se hizo con
+los Turnos.
 
 ---
 
@@ -202,7 +218,7 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 3. **Alertas**: estudiantes apuntados (24 horas, con aviso de nombres parecidos), «No ha llegado», recogidos y relevo
    de maestros. *Hecho.*
 4. **Turnos de Enfermería y Trabajo Social**: fila, llamar, llegó, regresó, temporizadores, estado del profesional y
-   alerta a seguridad.
+   alerta a seguridad. *Hecho.*
 5. **Mantenimiento**.
 6. **Reservas del salón de conferencias**.
 7. **Paneles** con exportación a Excel y **tablero en vivo** de la directora.

@@ -179,7 +179,10 @@ async function handleTeams(schoolId: string, payload: TeamsPayload): Promise<str
   return `teams: ${status}`;
 }
 
-/** Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days, notifications 180 days, messages a year. */
+/**
+ * Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days, notifications 180 days, messages
+ * and the services' turns (Enfermería, Trabajo Social) a year.
+ */
 async function maintenance(jobId: number): Promise<string> {
   const { data: old, error } = await db
     .from('absences')
@@ -192,24 +195,30 @@ async function maintenance(jobId: number): Promise<string> {
   await db.from('outbox').delete().lt('created_at', new Date(Date.now() - 30 * DAY).toISOString()).neq('id', jobId);
   await db.from('notifications').delete().lt('created_at', new Date(Date.now() - 180 * DAY).toISOString());
   await db.from('messages').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
+  await db.from('service_requests').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
   return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos`;
 }
 
 /**
- * Hourly (pg_cron): the students noted for alerts and pickups are kept only 24 hours, and so are the
- * notices that named them. The alerts themselves stay, without the name.
+ * Hourly (pg_cron): the students noted for alerts, pickups and turns are kept only 24 hours, and so are the
+ * notices that named them. The alerts themselves stay, without the name; the services keep their turns.
  */
 async function purge(): Promise<string> {
   const now = new Date().toISOString();
+  const dayAgo = new Date(Date.now() - DAY).toISOString();
   const { count: students, error } = await db.from('students').delete({ count: 'exact' }).lt('expires_at', now);
   if (error) throw new Error(error.message);
-  const { count: notices, error: noticeError } = await db
-    .from('notifications')
-    .delete({ count: 'exact' })
-    .like('link', '#/alerts/%')
-    .lt('created_at', new Date(Date.now() - DAY).toISOString());
-  if (noticeError) throw new Error(noticeError.message);
-  return `purge: ${students ?? 0} estudiantes, ${notices ?? 0} avisos`;
+  let notices = 0;
+  for (const prefix of ['#/alerts/%', '#/turns/%']) {
+    const { count, error: noticeError } = await db
+      .from('notifications')
+      .delete({ count: 'exact' })
+      .like('link', prefix)
+      .lt('created_at', dayAgo);
+    if (noticeError) throw new Error(noticeError.message);
+    notices += count ?? 0;
+  }
+  return `purge: ${students ?? 0} estudiantes, ${notices} avisos`;
 }
 
 serve(async (req) => {
