@@ -1,6 +1,6 @@
 // All data access for the app: Supabase Auth, database (RLS + RPC functions), Storage and Edge Functions.
 import { MAX_UPLOAD_MB, SUPABASE_KEY, SUPABASE_URL } from './config.js';
-import { CATEGORIES, ROLE_LABELS, STATUS, addDays, todayStr, weekdays } from './lib.js';
+import { CATEGORIES, STATUS, addDays, roleLabel, roleNeedsCoverage, setSchoolRoles, todayStr, weekdays } from './lib.js';
 import { buildXlsx, xDate, xDateTime } from './xlsx.js';
 import { zip } from './zip.js';
 
@@ -100,7 +100,9 @@ export async function getMe() {
   const { data } = await sb.auth.getSession();
   if (!data.session) return null;
   try {
-    return await rpc('me');
+    const me = await rpc('me');
+    setSchoolRoles(me?.roles);
+    return me;
   } catch (err) {
     if (err.status === 401) return null;
     throw err;
@@ -203,7 +205,7 @@ export async function dashboard(today = todayStr()) {
     pending,
     counts: {
       today: todayList.length,
-      uncovered_today: todayList.filter((a) => !a.substitute).length,
+      uncovered_today: todayList.filter((a) => !a.substitute && roleNeedsCoverage(a.employee_role)).length,
       pending: pending.length,
       upcoming: upcoming.length,
     },
@@ -367,7 +369,7 @@ export const testPush = () => rpc('test_push');
 // ---- Personal (dirección) ------------------------------------------------------
 
 function withRoleLabel(e) {
-  return e && { ...e, role_label: ROLE_LABELS[e.role] };
+  return e && { ...e, role_label: roleLabel(e.role) };
 }
 
 export async function listEmployees() {
@@ -409,7 +411,7 @@ export const removeEmailAccount = () => rpc('remove_email_account');
 export const saveWelcomeTemplate = (subject, body) => rpc('save_welcome_template', { p_subject: subject, p_body: body });
 export const testEmail = () => callFunction('admin', { action: 'test_email' });
 export const sendCredentials = (id, password) => callFunction('admin', { action: 'send_credentials', id, password });
-/** to: 'all' | 'teacher' | 'secretary' | 'director' | [employee ids] */
+/** to: 'all' | a role key | [employee ids] */
 export const sendMessage = ({ to, subject, body, email }) =>
   callFunction('admin', { action: 'send_message', to, subject, body, email: !!email });
 
@@ -418,6 +420,12 @@ export const previewEmail = (kind, subject, body) => callFunction('admin', { act
 
 /** Moves every account of the school to the new code and tells everyone. */
 export const changeSchoolCode = (code) => callFunction('admin', { action: 'change_school_code', code });
+
+/** Creates (no key) or changes a role. Returns { role }. */
+export const saveRole = ({ key, name, permissions, coverage }) =>
+  callFunction('admin', { action: 'save_role', key: key || null, name, permissions, coverage });
+
+export const deleteRole = (key) => callFunction('admin', { action: 'delete_role', key });
 
 export const listMessages = () =>
   run(sb.from('messages').select('*').order('created_at', { ascending: false }).limit(100));
@@ -574,7 +582,7 @@ export async function exportEmployeesXlsx(code) {
       name: 'Personal',
       columns,
       rows: rows.map((u) => [
-        u.full_name, u.username, ROLE_LABELS[u.role], u.position, u.email, u.phone, u.employee_number,
+        u.full_name, u.username, roleLabel(u.role), u.position, u.email, u.phone, u.employee_number,
         u.active ? 'Sí' : 'No', u.absence_count, xDateTime(u.last_login_at), xDateTime(u.created_at),
       ]),
     }]),
@@ -690,7 +698,7 @@ export function exportArchiveXlsx(school, data) {
         { header: 'Autor', width: 22 }, { header: 'Rol', width: 14 }, { header: 'Comentario', width: 60, wrap: true },
       ],
       rows: data.comments.map((c) => [
-        c.absence_id, names.get(c.absence_id), xDateTime(c.created_at), c.author_name, ROLE_LABELS[c.author_role], c.body,
+        c.absence_id, names.get(c.absence_id), xDateTime(c.created_at), c.author_name, roleLabel(c.author_role), c.body,
       ]),
     },
     {

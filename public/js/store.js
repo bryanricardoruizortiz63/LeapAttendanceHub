@@ -1,4 +1,5 @@
 import { signOut, unreadCount } from './backend.js';
+import { isStaff } from './lib.js';
 import { unlinkPush } from './pwa.js';
 
 export const state = {
@@ -15,9 +16,9 @@ export function go(path, { replace = false } = {}) {
 }
 
 export function homePath() {
-  const role = state.me?.user?.role;
-  if (!role) return state.platformPassword ? '/platform' : '/login';
-  return role === 'teacher' ? '/home' : '/dashboard';
+  const user = state.me?.user;
+  if (!user) return state.platformPassword ? '/platform' : '/login';
+  return isStaff(user) ? '/dashboard' : '/home';
 }
 
 export function setUnread(n) {

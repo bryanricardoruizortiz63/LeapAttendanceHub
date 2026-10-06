@@ -1,7 +1,7 @@
 // School administration actions that need Supabase Auth admin rights or the school's email account:
-// employees (create, edit, deactivate, reset password, delete, email their access), messages to the staff,
-// the school admin password, the Teams and email tests, and freeing space after an archive.
-// Only the school's "admin" account and directors can use it.
+// employees (create, edit, deactivate, reset password, delete, email their access), roles, messages to the
+// staff, the school admin password, the Teams and email tests, and freeing space after an archive.
+// Each action needs a permission of the person's role; the school's "admin" account has them all.
 import {
   anonClient,
   authEmail,
@@ -22,18 +22,16 @@ import { brandedHtml, LOGO_CID } from '../_shared/email_template.ts';
 import { buildCard, postToTeams } from '../_shared/teams.ts';
 
 const db = serviceClient();
-const EMPLOYEE_ROLES = ['director', 'secretary', 'teacher'];
 const DUPLICATE = 'Ese usuario ya existe en esta escuela.';
+const NO_PERMISSION = 'No tienes permiso para realizar esta acción.';
 const EMPLOYEE_FIELDS =
   'id, role, username, full_name, email, phone, employee_number, position, active, must_change_password, last_login_at, created_at, updated_at';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const AUDIENCES: Record<string, string> = {
-  all: 'Todo el personal',
-  teacher: 'Maestros',
-  secretary: 'Secretaría',
-  director: 'Dirección',
-};
+/** What a role can do besides reporting its own absences (see the roles migration). */
+const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports'];
+
+type Role = { key: string; name: string; permissions: string[]; coverage: boolean; system: boolean; position: number };
 
 type Me = {
   id: string;
@@ -42,9 +40,12 @@ type Me = {
   full_name: string;
   email: string | null;
   school: { code: string; name: string; icon_version: number | null };
+  permissions: string[];
+  /** The school's roles by key, including the hidden "admin" one. */
+  roles: Map<string, Role>;
 };
 
-async function currentManager(req: Request): Promise<Me> {
+async function currentUser(req: Request): Promise<Me> {
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   const { data } = token ? await db.auth.getUser(token) : { data: { user: null } };
   if (!data.user) throw new HttpError(401, 'Tu sesión expiró. Vuelve a iniciar sesión.');
@@ -57,8 +58,30 @@ async function currentManager(req: Request): Promise<Me> {
   const school = (me as any)?.school;
   if (!me || !me.active || !school?.active) throw new HttpError(401, 'Tu sesión expiró. Vuelve a iniciar sesión.');
   if (me.must_change_password) throw new HttpError(403, 'Debes cambiar tu contraseña antes de continuar.');
-  if (!['admin', 'director'].includes(me.role)) throw new HttpError(403, 'No tienes permiso para realizar esta acción.');
-  return { ...me, school } as Me;
+  const { data: rows, error } = await db
+    .from('school_roles')
+    .select('key, name, permissions, coverage, system, position')
+    .eq('school_id', me.school_id);
+  if (error) throw new Error(error.message);
+  const roles = new Map((rows as Role[]).map((r) => [r.key, r]));
+  const permissions = me.role === 'admin' ? PERMISSIONS : roles.get(me.role)?.permissions || [];
+  if (!permissions.length) throw new HttpError(403, NO_PERMISSION);
+  return { ...me, school, permissions, roles } as Me;
+}
+
+function need(me: Me, ...anyOf: string[]) {
+  if (!anyOf.some((p) => me.permissions.includes(p))) throw new HttpError(403, NO_PERMISSION);
+}
+
+function needAdmin(me: Me, message = NO_PERMISSION) {
+  if (me.role !== 'admin') throw new HttpError(403, message);
+}
+
+/** Nobody can manage, or give, a role that can do things they can't (Administración can do everything). */
+function canHandleRole(me: Me, key: string): boolean {
+  if (me.role === 'admin') return true;
+  const role = me.roles.get(key);
+  return !!role && !role.system && role.permissions.every((p) => me.permissions.includes(p));
 }
 
 async function loadEmployee(me: Me, id: unknown) {
@@ -70,6 +93,9 @@ async function loadEmployee(me: Me, id: unknown) {
     .neq('role', 'admin')
     .maybeSingle();
   if (!data) throw new HttpError(404, 'Empleado no encontrado.');
+  if (!canHandleRole(me, data.role)) {
+    throw new HttpError(403, 'Esta persona tiene un rol con más permisos que el tuyo. Pídeselo a la cuenta de Administración.');
+  }
   return data;
 }
 
@@ -84,10 +110,38 @@ async function parseUsername(me: Me, value: unknown, selfId: string | null = nul
   return username;
 }
 
-function parseRole(value: unknown): string {
-  const role = String(value || 'teacher');
-  if (!EMPLOYEE_ROLES.includes(role)) throw new HttpError(400, 'Rol no válido.');
-  return role;
+/** A role of this school that this person may give. Without one, Maestro(a) or the first role. */
+function parseRole(me: Me, value: unknown): string {
+  const assignable = [...me.roles.values()].filter((r) => !r.system).sort((a, b) => a.position - b.position);
+  const key = value ? String(value) : (me.roles.has('teacher') ? 'teacher' : assignable[0]?.key);
+  const role = me.roles.get(key || '');
+  if (!role || role.system) throw new HttpError(400, 'Rol no válido.');
+  if (!canHandleRole(me, role.key)) throw new HttpError(403, 'No puedes dar un rol con más permisos que el tuyo.');
+  return role.key;
+}
+
+function parsePermissions(value: unknown): string[] {
+  const list = Array.isArray(value) ? value.map(String) : [];
+  if (list.some((p) => !PERMISSIONS.includes(p))) throw new HttpError(400, 'Permiso no válido.');
+  // Managing staff and reports need to see everyone's absences.
+  if (list.includes('staff') || list.includes('reports')) list.push('absences');
+  return PERMISSIONS.filter((p) => list.includes(p));
+}
+
+/** A readable, unique key for a new role: "Enfermería" → "enfermeria", then "enfermeria_2"… */
+function roleKey(name: string, taken: Set<string>): string {
+  let base = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 30)
+    .replace(/_+$/, '');
+  if (!/^[a-z][a-z0-9_]+$/.test(base)) base = base ? `rol_${base}` : 'rol';
+  let key = base;
+  for (let n = 2; taken.has(key); n++) key = `${base}_${n}`;
+  return key;
 }
 
 /** Two people creating the same username at once: the second hits a unique constraint instead of our check. */
@@ -177,10 +231,11 @@ function check(error: { code?: string; message: string } | null, message = 'No s
 
 const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Response>> = {
   async create_employee(me, b) {
+    need(me, 'staff');
     const fullName = reqText(b.full_name, 120, 'El nombre');
     const email = optText(b.email, 200, 'El correo');
     const username = await parseUsername(me, b.username || email);
-    const role = parseRole(b.role);
+    const role = parseRole(me, b.role);
     const password = validatePassword(b.password ? String(b.password) : generatePassword());
 
     const { data: created, error } = await db.auth.admin.createUser({
@@ -217,6 +272,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
   },
 
   async update_employee(me, b) {
+    need(me, 'staff');
     const employee = await loadEmployee(me, b.id);
     const isSelf = employee.id === me.id;
     const next = {
@@ -226,7 +282,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       phone: 'phone' in b ? optText(b.phone, 40, 'El teléfono') : employee.phone,
       employee_number: 'employee_number' in b ? optText(b.employee_number, 40, 'El número de empleado') : employee.employee_number,
       position: 'position' in b ? optText(b.position, 120, 'El puesto') : employee.position,
-      role: 'role' in b ? parseRole(b.role) : employee.role,
+      role: 'role' in b && b.role !== employee.role ? parseRole(me, b.role) : employee.role,
       active: 'active' in b ? b.active === true || b.active === 'true' : employee.active,
       updated_at: new Date().toISOString(),
     };
@@ -250,6 +306,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
   },
 
   async reset_password(me, b) {
+    need(me, 'staff');
     const employee = await loadEmployee(me, b.id);
     const password = validatePassword(b.password ? String(b.password) : generatePassword());
     const { error } = await db.auth.admin.updateUserById(employee.id, { password });
@@ -262,6 +319,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
   },
 
   async delete_employee(me, b) {
+    need(me, 'staff');
     const employee = await loadEmployee(me, b.id);
     if (employee.id === me.id) throw new HttpError(400, 'No puedes eliminar tu propia cuenta.');
     const { count } = await db.from('absences').select('id', { count: 'exact', head: true }).eq('user_id', employee.id);
@@ -277,6 +335,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
   },
 
   async set_admin_password(me, b) {
+    need(me, 'settings');
     const next = validatePassword(b.new_password);
     const { data: admin } = await db
       .from('profiles')
@@ -298,6 +357,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
   },
 
   async test_teams(me, b) {
+    need(me, 'settings');
     const passwordChannel = b.target === 'password';
     const { data: settings } = await db.from('school_settings').select('*').eq('school_id', me.school_id).maybeSingle();
     const url = passwordChannel ? settings?.teams_password_webhook_url : settings?.teams_webhook_url;
@@ -331,6 +391,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
 
   /** Emails the username and the temporary password that was just created or reset. */
   async send_credentials(me, b) {
+    need(me, 'staff');
     const employee = await loadEmployee(me, b.id);
     if (!isEmail(employee.email)) throw new HttpError(400, 'Este empleado no tiene un correo válido. Añádelo en su ficha.');
     const password = String(b.password || '');
@@ -364,6 +425,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
 
   /** A message to everyone, a role or specific people: in-app notice + push, and optionally email. */
   async send_message(me, b) {
+    need(me, 'messages');
     const subject = reqText(b.subject, 150, 'El asunto').replace(/[\r\n]+/g, ' ');
     const body = reqText(b.body, 5000, 'El mensaje');
     const wantEmail = b.email === true;
@@ -382,13 +444,15 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       .eq('active', true)
       .neq('role', 'admin')
       .neq('id', me.id);
+    // Everyone, the people with one role, or specific people.
+    const group = typeof b.to === 'string' ? me.roles.get(b.to) : undefined;
     if (Array.isArray(b.to)) {
       const ids = b.to.map(String).filter((id) => UUID_RE.test(id)).slice(0, 500);
       if (!ids.length) throw new HttpError(400, 'Elige al menos una persona.');
       q = q.in('id', ids);
-    } else if (typeof b.to === 'string' && b.to in AUDIENCES) {
-      if (b.to !== 'all') q = q.eq('role', b.to);
-    } else {
+    } else if (group && !group.system) {
+      q = q.eq('role', group.key);
+    } else if (b.to !== 'all') {
       throw new HttpError(400, 'Elige a quién enviar el mensaje.');
     }
     const { data: people, error } = await q.order('full_name');
@@ -396,7 +460,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     if (!people?.length) throw new HttpError(400, 'No hay personas activas en ese grupo.');
     const audience = Array.isArray(b.to)
       ? people.length <= 3 ? people.map((p) => p.full_name).join(', ') : `${people.length} personas`
-      : AUDIENCES[b.to as string];
+      : group?.name || 'Todo el personal';
     // Fail before saving anything if email was asked for but isn't set up.
     const account = wantEmail ? await requireEmailAccount(me) : null;
 
@@ -458,6 +522,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
 
   /** Sends a test email to the school's own address. */
   async test_email(me) {
+    need(me, 'settings');
     const account = await requireEmailAccount(me);
     const url = await appUrl();
     const branding = await loadBranding(url, schoolIconUrl({ id: me.school_id, icon_version: me.school.icon_version }));
@@ -487,7 +552,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
    * code (all or nothing), the old code is kept so old links keep working, and everyone is told.
    */
   async change_school_code(me, b) {
-    if (me.role !== 'admin') throw new HttpError(403, 'Solo la cuenta de Administración puede cambiar el código.');
+    needAdmin(me, 'Solo la cuenta de Administración puede cambiar el código.');
     const code = String(b.code || '').trim().toUpperCase();
     if (!/^[A-Z0-9][A-Z0-9-]{2,19}$/.test(code)) {
       throw new HttpError(400, 'El código debe tener de 3 a 20 letras (sin acentos), números o guiones, sin espacios.');
@@ -586,6 +651,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
 
   /** How an email will look, with sample data, for the preview in the app (logo as cid:leap-logo). */
   async preview_email(me, b) {
+    need(me, ...(b.kind === 'message' ? ['messages'] : ['staff', 'settings']));
     const url = await appUrl();
     const logoSrc = `cid:${LOGO_CID}`;
     if (b.kind === 'message') {
@@ -607,12 +673,74 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     return json({ subject: email.subject, html: email.html });
   },
 
+  /** Creates (no key) or changes a role: its name, what it can do and whether its absences need coverage. */
+  async save_role(me, b) {
+    needAdmin(me, 'Solo la cuenta de Administración puede administrar los roles.');
+    const name = reqText(b.name, 40, 'El nombre del rol').replace(/\s+/g, ' ');
+    const permissions = parsePermissions(b.permissions);
+    const coverage = b.coverage !== false;
+    const key = b.key ? String(b.key) : null;
+    const roles = [...me.roles.values()];
+    if (roles.some((r) => r.name.toLowerCase() === name.toLowerCase() && r.key !== key)) {
+      throw new HttpError(409, 'Ya existe un rol con ese nombre.');
+    }
+    let saved;
+    if (key) {
+      const role = me.roles.get(key);
+      if (!role || role.system) throw new HttpError(404, 'No se encontró el rol.');
+      saved = await db
+        .from('school_roles')
+        .update({ name, permissions, coverage })
+        .eq('school_id', me.school_id)
+        .eq('key', key)
+        .select('key, name, permissions, coverage')
+        .single();
+    } else {
+      saved = await db
+        .from('school_roles')
+        .insert({
+          school_id: me.school_id,
+          key: roleKey(name, new Set(me.roles.keys())),
+          name,
+          permissions,
+          coverage,
+          position: Math.max(0, ...roles.map((r) => r.position)) + 10,
+        })
+        .select('key, name, permissions, coverage')
+        .single();
+    }
+    if (saved.error?.code === '23505') throw new HttpError(409, 'Ya existe un rol con ese nombre.');
+    check(saved.error, 'No se pudo guardar el rol.');
+    return json({ role: saved.data }, key ? 200 : 201);
+  },
+
+  /** Deletes a role nobody has (people are moved to another role first). */
+  async delete_role(me, b) {
+    needAdmin(me, 'Solo la cuenta de Administración puede administrar los roles.');
+    const role = me.roles.get(String(b.key || ''));
+    if (!role || role.system) throw new HttpError(404, 'No se encontró el rol.');
+    const inUse = (n: number) =>
+      new HttpError(409, `Hay ${n} persona(s) con este rol (contando las desactivadas). Cámbiales el rol antes de borrarlo.`);
+    const { count } = await db
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', me.school_id)
+      .eq('role', role.key);
+    if (count) throw inUse(count);
+    if ([...me.roles.values()].filter((r) => !r.system).length <= 1) throw new HttpError(400, 'Debe quedar al menos un rol.');
+    const { error } = await db.from('school_roles').delete().eq('school_id', me.school_id).eq('key', role.key);
+    // Someone got this role in the meantime.
+    if (error?.code === '23503') throw inUse(1);
+    check(error, 'No se pudo borrar el rol.');
+    return json({ ok: true });
+  },
+
   /**
    * After downloading the Excel archive, the school deletes a finished period to free space.
    * Only received and cancelled absences go; pending ones stay until someone handles them.
    */
   async archive_purge(me, b) {
-    if (me.role !== 'admin') throw new HttpError(403, 'Solo la cuenta de Administración puede liberar espacio.');
+    needAdmin(me, 'Solo la cuenta de Administración puede liberar espacio.');
     if (b.confirm !== 'BORRAR') throw new HttpError(400, 'Escribe BORRAR para confirmar.');
     const from = parseDate(b.from, 'La fecha inicial');
     const to = parseDate(b.to, 'La fecha final');
@@ -657,7 +785,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
 };
 
 serve(async (req) => {
-  const me = await currentManager(req);
+  const me = await currentUser(req);
   const body = await readJson(req);
   const action = actions[String(body.action)];
   if (!action) throw new HttpError(400, 'Acción no válida.');

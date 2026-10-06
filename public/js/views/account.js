@@ -6,7 +6,7 @@ import {
   testPush,
   updateMyContact,
 } from '../backend.js';
-import { $, ROLE_LABELS, busy, formValues, html, isManager, timeAgo, toast } from '../lib.js';
+import { $, busy, can, formValues, html, isStaff, roleLabel, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { currentPushSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../pwa.js';
 import { logout, setUnread, state } from '../store.js';
@@ -37,7 +37,7 @@ async function pushCard(slot, { compact = false } = {}) {
         <button class="btn btn-ghost btn-sm" data-push-off>Desactivar</button>
       </div>`;
   } else {
-    content = html`<p class="muted">Recibe un aviso en tu teléfono ${isManager(state.me.user) || state.me.user.role === 'secretary'
+    content = html`<p class="muted">Recibe un aviso en tu teléfono ${isStaff(state.me.user)
       ? 'cada vez que alguien reporte una ausencia.'
       : 'cuando la dirección reciba tu ausencia o te deje un comentario.'}</p>
       <button class="btn btn-primary btn-sm" data-push-on>${icon('bell', 16)} Activar notificaciones</button>`;
@@ -121,14 +121,14 @@ export async function profileView({ el }) {
       <section class="card profile-head">
         ${avatar(user.full_name, 'xl')}
         <h2>${user.full_name}</h2>
-        <p class="muted">${user.position || ROLE_LABELS[user.role]}</p>
+        <p class="muted">${user.position || roleLabel(user.role)}</p>
         <div class="profile-meta">
           <span>${icon('school', 16)} ${school.name}</span>
           <span>${icon('key', 16)} ${school.code} · ${user.username}</span>
         </div>
       </section>
 
-      ${user.role !== 'admin' && user.role !== 'teacher'
+      ${user.role !== 'admin' && isStaff(user)
         ? html`<a class="card link-card" href="#/home">${icon('calendar')}<span><strong>Mis ausencias</strong><small>Tus propias ausencias y su estado</small></span>${icon('chevron', 18)}</a>`
         : ''}
 
@@ -190,14 +190,16 @@ export async function profileView({ el }) {
 
 export async function moreView({ el }) {
   const { user } = state.me;
-  const manager = isManager(user);
+  const admin = user.role === 'admin';
+  // Whatever the bottom bar doesn't already have (see navItems in app.js).
   const links = [
-    user.role === 'admin' ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error'] : null,
-    user.role === 'director' ? ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'] : null,
-    user.role !== 'admin' ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
-    manager ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
-    manager ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
-    manager ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
+    admin ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error'] : null,
+    !admin && can(user, 'staff') ? ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'] : null,
+    !admin && isStaff(user) ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
+    can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
+    can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
+    admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,
+    can(user, 'reports') ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
     ['#/profile', 'user', 'Mi perfil', 'Notificaciones, contraseña e instalar la app'],
   ].filter(Boolean);
 

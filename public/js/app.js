@@ -1,5 +1,5 @@
 import { getMe } from './backend.js';
-import { html, raw, toast } from './lib.js';
+import { can, html, isManager, isStaff, raw, toast } from './lib.js';
 import { icon } from './icons.js';
 import { initPwa, syncPush } from './pwa.js';
 import { go, homePath, refreshUnread, setUnread, state } from './store.js';
@@ -8,59 +8,64 @@ import { appIcon, applyBranding, restoreBranding } from './branding.js';
 import { absenceView, editAbsenceView, homeView, reportView } from './views/absences.js';
 import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
+import { rolesView } from './views/roles.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
 import { composeView, messageView, messagesView } from './views/messages.js';
 
-const STAFF = ['admin', 'director', 'secretary'];
-const MANAGER = ['admin', 'director'];
-const PEOPLE = ['director', 'secretary', 'teacher'];
+// Who may open each screen: by the permissions of the person's role.
+const PEOPLE = (u) => u.role !== 'admin';
+const STAFF = (u) => isStaff(u);
+const ADMIN = (u) => u.role === 'admin';
+const ANY_MANAGER = (u) => isStaff(u) || isManager(u);
+const may = (perm) => (u) => can(u, perm);
 
 const ROUTES = [
   { re: /^\/login$/, view: loginView, public: true, bare: true },
   { re: /^\/platform$/, view: platformView, public: true, bare: true },
   { re: /^\/change-password$/, view: changePasswordView, bare: true },
-  { re: /^\/home$/, view: homeView, title: 'Mis ausencias', roles: PEOPLE },
+  { re: /^\/home$/, view: homeView, title: 'Mis ausencias', allow: PEOPLE },
   { re: /^\/report$/, view: reportView, title: 'Reportar ausencia', back: true },
   { re: /^\/absence\/(\d+)$/, view: absenceView, title: 'Ausencia', back: true },
   { re: /^\/absence\/(\d+)\/edit$/, view: editAbsenceView, title: 'Modificar ausencia', back: true },
-  { re: /^\/dashboard$/, view: dashboardView, title: 'Panel', roles: STAFF },
-  { re: /^\/absences$/, view: absencesListView, title: 'Ausencias', roles: STAFF },
-  { re: /^\/employees$/, view: employeesView, title: 'Personal', roles: MANAGER },
+  { re: /^\/dashboard$/, view: dashboardView, title: 'Panel', allow: STAFF },
+  { re: /^\/absences$/, view: absencesListView, title: 'Ausencias', allow: STAFF },
+  { re: /^\/employees$/, view: employeesView, title: 'Personal', allow: may('staff') },
   // Employee ids are Supabase Auth UUIDs.
-  { re: /^\/employees\/(new|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, view: employeeFormView, title: 'Empleado', roles: MANAGER, back: true },
-  { re: /^\/settings$/, view: settingsView, title: 'Escuela y Teams', roles: MANAGER, back: true },
-  { re: /^\/data$/, view: dataView, title: 'Datos y reportes', roles: MANAGER, back: true },
-  { re: /^\/messages$/, view: messagesView, title: 'Mensajes', roles: MANAGER },
-  { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', roles: MANAGER, back: true },
+  { re: /^\/employees\/(new|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, view: employeeFormView, title: 'Empleado', allow: may('staff'), back: true },
+  { re: /^\/settings$/, view: settingsView, title: 'Escuela y Teams', allow: may('settings'), back: true },
+  { re: /^\/roles$/, view: rolesView, title: 'Roles y permisos', allow: ADMIN, back: true },
+  { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
+  { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages') },
+  { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },
   { re: /^\/message\/(\d+)$/, view: messageView, title: 'Mensaje', back: true },
   { re: /^\/notifications$/, view: notificationsView, title: 'Avisos' },
   { re: /^\/profile$/, view: profileView, title: 'Mi perfil' },
-  { re: /^\/more$/, view: moreView, title: 'Más', roles: STAFF },
+  { re: /^\/more$/, view: moreView, title: 'Más', allow: ANY_MANAGER },
 ];
 
-function navItems(role) {
-  if (role === 'teacher') {
+function navItems(user) {
+  const report = { path: '/report', icon: 'plus', label: 'Reportar' };
+  const notices = { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] };
+  if (!ANY_MANAGER(user)) {
     return [
       { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] },
-      { path: '/report', icon: 'plus', label: 'Reportar' },
-      { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] },
+      report,
+      notices,
       { path: '/profile', icon: 'user', label: 'Perfil' },
     ];
   }
-  const items = [
-    { path: '/dashboard', icon: 'grid', label: 'Panel' },
-    { path: '/absences', icon: 'list', label: 'Ausencias', match: ['/absences', '/absence/'] },
-  ];
-  if (MANAGER.includes(role)) items.push({ path: '/employees', icon: 'users', label: 'Personal' });
-  else items.push({ path: '/report', icon: 'plus', label: 'Reportar' });
-  const moreMatch = ['/more', '/settings', '/data', '/messages', '/profile', '/home', '/report'].filter(
+  const items = isStaff(user)
+    ? [
+        { path: '/dashboard', icon: 'grid', label: 'Panel' },
+        { path: '/absences', icon: 'list', label: 'Ausencias', match: ['/absences', '/absence/'] },
+        can(user, 'staff') ? { path: '/employees', icon: 'users', label: 'Personal' } : report,
+      ]
+    : [{ path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] }, report];
+  const moreMatch = ['/more', '/settings', '/roles', '/data', '/messages', '/profile', '/home', '/report'].filter(
     (p) => !items.some((i) => i.path === p),
   );
-  items.push(
-    { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] },
-    { path: '/more', icon: 'menu', label: 'Más', match: moreMatch },
-  );
+  items.push(notices, { path: '/more', icon: 'menu', label: 'Más', match: moreMatch });
   return items;
 }
 
@@ -71,7 +76,7 @@ let cleanups = [];
 
 function renderShell(route, path) {
   const { user, school } = state.me;
-  const key = `${user.id}:${user.role}`;
+  const key = `${user.id}:${user.role}:${(user.permissions || []).join()}`;
   if (shellKey !== key || !document.getElementById('view')) {
     shellKey = key;
     appRoot.innerHTML = String(html`
@@ -81,7 +86,7 @@ function renderShell(route, path) {
             <img src="${appIcon()}" alt="" width="36" height="36" data-app-icon>
             <div><strong>Leap Attendance Hub</strong><small>${school.name}</small></div>
           </div>
-          ${navItems(user.role).map(
+          ${navItems(user).map(
             (item) => html`<a class="tab" href="#${item.path}" data-path="${item.path}"
                 data-match="${(item.match || [item.path]).join(',')}">
                 <span class="tab-icon">${icon(item.icon, 22)}${item.badge ? raw('<b class="dot" data-unread hidden></b>') : ''}</span>
@@ -136,7 +141,7 @@ async function router() {
   }
   if (user?.must_change_password && path !== '/change-password') return go('/change-password', { replace: true });
   if (path === '/login' && user) return go(homePath(), { replace: true });
-  if (route.roles && !route.roles.includes(user.role)) return go(homePath(), { replace: true });
+  if (route.allow && !route.allow(user)) return go(homePath(), { replace: true });
 
   const seq = ++navSeq;
   const el = document.createElement('div');

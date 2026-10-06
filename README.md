@@ -21,7 +21,7 @@ Funciona con servicios gratuitos:
 - Reportan una ausencia en segundos: hoy, mañana o varios días, día completo o parte del día.
 - **Causa opcional** (y tipo opcional: enfermedad, cita médica, asunto personal, etc.).
 - **Suben su excusa**: foto desde la cámara, PDF o Word (hasta 5 archivos, 10 MB c/u). También pueden añadirla después.
-- Dejan instrucciones para quien cubra su clase.
+- Dejan instrucciones para quien cubra su clase (solo en los roles que necesitan cobertura, como Maestro(a); Enfermería, Mantenimiento o Seguridad no ven esos campos).
 - Ven si la dirección **recibió** su ausencia, quién los cubre y los **comentarios** que les dejaron.
 - **Modifican o cancelan** su propia ausencia mientras no haya pasado. Al cancelar eligen el motivo; si la fecha o la hora estaban mal, la app los lleva a corregirla. Cada cambio queda en el **historial** de la ausencia, y si cambia la fecha u hora de una ausencia ya recibida, la dirección debe confirmarla de nuevo.
 
@@ -33,12 +33,13 @@ Funciona con servicios gratuitos:
 **Administración (directora)**
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
 - **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles. Quien pidió ayuda con su contraseña aparece marcado.
+- **Roles y permisos** (solo la cuenta de Administración): añadir, renombrar y borrar roles (vienen Director(a), Secretaría, Maestro(a), Facultad, Enfermería, Mantenimiento y Seguridad) y elegir qué puede hacer cada uno: ver y confirmar las ausencias de todos, administrar el personal, enviar mensajes, datos y reportes, y configurar la escuela. También se elige si sus ausencias **necesitan cobertura** (sustituto). Desde la ficha de un empleado, **+ Nuevo rol…** crea uno sin salir del formulario. Nadie puede dar un rol con más permisos que el suyo, y un rol solo se borra cuando nadie lo tiene.
 - **Registrar, modificar o cancelar una ausencia a nombre de un empleado** (por ejemplo, si llamó por teléfono o para corregir un error). Solo la cuenta de Administración puede hacerlo; la directora y la secretaría no.
 - **Escuela y Teams**: nombre, código de escuela, webhooks de Microsoft Teams (ausencias y, opcionalmente, otro canal para contraseñas), cuenta de correo, mensaje de bienvenida y contraseña de administración.
 - **Cambiar el código de escuela** (solo la cuenta de Administración): por uno más fácil de recordar. No puede repetirse con el de otra escuela (ni con uno que otra escuela usó antes). Todo el personal recibe un aviso en la app y en el teléfono, y un correo si la escuela tiene uno conectado. Usuarios y contraseñas no cambian, y el código anterior y los enlaces viejos siguen funcionando.
 - **Enviar el acceso por correo**: al crear un empleado o restablecer su contraseña, un botón le envía su usuario y contraseña temporal al correo de su ficha, con las instrucciones. El texto es editable (*Mensaje con usuario y contraseña*, con `{nombre}`, `{usuario}`, `{contraseña}`, `{enlace}`, `{escuela}`, `{codigo}`) y también es el que se copia o comparte.
 - **Correos con diseño**: los correos llevan los colores y el ícono de la app. Las líneas `1.`, `2.` se ven como pasos; una línea que solo tiene un enlace, como botón; las líneas con sangría `Usuario: …`, en un recuadro destacado; y las que empiezan con `•` o `-`, como lista. **Vista previa** muestra el correo tal como llegará.
-- **Mensajes**: escribe a todo el personal, a un grupo (maestros, secretaría, dirección) o a personas concretas. Les llega como aviso en la app y notificación en el teléfono, y si quieres también por correo. Se ve a quién le llegó el correo y a quién no.
+- **Mensajes**: escribe a todo el personal, a un rol (Maestro(a), Enfermería…) o a personas concretas. Les llega como aviso en la app y notificación en el teléfono, y si quieres también por correo. Se ve a quién le llegó el correo y a quién no.
 - **Datos y reportes**: estadísticas, exportación a Excel (.xlsx) y respaldo completo (JSON) de *esa* escuela.
 - **Archivo anual**: al terminar el año escolar (1 ago – 31 jul), descarga un Excel con todas sus ausencias (hojas de ausencias, resumen por empleado, historial, comentarios y documentos) y un ZIP con las excusas. Después, la cuenta de Administración puede **liberar espacio**: borra de la app las ausencias recibidas y canceladas de ese año con sus archivos (las que están sin confirmar se quedan).
 - Las ausencias **canceladas se borran solas 15 días** después de cancelarse, con sus archivos.
@@ -50,12 +51,15 @@ Funciona con servicios gratuitos:
 
 **Varias escuelas:** cada una tiene su código, su personal, sus ausencias y sus archivos, separados por reglas de seguridad en la base de datos. Desde el **Panel de plataforma** (`#/platform`) se crean escuelas nuevas.
 
-| Rol | Reporta, modifica y cancela | Ve y confirma las de todos | Personal, Teams y datos |
-|---|:-:|:-:|:-:|
-| Maestro(a) | Las suyas | | |
-| Secretaría | Las suyas | ✅ | |
-| Director(a) | Las suyas | ✅ | ✅ (sin liberar espacio) |
-| Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ |
+Permisos con los que vienen los roles (la cuenta de Administración los cambia en **Más → Roles y permisos**):
+
+| Rol | Reporta, modifica y cancela | Ve y confirma las de todos | Personal, mensajes, Teams y datos | Necesita cobertura |
+|---|:-:|:-:|:-:|:-:|
+| Maestro(a), Facultad | Las suyas | | | ✅ |
+| Enfermería, Mantenimiento, Seguridad | Las suyas | | | |
+| Secretaría | Las suyas | ✅ | | ✅ |
+| Director(a) | Las suyas | ✅ | ✅ (sin liberar espacio) | ✅ |
+| Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | |
 
 ---
 
@@ -131,6 +135,7 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 **Seguridad:**
 - Row Level Security en todas las tablas: cada persona solo ve datos de su escuela; los maestros solo sus propias ausencias.
 - Todos los cambios pasan por funciones SQL que validan permisos (`create_absence`, `update_absence`, `cancel_absence`, `receive_absence`, …) y quedan en `absence_history`.
+- Los roles de cada escuela están en `school_roles` (nombre, permisos y si necesita cobertura); `profiles.role` apunta a uno de ellos. Las reglas de seguridad y las funciones preguntan por permisos (`private.can`, `private.has_perm`), no por nombres de rol.
 - Las excusas se guardan en un bucket privado y se ven con enlaces temporales; cada quien solo sube a su propia carpeta.
 - El webhook de Teams solo acepta dominios de Microsoft.
 - Las claves privadas (VAPID, contraseña de plataforma) están en la tabla `app_settings`, solo accesible para el servidor.
