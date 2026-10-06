@@ -88,8 +88,8 @@ Las decisiones pendientes están al final.
 - Alerta a seguridad si un estudiante que va a enfermería se pasa del tiempo (ver Turnos).
 - **Estudiante que no llegó**:
   - el maestro **no** registra cada salida al baño o a la oficina;
-  - cuando un estudiante debía haber llegado al salón y no llegó, el maestro **avisa a seguridad y a todo el
-    personal**.
+  - cuando un estudiante debía haber llegado al salón y no llegó, el maestro envía una alerta y **decide a quién**:
+    **seguridad** (incluye a las directoras y la secretaria) o **todo el personal**.
 - **Recogido de estudiantes**:
   1. El maestro informa que vendrán a recoger a un estudiante (nombre y grado/grupo).
   2. Cuando llega el padre o encargado, hay dos caminos: el maestro le avisa a seguridad, o seguridad le avisa al
@@ -98,8 +98,9 @@ Las decisiones pendientes están al final.
 
 **Propuesta**
 - Botón **«No ha llegado»** para el maestro:
-  - pide estudiante, grado-grupo, de dónde venía o a dónde iba, y desde qué hora falta;
-  - avisa con alerta urgente a seguridad y a todo el personal;
+  - pide estudiante, grado-grupo y de dónde venía o a dónde iba (sin hora);
+  - el maestro elige a quién avisar: **Seguridad** (seguridad, directoras y secretaria) o **Todo el personal**;
+  - la alerta es urgente;
   - quien lo vea toca **«Apareció / está conmigo»**, y se avisa a todos que se resolvió;
   - queda un historial: quién avisó, cuánto tardó en aparecer y dónde estaba.
 - Recogidos, con una lista **«Salidas de hoy»** para seguridad y para el maestro:
