@@ -20,7 +20,7 @@ Deno.test('numbered lines become steps, a lone link becomes a button', () => {
   const html = renderBody(WELCOME, ['maria', 'Kp7mWq2xTz']);
   assertEquals((html.match(/border-radius:14px;background:#e7eeff/g) || []).length, 3);
   assert(html.includes('href="https://example.org/app/?escuela=LEAP"'));
-  assert(html.includes('Abrir Leap Attendance Hub &rarr;'));
+  assert(html.includes('Abrir Hallway &rarr;'));
 });
 
 Deno.test('indented "Label: value" lines become the credentials box', () => {
@@ -49,7 +49,7 @@ Deno.test('brandedHtml has the app header, logo, title, intro and button', () =>
     schoolName: 'Leap Academy',
     logoSrc: 'cid:leap-logo',
     preheader: 'Nos vemos a las 3.',
-    cta: { url: 'https://example.org/app/#/message/1', label: 'Ver en Leap Attendance Hub' },
+    cta: { url: 'https://example.org/app/#/message/1', label: 'Ver en Hallway' },
   });
   assert(html.includes('src="cid:leap-logo"'));
   assert(html.includes('linear-gradient(135deg,#1e4fd8,#1a43b8)'));

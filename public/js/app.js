@@ -84,7 +84,7 @@ function renderShell(route, path) {
         <nav class="tabbar" aria-label="Navegación principal">
           <div class="side-brand">
             <img src="${appIcon()}" alt="" width="36" height="36" data-app-icon>
-            <div><strong>Leap Attendance Hub</strong><small>${school.name}</small></div>
+            <div><strong>Hallway</strong><small>${school.name}</small></div>
           </div>
           ${navItems(user).map(
             (item) => html`<a class="tab" href="#${item.path}" data-path="${item.path}"
@@ -111,7 +111,7 @@ function renderShell(route, path) {
   }
   document.body.classList.remove('bare');
   document.getElementById('page-title').textContent = route.title || '';
-  document.title = `${route.title ? `${route.title} · ` : ''}Leap Attendance Hub`;
+  document.title = `${route.title ? `${route.title} · ` : ''}Hallway`;
   appRoot.querySelector('.topbar').classList.toggle('has-back', !!route.back);
   for (const tab of appRoot.querySelectorAll('.tab')) {
     const active = tab.dataset.match.split(',').some((m) => path === m || path.startsWith(m.endsWith('/') ? m : `${m}/`));
@@ -151,7 +151,7 @@ async function router() {
   if (route.bare) {
     shellKey = null;
     document.body.classList.add('bare');
-    document.title = 'Leap Attendance Hub';
+    document.title = 'Hallway';
     appRoot.replaceChildren(el);
   } else {
     renderShell(route, path);

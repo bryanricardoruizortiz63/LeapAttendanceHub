@@ -51,7 +51,7 @@ export function buildCard({
   facts = [],
   text,
   linkUrl,
-  linkTitle = 'Abrir en Leap Attendance Hub',
+  linkTitle = 'Abrir en Hallway',
 }: {
   title: string;
   subtitle?: string;

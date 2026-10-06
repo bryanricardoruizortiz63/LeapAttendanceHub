@@ -197,7 +197,7 @@ function welcomeEmail(me: Me, tpl: Template, person: { full_name: string; userna
     text,
     schoolName: me.school.name,
     logoSrc,
-    preheader: 'Tu usuario y tu contraseña temporal para entrar a Leap Attendance Hub.',
+    preheader: 'Tu usuario y tu contraseña temporal para entrar a Hallway.',
     highlights: [person.username, password],
     note: 'Este correo incluye una contraseña temporal. Al entrar, la app te pedirá crear la tuya.',
   });
@@ -207,7 +207,7 @@ function welcomeEmail(me: Me, tpl: Template, person: { full_name: string; userna
 function messageEmail(me: Me, subject: string, body: string, link: string, logoSrc: string) {
   return {
     subject,
-    text: `${body}\n\n— ${me.full_name} · ${me.school.name}\n\nVer en Leap Attendance Hub: ${link}`,
+    text: `${body}\n\n— ${me.full_name} · ${me.school.name}\n\nVer en Hallway: ${link}`,
     html: brandedHtml({
       title: subject,
       intro: `De ${me.full_name} · ${me.school.name}`,
@@ -216,7 +216,7 @@ function messageEmail(me: Me, subject: string, body: string, link: string, logoS
       logoSrc,
       preheader: body.slice(0, 140),
       buttonLabel: 'Abrir enlace',
-      cta: { url: link, label: 'Ver en Leap Attendance Hub' },
+      cta: { url: link, label: 'Ver en Hallway' },
     }),
   };
 }
@@ -370,7 +370,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       await postToTeams(
         url,
         buildCard({
-          title: '✅ Prueba de Leap Attendance Hub',
+          title: '✅ Prueba de Hallway',
           subtitle: me.school.name,
           text: `${what} se publicarán en este canal. Prueba enviada por ${me.full_name}.`,
           linkUrl: (app?.value as { url?: string } | undefined)?.url,
@@ -531,7 +531,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       `la app ya puede enviar los accesos del personal y tus mensajes.\n\nEnviado por ${me.full_name}.`;
     const [status] = await sendEmails(account, [{
       to: account.from_email,
-      subject: 'Prueba de Leap Attendance Hub',
+      subject: 'Prueba de Hallway',
       text,
       html: brandedHtml({
         title: 'El correo funciona ✅',
@@ -539,7 +539,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
         schoolName: me.school.name,
         logoSrc: branding.logoSrc,
         preheader: 'El correo de la escuela está bien configurado.',
-        cta: { url, label: 'Abrir Leap Attendance Hub' },
+        cta: { url, label: 'Abrir Hallway' },
       }),
     }], branding);
     await recordEmailStatus(me, status);
@@ -620,7 +620,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       const results = await sendEmails(
         account,
         withEmail.map((p) => {
-          const text = `Hola ${p.full_name}:\n\n${me.school.name} tiene un nuevo código para entrar a Leap Attendance Hub.\n\n` +
+          const text = `Hola ${p.full_name}:\n\n${me.school.name} tiene un nuevo código para entrar a Hallway.\n\n` +
             `   Código de escuela: ${code}\n   Tu usuario: ${p.username}\n\n` +
             'Tu usuario y tu contraseña siguen siendo los mismos. Si ya tienes la sesión abierta, no tienes que hacer nada.\n\n' +
             `Si la app te pide el código, escribe el nuevo o entra con este enlace, que ya lo trae puesto:\n${link}`;

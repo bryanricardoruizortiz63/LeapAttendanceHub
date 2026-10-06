@@ -1,8 +1,10 @@
-# Leap Attendance Hub
+# Hallway
 
 Aplicación web móvil (PWA) para que el personal de una escuela **reporte sus ausencias** y la **dirección y secretaría** las gestionen. Se instala desde el navegador con “Añadir a pantalla de inicio”, sin App Store ni Google Play.
 
 **App:** https://bryanricardoruizortiz63.github.io/LeapAttendanceHub/
+
+Antes se llamaba *Leap Attendance Hub*. Solo cambió el nombre visible: la dirección web y los nombres internos (`LeapAttendanceHub`, `users.leap-hub.local`, las claves `lah:` del navegador) se mantienen para no romper las apps instaladas ni los inicios de sesión.
 
 Funciona con servicios gratuitos:
 
@@ -82,12 +84,12 @@ Permisos con los que vienen los roles (la cuenta de Administración los cambia e
 
 1. Usa una cuenta de Gmail para la escuela (puede ser una nueva solo para esto).
 2. Activa la **verificación en 2 pasos** en [myaccount.google.com/security](https://myaccount.google.com/security).
-3. En [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) crea una contraseña de aplicación llamada “Leap Attendance Hub”.
+3. En [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) crea una contraseña de aplicación llamada “Hallway”.
 4. En la app: **Más → Escuela y Teams → Correo electrónico**, escribe el correo y la contraseña de 16 letras, **Guardar** y **Enviar prueba**.
 
 Gmail permite unos 500 correos al día. También sirve cualquier servidor SMTP en el puerto 465 o 2525 (por ejemplo Brevo). Outlook / Microsoft 365 no sirve: solo usa el puerto 587, que Supabase bloquea.
 
-**Remitente:** el nombre que verá el personal es el de *Nombre que verán* (por ejemplo, “Leap Attendance Hub – Leap Academy”). El circulito junto al remitente en Gmail es la **foto de perfil de esa cuenta de Google**: para que sea el ícono de la app, ponlo como foto en [myaccount.google.com](https://myaccount.google.com) → *Información personal* → *Foto* (puedes descargar el ícono desde `public/icons/icon-512.png`). Dentro del correo, el ícono de la app ya va incluido.
+**Remitente:** el nombre que verá el personal es el de *Nombre que verán* (por ejemplo, “Hallway – Leap Academy”). El circulito junto al remitente en Gmail es la **foto de perfil de esa cuenta de Google**: para que sea el ícono de la app, ponlo como foto en [myaccount.google.com](https://myaccount.google.com) → *Información personal* → *Foto* (puedes descargar el ícono desde `public/icons/icon-512.png`). Dentro del correo, el ícono de la app ya va incluido.
 
 ### Cambiar el ícono de la app
 

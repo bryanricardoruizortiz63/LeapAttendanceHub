@@ -151,7 +151,7 @@ function step(num: string, head: string, details: string[], highlights: string[]
 }
 
 /** The body text → blocks of HTML. */
-export function renderBody(text: string, highlights: string[] = [], buttonLabel = 'Abrir Leap Attendance Hub'): string {
+export function renderBody(text: string, highlights: string[] = [], buttonLabel = 'Abrir Hallway'): string {
   const lines = text.replace(/\r/g, '').split('\n');
   const blank = (l: string) => !l.trim();
   const out: string[] = [];
@@ -191,8 +191,8 @@ export function brandedHtml(e: BrandedEmail): string {
 
 <tr><td bgcolor="${C.primary}" style="background:${C.primary};background-image:linear-gradient(135deg,${C.primary},${C.primaryDark});border-radius:16px 16px 0 0;padding:22px 24px">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-<td valign="middle" style="padding-right:14px"><img src="${escapeHtml(e.logoSrc)}" width="48" height="48" alt="Leap Attendance Hub" style="display:block;width:48px;height:48px;border-radius:12px;border:2px solid rgba(255,255,255,.35)"></td>
-<td valign="middle"><div style="font:700 19px/1.2 ${FONT};color:#ffffff">Leap Attendance Hub</div>
+<td valign="middle" style="padding-right:14px"><img src="${escapeHtml(e.logoSrc)}" width="48" height="48" alt="Hallway" style="display:block;width:48px;height:48px;border-radius:12px;border:2px solid rgba(255,255,255,.35)"></td>
+<td valign="middle"><div style="font:700 19px/1.2 ${FONT};color:#ffffff">Hallway</div>
 <div style="font:500 13px/1.4 ${FONT};color:#d6e0ff;margin-top:2px">${escapeHtml(e.schoolName)}</div></td>
 </tr></table></td></tr>
 
@@ -205,7 +205,7 @@ ${e.cta ? `<div style="margin:6px 0 10px">${button(e.cta.url, e.cta.label)}</div
 
 <tr><td bgcolor="#ffffff" style="background:#ffffff;border:1px solid ${C.border};border-top:0;border-radius:0 0 16px 16px;padding:0 24px 22px">
 <div style="border-top:1px solid ${C.border};padding-top:14px;font:12px/1.5 ${FONT};color:${C.muted}">
-Enviado por <b style="color:${C.text}">${escapeHtml(e.schoolName)}</b> con Leap Attendance Hub.</div></td></tr>
+Enviado por <b style="color:${C.text}">${escapeHtml(e.schoolName)}</b> con Hallway.</div></td></tr>
 
 ${e.note ? `<tr><td align="center" style="padding:14px 24px 0;font:12px/1.5 ${FONT};color:${C.muted}">${escapeHtml(e.note)}</td></tr>` : ''}
 </table></td></tr></table></body></html>`;

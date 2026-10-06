@@ -181,7 +181,7 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 
 ## 9. Orden de trabajo (aprobado)
 
-1. **Nombre nuevo: Hallway** (y dominio cuando lo haya).
+1. **Nombre nuevo: Hallway** (y dominio cuando lo haya). *Hecho el nombre visible; falta el dominio.*
 2. **Base común**: estudiantes apuntados (24 horas, con aviso de nombres parecidos), grupos y salón de cada maestro,
    calendario escolar (horario y feriados), permisos nuevos.
 3. **Alertas**: «No ha llegado», recogidos y relevo de maestros.

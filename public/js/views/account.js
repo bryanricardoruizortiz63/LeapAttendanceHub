@@ -154,7 +154,7 @@ export async function profileView({ el }) {
       </form>
 
       <button class="btn btn-ghost-danger btn-block" data-logout>${icon('logout', 18)} Cerrar sesión</button>
-      <p class="hint center">Leap Attendance Hub</p>
+      <p class="hint center">Hallway</p>
     </div>`);
 
   bindPasswordToggles(el);
