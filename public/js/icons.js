@@ -40,6 +40,7 @@ const PATHS = {
   swap: '<path d="M16 3h5v5"/><path d="M21 3 14 10"/><path d="M8 21H3v-5"/><path d="m3 21 7-7"/>',
   camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
   teams: '<rect x="2" y="6" width="13" height="13" rx="2"/><path d="M5.5 10h6M8.5 10v6"/><circle cx="18.5" cy="6.5" r="2.5"/><path d="M17 11h4a1 1 0 0 1 1 1v4a3 3 0 0 1-5 2.2"/>',
+  pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
 };
 
 export function icon(name, size = 20) {

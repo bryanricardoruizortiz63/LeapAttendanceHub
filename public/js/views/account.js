@@ -233,9 +233,11 @@ export async function moreView({ el }) {
       ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error']
       : ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'],
     !admin && isStaff(user) ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
+    ['#/turns', 'pulse', 'Turnos', 'Enfermería, Trabajo Social y otros servicios'],
     can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
     can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
     admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,
+    can(user, 'settings') ? ['#/services', 'sliders', 'Servicios', 'Enfermería, Trabajo Social: quién atiende, motivos y tiempo para llegar'] : null,
     can(user, 'calendar')
       ? ['#/calendar', 'calendar', 'Calendario escolar', 'Horario, días sin clases y grados y grupos']
       : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],
