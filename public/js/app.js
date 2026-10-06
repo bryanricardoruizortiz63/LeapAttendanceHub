@@ -9,6 +9,7 @@ import { absenceView, editAbsenceView, homeView, reportView } from './views/abse
 import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
 import { rolesView } from './views/roles.js';
+import { calendarView } from './views/calendar.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
 import { composeView, messageView, messagesView } from './views/messages.js';
@@ -35,6 +36,7 @@ const ROUTES = [
   { re: /^\/employees\/(new|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i, view: employeeFormView, title: 'Empleado', allow: may('staff'), back: true },
   { re: /^\/settings$/, view: settingsView, title: 'Escuela y Teams', allow: may('settings'), back: true },
   { re: /^\/roles$/, view: rolesView, title: 'Roles y permisos', allow: ADMIN, back: true },
+  { re: /^\/calendar$/, view: calendarView, title: 'Calendario escolar', back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
   { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages') },
   { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },
@@ -52,7 +54,7 @@ function navItems(user) {
       { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] },
       report,
       notices,
-      { path: '/profile', icon: 'user', label: 'Perfil' },
+      { path: '/profile', icon: 'user', label: 'Perfil', match: ['/profile', '/calendar'] },
     ];
   }
   const items = isStaff(user)
@@ -62,7 +64,7 @@ function navItems(user) {
         can(user, 'staff') ? { path: '/employees', icon: 'users', label: 'Personal' } : report,
       ]
     : [{ path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] }, report];
-  const moreMatch = ['/more', '/settings', '/roles', '/data', '/messages', '/profile', '/home', '/report'].filter(
+  const moreMatch = ['/more', '/settings', '/roles', '/calendar', '/data', '/messages', '/profile', '/home', '/report'].filter(
     (p) => !items.some((i) => i.path === p),
   );
   items.push(notices, { path: '/more', icon: 'menu', label: 'Más', match: moreMatch });

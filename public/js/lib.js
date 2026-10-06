@@ -64,6 +64,7 @@ export const ROLE_LABELS = {
 export const PERMISSIONS = [
   { key: 'absences', label: 'Ver y confirmar las ausencias de todos', hint: 'Panel, lista de ausencias, marcar como recibidas, cobertura y avisos de ausencias nuevas.' },
   { key: 'staff', label: 'Administrar el personal', hint: 'Crear y editar empleados, contraseñas y enviar accesos por correo.' },
+  { key: 'calendar', label: 'Calendario escolar', hint: 'Horario de clases, días sin clases y los grados y grupos de la escuela.' },
   { key: 'messages', label: 'Enviar mensajes', hint: 'Escribir a todo el personal o a grupos.' },
   { key: 'reports', label: 'Datos y reportes', hint: 'Estadísticas, exportar a Excel, respaldo y archivo anual.' },
   { key: 'settings', label: 'Configurar la escuela', hint: 'Nombre, Teams, correo y mensaje de bienvenida.' },
@@ -85,7 +86,7 @@ export const can = (u, perm) => u?.role === 'admin' || !!u?.permissions?.include
 /** Sees and confirms everyone's absences. */
 export const isStaff = (u) => can(u, 'absences');
 /** Has some management permission. */
-export const isManager = (u) => ['staff', 'settings', 'messages', 'reports'].some((p) => can(u, p));
+export const isManager = (u) => ['staff', 'settings', 'messages', 'reports', 'calendar'].some((p) => can(u, p));
 
 // ---- Dates ------------------------------------------------------------------
 
@@ -152,6 +153,43 @@ export function timeAgo(iso) {
   if (secs < 7 * 86400) return `hace ${Math.floor(secs / 86400)} d`;
   return fmtDateTime(iso);
 }
+
+/** ISO weekday: 1 = Monday … 7 = Sunday. */
+export const isoWeekday = (dateStr) => toDate(dateStr).getDay() || 7;
+
+export const WEEKDAYS = [
+  { n: 1, short: 'Lu', name: 'lunes' },
+  { n: 2, short: 'Ma', name: 'martes' },
+  { n: 3, short: 'Mi', name: 'miércoles' },
+  { n: 4, short: 'Ju', name: 'jueves' },
+  { n: 5, short: 'Vi', name: 'viernes' },
+  { n: 6, short: 'Sá', name: 'sábado' },
+  { n: 7, short: 'Do', name: 'domingo' },
+];
+
+/** "lunes a viernes", "lunes, miércoles y viernes". */
+export function daysText(days = []) {
+  const list = WEEKDAYS.filter((d) => days.includes(d.n));
+  const consecutive = list.length > 2 && list.every((d, i) => i === 0 || d.n === list[i - 1].n + 1);
+  if (consecutive) return `${list[0].name} a ${list[list.length - 1].name}`;
+  const names = list.map((d) => d.name);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : names[0] || '';
+}
+
+/** The school's calendar from me(): class hours, school days and grades and groups. */
+export function schoolCalendar(school) {
+  const c = school?.calendar || {};
+  return {
+    day_start: c.day_start || '07:40',
+    day_end: c.day_end || '15:30',
+    school_days: c.school_days?.length ? c.school_days : [1, 2, 3, 4, 5],
+    groups: c.groups || [],
+  };
+}
+
+/** Days without classes ({ start_date, end_date, name, kind }) that touch the range. */
+export const closuresIn = (closures, from, to = from) =>
+  closures.filter((c) => c.start_date <= to && c.end_date >= from);
 
 export function weekdays(start, end) {
   let n = 0;
@@ -246,7 +284,8 @@ export function toast(message, type = 'info') {
 
 /**
  * Promise-based modal dialog. Resolves on confirm with the textarea value (input), the named fields in
- * body (collect) or true; resolves null on cancel.
+ * body (collect) or true; resolves null on cancel. With onSubmit(values, dlg), the dialog stays open while
+ * it runs, shows its error inside, and resolves with what it returns.
  */
 export function dialog({
   title,
@@ -258,6 +297,7 @@ export function dialog({
   input = null,
   collect = false,
   onOpen = null,
+  onSubmit = null,
 }) {
   return new Promise((resolve) => {
     const dlg = document.createElement('dialog');
@@ -271,6 +311,7 @@ export function dialog({
           ? html`<label class="field"><span>${input.label}</span>
               <textarea name="value" rows="3" maxlength="2000" placeholder="${input.placeholder || ''}"></textarea></label>`
           : ''}
+        ${onSubmit ? raw('<p class="status-note danger" data-dialog-error hidden></p>') : ''}
         <div class="dialog-actions">
           ${cancelText ? html`<button type="button" class="btn btn-ghost" data-cancel>${cancelText}</button>` : ''}
           <button type="submit" class="btn ${danger ? 'btn-danger' : 'btn-primary'}">${confirmText}</button>
@@ -287,10 +328,27 @@ export function dialog({
       e.preventDefault();
       done(null);
     });
-    dlg.querySelector('form').addEventListener('submit', (e) => {
+    dlg.querySelector('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = dlg.querySelector('form');
-      done(input ? dlg.querySelector('textarea').value.trim() : collect ? formValues(form) : true);
+      if (!onSubmit) {
+        done(input ? dlg.querySelector('textarea').value.trim() : collect ? formValues(form) : true);
+        return;
+      }
+      const button = form.querySelector('[type=submit]');
+      const error = form.querySelector('[data-dialog-error]');
+      if (button.disabled) return;
+      button.disabled = true;
+      button.classList.add('is-busy');
+      error.hidden = true;
+      try {
+        done((await onSubmit(formValues(form), dlg)) ?? true);
+      } catch (err) {
+        error.textContent = err.message || 'Ocurrió un error.';
+        error.hidden = false;
+        button.disabled = false;
+        button.classList.remove('is-busy');
+      }
     });
     dlg.showModal();
     onOpen?.(dlg);

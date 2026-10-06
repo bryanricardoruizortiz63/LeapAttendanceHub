@@ -1,7 +1,7 @@
 # Plan: próximos módulos
 
-Ideas y requisitos acordados para la siguiente etapa de la app. Nada de esto está construido todavía.
-Lo que falta decidir está al final.
+Ideas y requisitos acordados para la siguiente etapa de la app. Ya están hechos el nombre (Hallway) y la parte de la
+base común que no depende de estudiantes (ver la sección 9).
 
 ---
 
@@ -31,6 +31,12 @@ Lo que falta decidir está al final.
 - **Calendario escolar**: horario de **7:40 a. m. a 3:30 p. m., lunes a viernes**, y los días feriados o sin clases (los
   marca la secretaria o la directora). No se usan períodos.
 
+**Hecho:** calendario escolar (horario, días de clases y días sin clases: *Feriado* o *Sin estudiantes*), grados y
+grupos de la escuela, salón y grupos de cada persona, y el permiso nuevo **Calendario escolar** (Secretaría,
+Director(a) y Administración). Al reportar una ausencia, la app avisa si ese día no hay clases.
+**Pendiente:** los estudiantes apuntados se construyen junto con su primer uso, las alertas («No ha llegado» y
+recogidos), para probarlos de punta a punta.
+
 ---
 
 ## 2. Turnos de servicios (Enfermería, Trabajo Social y otros)
@@ -51,7 +57,8 @@ Lo que falta decidir está al final.
   maestro ve sus turnos e historial para darle el pase.
 - Cada maestro solo ve a los estudiantes de los **grados y grupos** en que da clase (ej. 9-B).
 - Dashboard de Enfermería y Trabajo Social con **exportación** de datos no sensibles (cuántas veces vino, causa, día,
-  hora…).
+  hora…). **Decidido:** el servicio conserva el historial **con nombre durante el año escolar** y solo lo ve el propio
+  servicio (enfermera o trabajadora social); los maestros lo ven solo 24 horas.
 - Dashboard de la **directora** para ver **en vivo** el movimiento de Enfermería y Trabajo Social.
 - **Seguridad** recibe la alerta si un estudiante que va a enfermería se pasa del tiempo.
 
@@ -175,6 +182,7 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 - Son menores: el motivo se elige por categorías y la nota detallada solo la ve el servicio.
 - No sustituye el expediente oficial de enfermería.
 - Los datos de estudiantes que siguen los maestros se borran a las **24 horas**.
+- Enfermería y Trabajo Social guardan su propio historial con nombre durante el año escolar; solo lo ve ese servicio.
 - Revisarlo con la política de privacidad estudiantil de la escuela (FERPA).
 
 ---
@@ -182,9 +190,9 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 ## 9. Orden de trabajo (aprobado)
 
 1. **Nombre nuevo: Hallway** (y dominio cuando lo haya). *Hecho el nombre visible; falta el dominio.*
-2. **Base común**: estudiantes apuntados (24 horas, con aviso de nombres parecidos), grupos y salón de cada maestro,
-   calendario escolar (horario y feriados), permisos nuevos.
-3. **Alertas**: «No ha llegado», recogidos y relevo de maestros.
+2. **Base común**: grupos y salón de cada maestro, calendario escolar (horario y feriados), permisos nuevos. *Hecho.*
+3. **Alertas**: estudiantes apuntados (24 horas, con aviso de nombres parecidos), «No ha llegado», recogidos y relevo
+   de maestros.
 4. **Turnos de Enfermería y Trabajo Social**: fila, llamar, llegó, regresó, temporizadores, estado del profesional y
    alerta a seguridad.
 5. **Mantenimiento**.
@@ -194,12 +202,8 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 
 ---
 
-## Falta decidir
+## Decidido después
 
-1. **Historial de Enfermería y Trabajo Social**: los datos de estudiantes se borran a las 24 horas, pero los paneles
-   piden «cuántas veces ha venido un estudiante» y exportar a Excel. Opciones:
-   - **a)** a las 24 horas se quita el nombre y queda solo el grado-grupo, el servicio, la causa y las horas (sirve para
-     estadísticas, no por estudiante);
-   - **b)** el servicio (enfermera o trabajadora social) conserva el historial con nombre durante el año escolar, y solo
-     ellas lo ven; los maestros, solo 24 horas;
-   - **c)** se borra todo a las 24 horas, sin historial.
+1. **Historial de Enfermería y Trabajo Social**: opción **b**. El servicio conserva el historial con nombre durante el
+   año escolar y solo lo ve el propio servicio; los maestros, solo 24 horas. (Se descartaron: quitar el nombre a las
+   24 horas, o borrarlo todo.)

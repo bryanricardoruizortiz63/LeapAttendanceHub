@@ -9,6 +9,7 @@ import {
   formValues,
   getSchoolRoles,
   html,
+  schoolCalendar,
   timeAgo,
   toast,
   todayStr,
@@ -119,7 +120,8 @@ export async function employeesView({ el }) {
     const rows = employees.filter(
       (e) =>
         (showInactive || e.active) &&
-        (!needle || `${e.full_name} ${e.position || ''} ${e.username}`.toLowerCase().includes(needle)),
+        (!needle ||
+          `${e.full_name} ${e.position || ''} ${e.username} ${e.room || ''} ${(e.groups || []).join(' ')}`.toLowerCase().includes(needle)),
     );
     $('[data-list]', el).innerHTML = String(
       rows.length
@@ -131,6 +133,7 @@ export async function employeesView({ el }) {
                 <span class="item-sub">${[e.position, e.username].filter(Boolean).join(' · ')}</span>
                 <span class="item-tags">
                   <span class="tag">${e.role_label}</span>
+                  ${e.room ? html`<span class="tag">${icon('school', 14)} ${e.room}</span>` : ''}
                   ${e.absence_count ? html`<span class="tag">${icon('calendar', 14)} ${e.absence_count}</span>` : ''}
                   ${e.active ? '' : html`<span class="tag tag-warn">Inactivo</span>`}
                   ${e.active && !e.last_login_at ? html`<span class="tag">Nunca ha entrado</span>` : ''}
@@ -152,7 +155,7 @@ export async function employeesView({ el }) {
 
   el.innerHTML = String(html`
     <div class="toolbar">
-      <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre o puesto…" data-q></label>
+      <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre, puesto, salón o grupo…" data-q></label>
       <a class="btn btn-primary" href="#/employees/new">${icon('plus', 18)} Nuevo</a>
     </div>
     <div class="list-head">
@@ -184,6 +187,7 @@ export async function employeeFormView({ el, params, setTitle }) {
     getSchool(state.me.school.id),
   ]);
   const self = employee.id === me.id;
+  const schoolGroups = schoolCalendar(state.me.school).groups;
   setTitle(isNew ? 'Nuevo empleado' : employee.full_name);
 
   el.innerHTML = String(html`
@@ -202,6 +206,23 @@ export async function employeeFormView({ el, params, setTitle }) {
         </div>
         <label class="field"><span>Número de empleado <em class="optional">opcional</em></span>
           <input name="employee_number" maxlength="40" value="${employee.employee_number || ''}"></label>
+      </section>
+
+      <section class="card stack">
+        <h2 class="card-title">${icon('school')} Salón y grupos</h2>
+        <label class="field"><span>Salón <em class="optional">opcional</em></span>
+          <input name="room" maxlength="40" value="${employee.room || ''}" placeholder="Ej. 204 o Biblioteca" autocomplete="off"></label>
+        <div class="field"><span>Grupos en que da clase</span>
+          ${schoolGroups.length
+            ? html`<div class="chips group-picker" data-groups>${schoolGroups.map(
+                (g) => html`<label class="chip"><input type="checkbox" value="${g}" ${employee.groups?.includes(g) ? 'checked' : ''}><span>${g}</span></label>`,
+              )}</div>`
+            : html`<p class="hint">La escuela aún no tiene grados y grupos.
+                ${can(me, 'calendar')
+                  ? html`Créalos en <a href="#/calendar">Calendario escolar</a>.`
+                  : 'Pídele a la dirección o a la secretaría que los cree en Calendario escolar.'}</p>`}
+        </div>
+        <p class="hint">Cada maestro verá solo a los estudiantes de sus grupos. La persona también puede cambiar su salón desde su perfil.</p>
       </section>
 
       <section class="card stack">
@@ -281,6 +302,8 @@ export async function employeeFormView({ el, params, setTitle }) {
       const v = formValues(form);
       if (!v.full_name.trim()) throw new Error('Escribe el nombre del empleado.');
       if (v.role === NEW_ROLE) throw new Error('Elige un rol.');
+      const picker = $('[data-groups]', el);
+      if (picker) v.groups = [...picker.querySelectorAll('input:checked')].map((c) => c.value);
       if (isNew) {
         if (!v.username.trim() && !v.email.trim()) throw new Error('Escribe un usuario o un correo.');
         if (!v.password) delete v.password;
