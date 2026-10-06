@@ -9,15 +9,7 @@ Lo que falta decidir está al final.
 
 - La app no debe parecer de una sola escuela. Cambiar el **nombre visible** (título, pantalla de entrada, nombre al
   instalar, correos, tarjetas de Teams). Los nombres internos no cambian.
-- El nombre será **en inglés**; la app sigue en español. Ideas (verificar dominio y marca antes de decidir):
-  - **Hallway**: el pasillo, donde pasa todo el movimiento (turnos, relevos, recogidos, alertas).
-  - **Campus Pulse**: el pulso de la escuela en vivo.
-  - **Bellwise**: de *bell*, el timbre escolar.
-  - **OnCampus**.
-  - **Rollcall**: pase de lista.
-  - **SchoolBeat**.
-  - **Corridor**.
-  - Evitar nombres ya usados en educación: e-hallpass/SmartPass, ClassPass, Homebase, Relay, StaffHub.
+- **Nombre elegido: Hallway** (el pasillo, donde pasa todo el movimiento). La app sigue en español.
 - Cambiar la dirección web **junto con un dominio propio** (renombrar el repositorio cambia la URL de GitHub Pages
   y rompe las apps instaladas y los enlaces de los correos).
 - Marca blanca: cada escuela ve su nombre y su ícono; el producto queda en segundo plano («Escuela · con Hallway»).
@@ -27,17 +19,17 @@ Lo que falta decidir está al final.
 
 ## 1. Base común: estudiantes, grupos y salones
 
-- **Estudiantes**: no se importa una lista. El maestro **escribe el nombre** y la app lo **va guardando**.
-  - Al escribir aparecen sugerencias de los estudiantes ya guardados (del grupo elegido primero).
-  - Si escribe un nombre **parecido** a uno guardado (acentos, una letra, nombre incompleto), la app pregunta:
-    «¿Es José Pérez Rivera (9-B)?» → **Sí, es el mismo** / **No, es otro estudiante**.
-  - Administración puede unir duplicados que se hayan colado.
-  - Si un estudiante cambia de grupo, se le actualiza y su historial se conserva.
+- **Estudiantes**: no hay lista de estudiantes. Solo se guarda el estudiante que un maestro **apunta** para ir a algún
+  lugar (turno, «No ha llegado», recogido), para que, si cambia de salón antes de que le toque, el otro maestro siga el
+  progreso.
+  - Esos datos se guardan **solo 24 horas**.
+  - Si un maestro escribe un nombre **parecido** a uno apuntado ese día, la app pregunta: «¿Es José Pérez Rivera
+    (9-B)?» → **Sí, es el mismo** / **No, es otro estudiante**.
 - **Grupos de cada maestro**: fijos durante el año. Se revisan al empezar cada año escolar.
 - **Salón de cada maestro**: va en su ficha y se usa por defecto. Se puede cambiar en el momento, porque algunos
   maestros cambian de salón.
-- **Calendario escolar**: horario de clases de **7:40 a. m. a 3:30 p. m., lunes a viernes**, con sus **períodos**, y
-  los días feriados o sin clases (los marca la secretaria o la directora).
+- **Calendario escolar**: horario de **7:40 a. m. a 3:30 p. m., lunes a viernes**, y los días feriados o sin clases (los
+  marca la secretaria o la directora). No se usan períodos.
 
 ---
 
@@ -106,15 +98,10 @@ directamente lo que necesita.
 
 ## 4. Relevo de maestros
 
-**Lo que pidió la escuela**
-- Un maestro pide **relevo** cuando necesita ir al baño o salir un momento.
-- Quien lo cubre avisa por la app.
-
-**Propuesta**
-- El maestro toca **Pedir relevo** (motivo opcional: baño, salir un momento, otro); el salón sale de su ficha.
-- Les llega a las personas que pueden cubrir. La primera que toca **Voy** lo toma, y a los demás se les quita el aviso.
-- Quien cubre marca **Llegué / estoy cubriendo**. Cuando el maestro regresa, cualquiera de los dos marca **Terminado**.
-- Si nadie lo toma en unos minutos, se vuelve a avisar y luego se avisa a dirección.
+- El maestro toca **Pedir relevo** (cuando necesita ir al baño o salir un momento); el salón sale de su ficha.
+- Les llega a los **maestros, la directora y la secretaria** (no a seguridad).
+- Quien pueda toca **Yo lo relevo** y ya: no hay más pasos. Al maestro le llega quién va, y a los demás se les quita el
+  aviso.
 
 ---
 
@@ -151,7 +138,7 @@ directamente lo que necesita.
 
 **Decidido**
 - Solo el **salón de conferencias**.
-- Se reserva por **períodos de clase** (horario de 7:40 a. m. a 3:30 p. m., lunes a viernes) o por **horas libres**.
+- Se reserva por **horas** (de tal hora a tal hora). El horario escolar es de 7:40 a. m. a 3:30 p. m., lunes a viernes.
 - Maestros y personal reservan; la **secretaria o la directora aprueban**.
 - Las reservas de la directora o la secretaria tienen **prioridad** y se aprueban solas.
 - Si la directora (o la secretaria) reserva encima de la reserva de un maestro, la app **le pregunta primero**:
@@ -187,18 +174,17 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 
 - Son menores: el motivo se elige por categorías y la nota detallada solo la ve el servicio.
 - No sustituye el expediente oficial de enfermería.
-- Archivar y borrar al final del año, igual que las ausencias.
+- Los datos de estudiantes que siguen los maestros se borran a las **24 horas**.
 - Revisarlo con la política de privacidad estudiantil de la escuela (FERPA).
 
 ---
 
-## 9. Orden de trabajo propuesto
+## 9. Orden de trabajo (aprobado)
 
-1. **Nombre nuevo** (y dominio cuando lo haya).
-2. **Base común**: estudiantes que se guardan solos con aviso de nombres parecidos, grupos y salón de cada maestro,
-   calendario escolar (períodos y feriados), permisos nuevos.
-3. **Seguridad**: «No ha llegado», recogidos y **relevo de maestros**. Es lo más sencillo y lo que más ayuda en el día a
-   día.
+1. **Nombre nuevo: Hallway** (y dominio cuando lo haya).
+2. **Base común**: estudiantes apuntados (24 horas, con aviso de nombres parecidos), grupos y salón de cada maestro,
+   calendario escolar (horario y feriados), permisos nuevos.
+3. **Alertas**: «No ha llegado», recogidos y relevo de maestros.
 4. **Turnos de Enfermería y Trabajo Social**: fila, llamar, llegó, regresó, temporizadores, estado del profesional y
    alerta a seguridad.
 5. **Mantenimiento**.
@@ -210,9 +196,10 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 
 ## Falta decidir
 
-1. **Nombre**: ¿cuál de la lista de la sección 0, o más ideas?
-2. **Relevo**: ¿a quién le llega la petición (todo el personal, maestros en período libre, un rol como «Relevo» o
-   «Asistente»)?
-3. **Períodos**: ¿cuáles son las horas de cada período? (también se podrán editar en la app).
-4. **Mantenimiento**: ¿sirven esos tipos de solicitud (derrame, limpieza, baño, basura, reparación, otro)?
-5. **Orden de trabajo**: ¿te parece bien el de la sección 9?
+1. **Historial de Enfermería y Trabajo Social**: los datos de estudiantes se borran a las 24 horas, pero los paneles
+   piden «cuántas veces ha venido un estudiante» y exportar a Excel. Opciones:
+   - **a)** a las 24 horas se quita el nombre y queda solo el grado-grupo, el servicio, la causa y las horas (sirve para
+     estadísticas, no por estudiante);
+   - **b)** el servicio (enfermera o trabajadora social) conserva el historial con nombre durante el año escolar, y solo
+     ellas lo ven; los maestros, solo 24 horas;
+   - **c)** se borra todo a las 24 horas, sin historial.
