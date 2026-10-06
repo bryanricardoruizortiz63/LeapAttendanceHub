@@ -486,6 +486,72 @@ export const addSchoolGroups = (names) => rpc('add_school_groups', { p_names: na
 export const renameSchoolGroup = (oldName, newName) => rpc('rename_school_group', { p_old: oldName, p_new: newName });
 export const removeSchoolGroup = (name) => rpc('remove_school_group', { p_name: name });
 
+// ---- Alertas: «No ha llegado», salidas y relevos ------------------------------------
+
+/** Start of today on this device, so "today" is the school's local day. */
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+/** What is open now, and what was resolved today. */
+export async function listAlerts() {
+  const today = startOfToday();
+  const relief = new Date(Date.now() - 2 * 3600000).toISOString();
+  const [missing, pickups, reliefs] = await Promise.all([
+    run(sb.from('student_alerts_v').select('*').or(`resolved_at.is.null,created_at.gte.${today}`).order('created_at', { ascending: false }).limit(100)),
+    run(sb.from('student_pickups_v').select('*').or(`status.in.(scheduled,arrived,on_the_way),created_at.gte.${today}`).order('created_at').limit(200)),
+    run(sb.from('relief_requests').select('*').gte('created_at', relief).order('created_at', { ascending: false }).limit(50)),
+  ]);
+  return { missing, pickups, reliefs };
+}
+
+async function one(table, id, message) {
+  const row = await run(sb.from(table).select('*').eq('id', id).maybeSingle());
+  if (!row) throw new ApiError(message, 404);
+  return row;
+}
+export const getMissingAlert = (id) => one('student_alerts_v', id, 'No se encontró la alerta.');
+export const getPickup = (id) => one('student_pickups_v', id, 'No se encontró la salida.');
+export const getRelief = (id) => one('relief_requests', id, 'No se encontró el pedido de relevo.');
+
+/** Students noted today in that group with a similar name: [{ id, name, group_name, exact }]. */
+export const similarStudents = (name, group) => rpc('similar_students', { p_name: name, p_group: group });
+
+/** student: { id } of one noted today, or { name, group } for a new one. audience: 'security' | 'all'. */
+export const createStudentAlert = ({ student, place, room, note, audience }) =>
+  rpc('create_student_alert', {
+    p_student_id: student.id || null,
+    p_name: student.name || null,
+    p_group: student.group || null,
+    p_place: place || null,
+    p_room: room || null,
+    p_note: note || null,
+    p_audience: audience,
+  });
+export const resolveStudentAlert = (id, foundPlace) => rpc('resolve_student_alert', { p_id: id, p_found_place: foundPlace || null });
+
+export const createPickup = ({ student, time, room, note }) =>
+  rpc('create_pickup', {
+    p_student_id: student.id || null,
+    p_name: student.name || null,
+    p_group: student.group || null,
+    p_time: time || null,
+    p_room: room || null,
+    p_note: note || null,
+  });
+/** step: 'arrived' | 'on_the_way' | 'delivered' | 'cancelled'. */
+export const advancePickup = (id, step, pickedUpBy) =>
+  rpc('advance_pickup', { p_id: id, p_step: step, p_picked_up_by: pickedUpBy || null });
+
+export const requestRelief = (room, note) => rpc('request_relief', { p_room: room || null, p_note: note || null });
+export const takeRelief = (id) => rpc('take_relief', { p_id: id });
+export const cancelRelief = (id) => rpc('cancel_relief', { p_id: id });
+
+/** Seen: stops the repeated pushes (all alerts, or one link like '#/alerts/missing/3'). */
+export const markAlertsRead = (link = null) => rpc('mark_alerts_read', { p_link: link });
+
 // ---- Datos y reportes ------------------------------------------------------------
 
 function absenceDays(a, from, to) {

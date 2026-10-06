@@ -11,6 +11,7 @@ import { $, busy, can, formValues, html, isManager, isStaff, roleLabel, timeAgo,
 import { icon } from '../icons.js';
 import { currentPushSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../pwa.js';
 import { logout, setUnread, state } from '../store.js';
+import { inTabBar } from '../nav.js';
 import { bindPasswordToggles } from './auth.js';
 import { avatar, empty, installHint } from './common.js';
 
@@ -225,10 +226,12 @@ export async function profileView({ el }) {
 export async function moreView({ el }) {
   const { user } = state.me;
   const admin = user.role === 'admin';
-  // Whatever the bottom bar doesn't already have (see navItems in app.js).
+  // Whatever the bottom bar doesn't already have (see nav.js).
   const links = [
-    admin ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error'] : null,
-    !admin && can(user, 'staff') ? ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'] : null,
+    can(user, 'staff') ? ['#/employees', 'users', 'Personal', 'Empleados, contraseñas, roles, salón y grupos'] : null,
+    admin
+      ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error']
+      : ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'],
     !admin && isStaff(user) ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
     can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
     can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
@@ -238,7 +241,7 @@ export async function moreView({ el }) {
       : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],
     can(user, 'reports') ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
     ['#/profile', 'user', 'Mi perfil', 'Notificaciones, contraseña e instalar la app'],
-  ].filter(Boolean);
+  ].filter((link) => link && !inTabBar(user, link[0].slice(1)));
 
   el.innerHTML = String(html`
     <div class="stack">

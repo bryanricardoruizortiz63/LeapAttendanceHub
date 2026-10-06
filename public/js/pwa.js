@@ -25,7 +25,8 @@ export function initPwa() {
         const hash = new URL(e.data.url, location.href).hash;
         if (hash) location.hash = hash;
       } else if (e.data?.type === 'push') {
-        window.dispatchEvent(new CustomEvent('lah:push'));
+        // { urgent, title, body, link }: urgent notices ring inside the app too (see alarm.js).
+        window.dispatchEvent(new CustomEvent('lah:push', { detail: e.data }));
       }
     });
   }

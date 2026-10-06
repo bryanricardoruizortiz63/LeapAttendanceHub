@@ -2433,3 +2433,223 @@ input[type='color'] {
   min-width: 52px;
   justify-content: center;
 }
+
+/* ---- Alertas ------------------------------------------------------------------ */
+
+.count.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.tag-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.alert-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.alert-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 104px;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.alert-action .icon {
+  color: var(--primary-text);
+}
+
+.alert-action strong {
+  font-size: 15px;
+}
+
+.alert-action small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.alert-action.is-danger {
+  background: var(--danger-soft);
+  border-color: transparent;
+}
+
+.alert-action.is-danger .icon,
+.alert-action.is-danger strong {
+  color: var(--danger);
+}
+
+.alert-item.is-urgent {
+  box-shadow: inset 4px 0 0 var(--danger);
+}
+
+.alert-item .item-main strong,
+.alert-item .item-sub {
+  white-space: normal;
+}
+
+.item-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: inherit;
+}
+
+.item-icon.is-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.item-icon.is-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.alert-head.is-urgent {
+  border-color: var(--danger);
+  box-shadow: inset 0 4px 0 var(--danger), var(--shadow);
+}
+
+.alert-head.is-ok {
+  border-color: var(--ok);
+}
+
+.alert-head h2 {
+  margin: 0;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.alert-kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.alert-head.is-urgent .alert-kind {
+  color: var(--danger);
+}
+
+.facts {
+  display: grid;
+  gap: 8px;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fact span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fact strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.timeline.steps > li {
+  color: var(--muted);
+}
+
+.timeline.steps > li.is-done {
+  color: var(--text);
+}
+
+.timeline.steps > li.is-done::before {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+/* In-app alarm (urgent notice while the app is open). */
+.alarm {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(127 29 29 / 0.88);
+  animation: alarm-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes alarm-pulse {
+  from {
+    background: rgb(127 29 29 / 0.92);
+  }
+  to {
+    background: rgb(190 18 60 / 0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm {
+    animation: none;
+  }
+}
+
+.alarm-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, 100%);
+  padding: 24px 20px 16px;
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
+}
+
+.alarm-card h2 {
+  margin: 0;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+
+.alarm-card p {
+  margin: 0 0 6px;
+  color: var(--muted);
+}
+
+.alarm-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
