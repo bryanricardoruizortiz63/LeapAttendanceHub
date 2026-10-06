@@ -2,7 +2,7 @@
   "name": "leap-attendance-hub",
   "version": "2.0.0",
   "private": true,
-  "description": "Leap Attendance Hub: PWA para que el personal escolar reporte ausencias. Pantallas en GitHub Pages y datos en Supabase.",
+  "description": "Hallway: PWA para que el personal escolar reporte ausencias. Pantallas en GitHub Pages y datos en Supabase.",
   "scripts": {
     "dev": "npx --yes serve public -l 3000",
     "check:functions": "cd supabase/functions && npx --yes deno check */index.ts",

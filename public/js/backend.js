@@ -165,6 +165,8 @@ export async function changePassword(currentPassword, newPassword) {
 }
 
 export const updateMyContact = (email, phone) => rpc('update_my_contact', { p_email: email || null, p_phone: phone || null });
+/** The room where I usually am (empty = none). Returns the saved value. */
+export const setMyRoom = (room) => rpc('set_my_room', { p_room: room || null });
 
 // ---- Ausencias -------------------------------------------------------------
 
@@ -461,6 +463,29 @@ export const updateSchool = (v) =>
     p_update_teams_password_url: 'teams_password_webhook_url' in v,
   });
 
+// ---- Calendario escolar -------------------------------------------------------------
+
+/** Days without classes, from a date on (all of them without one), in date order. */
+export function listClosures({ from } = {}) {
+  let q = sb.from('school_closures').select('*').order('start_date').order('id');
+  if (from) q = q.gte('end_date', from);
+  return run(q.limit(500));
+}
+
+/** Adds (no id) or changes a day or period without classes. kind: 'holiday' | 'no_classes'. */
+export const saveClosure = ({ id, start, end, name, kind }) =>
+  rpc('save_closure', { p_id: id || null, p_start: start, p_end: end || null, p_name: name, p_kind: kind });
+export const deleteClosure = (id) => callFunction('admin', { action: 'delete_closure', id });
+
+/** Class hours and school days (ISO weekdays). Returns the school calendar. */
+export const saveSchoolHours = (start, end, days) =>
+  rpc('save_school_hours', { p_day_start: start, p_day_end: end, p_school_days: days });
+
+// Each one returns the school's list of grades and groups.
+export const addSchoolGroups = (names) => rpc('add_school_groups', { p_names: names });
+export const renameSchoolGroup = (oldName, newName) => rpc('rename_school_group', { p_old: oldName, p_new: newName });
+export const removeSchoolGroup = (name) => rpc('remove_school_group', { p_name: name });
+
 // ---- Datos y reportes ------------------------------------------------------------
 
 function absenceDays(a, from, to) {
@@ -573,7 +598,8 @@ export async function exportEmployeesXlsx(code) {
   const columns = [
     { header: 'Nombre', width: 28 }, { header: 'Usuario', width: 18 }, { header: 'Rol', width: 14 },
     { header: 'Puesto', width: 20 }, { header: 'Correo', width: 28 }, { header: 'Teléfono', width: 15 },
-    { header: 'Núm. empleado', width: 14 }, { header: 'Activo', width: 8 }, { header: 'Ausencias', width: 10 },
+    { header: 'Núm. empleado', width: 14 }, { header: 'Salón', width: 12 }, { header: 'Grupos', width: 18 },
+    { header: 'Activo', width: 8 }, { header: 'Ausencias', width: 10 },
     { header: 'Último acceso', width: 17 }, { header: 'Creado', width: 17 },
   ];
   download(
@@ -583,7 +609,7 @@ export async function exportEmployeesXlsx(code) {
       columns,
       rows: rows.map((u) => [
         u.full_name, u.username, roleLabel(u.role), u.position, u.email, u.phone, u.employee_number,
-        u.active ? 'Sí' : 'No', u.absence_count, xDateTime(u.last_login_at), xDateTime(u.created_at),
+        u.room, (u.groups || []).join(', '), u.active ? 'Sí' : 'No', u.absence_count, xDateTime(u.last_login_at), xDateTime(u.created_at),
       ]),
     }]),
   );
@@ -591,16 +617,18 @@ export async function exportEmployeesXlsx(code) {
 
 export async function exportBackupJson(school) {
   const all = (table, select = '*') => fetchAll(() => sb.from(table).select(select).order('id'));
-  const [employees, absences, history, comments, attachments] = await Promise.all([
-    run(sb.from('profiles').select('id, role, username, full_name, email, phone, employee_number, position, active, last_login_at, created_at')),
+  const [employees, absences, history, comments, attachments, closures] = await Promise.all([
+    run(sb.from('profiles').select('id, role, username, full_name, email, phone, employee_number, position, room, groups, active, last_login_at, created_at')),
     all('absences'),
     all('absence_history'),
     all('comments'),
     all('attachments', 'id, absence_id, uploaded_by, uploaded_by_name, original_name, mime, size, created_at'),
+    all('school_closures', 'id, start_date, end_date, name, kind, created_at'),
   ]);
   const backup = {
     generated_at: new Date().toISOString(),
     school: { code: school.code, name: school.name },
+    calendar: school.calendar, school_closures: closures,
     employees, absences, absence_history: history, comments, attachments,
   };
   download(`respaldo_${school.code}_${todayStr()}.json`, JSON.stringify(backup, null, 2), 'application/json');

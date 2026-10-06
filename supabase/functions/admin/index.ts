@@ -1,6 +1,7 @@
 // School administration actions that need Supabase Auth admin rights or the school's email account:
 // employees (create, edit, deactivate, reset password, delete, email their access), roles, messages to the
-// staff, the school admin password, the Teams and email tests, and freeing space after an archive.
+// staff, the school admin password, the Teams and email tests, days off the school calendar and freeing
+// space after an archive.
 // Each action needs a permission of the person's role; the school's "admin" account has them all.
 import {
   anonClient,
@@ -25,11 +26,11 @@ const db = serviceClient();
 const DUPLICATE = 'Ese usuario ya existe en esta escuela.';
 const NO_PERMISSION = 'No tienes permiso para realizar esta acción.';
 const EMPLOYEE_FIELDS =
-  'id, role, username, full_name, email, phone, employee_number, position, active, must_change_password, last_login_at, created_at, updated_at';
+  'id, role, username, full_name, email, phone, employee_number, position, active, must_change_password, last_login_at, created_at, updated_at, room, groups';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** What a role can do besides reporting its own absences (see the roles migration). */
-const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports'];
+const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports', 'calendar'];
 
 type Role = { key: string; name: string; permissions: string[]; coverage: boolean; system: boolean; position: number };
 
@@ -128,12 +129,33 @@ function parsePermissions(value: unknown): string[] {
   return PERMISSIONS.filter((p) => list.includes(p));
 }
 
+/** The room (salón) where the person usually is: "  Salón   204 " → "Salón 204". */
+function parseRoom(value: unknown): string | null {
+  return optText(value === undefined || value === null ? value : String(value).replace(/\s+/g, ' '), 40, 'El salón');
+}
+
+/** Groups the person teaches: the school's own names (Calendario escolar), whatever the case typed. */
+async function parseGroups(me: Me, value: unknown): Promise<string[]> {
+  const list = Array.isArray(value) ? value.map((g) => String(g).trim().replace(/\s+/g, ' ')).filter(Boolean) : [];
+  if (!list.length) return [];
+  if (list.length > 50) throw new HttpError(400, 'Una persona puede tener hasta 50 grupos.');
+  const { data, error } = await db.from('school_settings').select('groups').eq('school_id', me.school_id).maybeSingle();
+  if (error) throw new Error(error.message);
+  const school = (data?.groups || []) as string[];
+  const byName = new Map(school.map((g) => [g.toLowerCase(), g]));
+  return [...new Set(list.map((g) => {
+    const found = byName.get(g.toLowerCase());
+    if (!found) throw new HttpError(400, `El grupo «${g}» no existe. Créalo primero en Calendario escolar.`);
+    return found;
+  }))];
+}
+
 /** A readable, unique key for a new role: "Enfermería" → "enfermeria", then "enfermeria_2"… */
 function roleKey(name: string, taken: Set<string>): string {
   let base = name
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\p{M}/gu, '')
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 30)
@@ -197,7 +219,7 @@ function welcomeEmail(me: Me, tpl: Template, person: { full_name: string; userna
     text,
     schoolName: me.school.name,
     logoSrc,
-    preheader: 'Tu usuario y tu contraseña temporal para entrar a Leap Attendance Hub.',
+    preheader: 'Tu usuario y tu contraseña temporal para entrar a Hallway.',
     highlights: [person.username, password],
     note: 'Este correo incluye una contraseña temporal. Al entrar, la app te pedirá crear la tuya.',
   });
@@ -207,7 +229,7 @@ function welcomeEmail(me: Me, tpl: Template, person: { full_name: string; userna
 function messageEmail(me: Me, subject: string, body: string, link: string, logoSrc: string) {
   return {
     subject,
-    text: `${body}\n\n— ${me.full_name} · ${me.school.name}\n\nVer en Leap Attendance Hub: ${link}`,
+    text: `${body}\n\n— ${me.full_name} · ${me.school.name}\n\nVer en Hallway: ${link}`,
     html: brandedHtml({
       title: subject,
       intro: `De ${me.full_name} · ${me.school.name}`,
@@ -216,7 +238,7 @@ function messageEmail(me: Me, subject: string, body: string, link: string, logoS
       logoSrc,
       preheader: body.slice(0, 140),
       buttonLabel: 'Abrir enlace',
-      cta: { url: link, label: 'Ver en Leap Attendance Hub' },
+      cta: { url: link, label: 'Ver en Hallway' },
     }),
   };
 }
@@ -236,6 +258,14 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     const email = optText(b.email, 200, 'El correo');
     const username = await parseUsername(me, b.username || email);
     const role = parseRole(me, b.role);
+    // Everything is checked before the login account exists, so a bad field can't leave it half-created.
+    const details = {
+      phone: optText(b.phone, 40, 'El teléfono'),
+      employee_number: optText(b.employee_number, 40, 'El número de empleado'),
+      position: optText(b.position, 120, 'El puesto'),
+      room: parseRoom(b.room),
+      groups: await parseGroups(me, b.groups),
+    };
     const password = validatePassword(b.password ? String(b.password) : generatePassword());
 
     const { data: created, error } = await db.auth.admin.createUser({
@@ -257,9 +287,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
         username,
         full_name: fullName,
         email,
-        phone: optText(b.phone, 40, 'El teléfono'),
-        employee_number: optText(b.employee_number, 40, 'El número de empleado'),
-        position: optText(b.position, 120, 'El puesto'),
+        ...details,
         must_change_password: true,
       })
       .select(EMPLOYEE_FIELDS)
@@ -282,6 +310,8 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       phone: 'phone' in b ? optText(b.phone, 40, 'El teléfono') : employee.phone,
       employee_number: 'employee_number' in b ? optText(b.employee_number, 40, 'El número de empleado') : employee.employee_number,
       position: 'position' in b ? optText(b.position, 120, 'El puesto') : employee.position,
+      room: 'room' in b ? parseRoom(b.room) : employee.room,
+      groups: 'groups' in b ? await parseGroups(me, b.groups) : employee.groups,
       role: 'role' in b && b.role !== employee.role ? parseRole(me, b.role) : employee.role,
       active: 'active' in b ? b.active === true || b.active === 'true' : employee.active,
       updated_at: new Date().toISOString(),
@@ -370,7 +400,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       await postToTeams(
         url,
         buildCard({
-          title: '✅ Prueba de Leap Attendance Hub',
+          title: '✅ Prueba de Hallway',
           subtitle: me.school.name,
           text: `${what} se publicarán en este canal. Prueba enviada por ${me.full_name}.`,
           linkUrl: (app?.value as { url?: string } | undefined)?.url,
@@ -531,7 +561,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       `la app ya puede enviar los accesos del personal y tus mensajes.\n\nEnviado por ${me.full_name}.`;
     const [status] = await sendEmails(account, [{
       to: account.from_email,
-      subject: 'Prueba de Leap Attendance Hub',
+      subject: 'Prueba de Hallway',
       text,
       html: brandedHtml({
         title: 'El correo funciona ✅',
@@ -539,7 +569,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
         schoolName: me.school.name,
         logoSrc: branding.logoSrc,
         preheader: 'El correo de la escuela está bien configurado.',
-        cta: { url, label: 'Abrir Leap Attendance Hub' },
+        cta: { url, label: 'Abrir Hallway' },
       }),
     }], branding);
     await recordEmailStatus(me, status);
@@ -620,7 +650,7 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
       const results = await sendEmails(
         account,
         withEmail.map((p) => {
-          const text = `Hola ${p.full_name}:\n\n${me.school.name} tiene un nuevo código para entrar a Leap Attendance Hub.\n\n` +
+          const text = `Hola ${p.full_name}:\n\n${me.school.name} tiene un nuevo código para entrar a Hallway.\n\n` +
             `   Código de escuela: ${code}\n   Tu usuario: ${p.username}\n\n` +
             'Tu usuario y tu contraseña siguen siendo los mismos. Si ya tienes la sesión abierta, no tienes que hacer nada.\n\n' +
             `Si la app te pide el código, escribe el nuevo o entra con este enlace, que ya lo trae puesto:\n${link}`;
@@ -732,6 +762,22 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     // Someone got this role in the meantime.
     if (error?.code === '23503') throw inUse(1);
     check(error, 'No se pudo borrar el rol.');
+    return json({ ok: true });
+  },
+
+  /** Removes a day or period without classes from the school calendar. */
+  async delete_closure(me, b) {
+    need(me, 'calendar');
+    const id = Number(b.id);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new HttpError(400, 'Solicitud no válida.');
+    const { data, error } = await db
+      .from('school_closures')
+      .delete()
+      .eq('id', id)
+      .eq('school_id', me.school_id)
+      .select('id');
+    check(error, 'No se pudo borrar el día.');
+    if (!data?.length) throw new HttpError(404, 'No se encontró ese día en el calendario.');
     return json({ ok: true });
   },
 

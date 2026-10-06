@@ -121,7 +121,7 @@ export async function loginView({ el, query }) {
       <div class="auth">
         <div class="auth-brand">
           <img src="${appIcon()}" alt="" class="auth-logo" width="72" height="72" data-app-icon>
-          <h1>Leap Attendance Hub</h1>
+          <h1>Hallway</h1>
           <p>Reporta tus ausencias en segundos y mantén informada a la dirección.</p>
         </div>
         <div class="card auth-card">
@@ -135,7 +135,7 @@ export async function loginView({ el, query }) {
             ${showCodeInput
               ? html`<label class="field"><span>Código de escuela</span>
                   <input name="school_code" required autocapitalize="characters" autocomplete="organization"
-                    spellcheck="false" placeholder="Ej. LEAP-2045" value="${draft.school_code ?? savedCode}">
+                    spellcheck="false" placeholder="Ej. ESC-2045" value="${draft.school_code ?? savedCode}">
                 </label>`
               : html`<div class="school-chip">
                   ${icon('school', 20)}

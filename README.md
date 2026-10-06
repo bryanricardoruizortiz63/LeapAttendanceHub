@@ -1,8 +1,10 @@
-# Leap Attendance Hub
+# Hallway
 
 Aplicación web móvil (PWA) para que el personal de una escuela **reporte sus ausencias** y la **dirección y secretaría** las gestionen. Se instala desde el navegador con “Añadir a pantalla de inicio”, sin App Store ni Google Play.
 
 **App:** https://bryanricardoruizortiz63.github.io/LeapAttendanceHub/
+
+Antes se llamaba *Leap Attendance Hub*. Solo cambió el nombre visible: la dirección web y los nombres internos (`LeapAttendanceHub`, `users.leap-hub.local`, las claves `lah:` del navegador) se mantienen para no romper las apps instaladas ni los inicios de sesión.
 
 Funciona con servicios gratuitos:
 
@@ -23,6 +25,8 @@ Funciona con servicios gratuitos:
 - **Suben su excusa**: foto desde la cámara, PDF o Word (hasta 5 archivos, 10 MB c/u). También pueden añadirla después.
 - Dejan instrucciones para quien cubra su clase (solo en los roles que necesitan cobertura, como Maestro(a); Enfermería, Mantenimiento o Seguridad no ven esos campos).
 - Ven si la dirección **recibió** su ausencia, quién los cubre y los **comentarios** que les dejaron.
+- Al elegir la fecha, la app avisa si ese día no hay clases (feriado o día sin estudiantes del calendario escolar).
+- En *Perfil* ponen su **salón** (y lo cambian cuando quieran) y ven sus **grupos** (9-B, 10-A…), que asigna la dirección. También ven el **calendario escolar**: horario y días sin clases.
 - **Modifican o cancelan** su propia ausencia mientras no haya pasado. Al cancelar eligen el motivo; si la fecha o la hora estaban mal, la app los lleva a corregirla. Cada cambio queda en el **historial** de la ausencia, y si cambia la fecha u hora de una ausencia ya recibida, la dirección debe confirmarla de nuevo.
 
 **Dirección y secretaría**
@@ -32,8 +36,9 @@ Funciona con servicios gratuitos:
 
 **Administración (directora)**
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
-- **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles. Quien pidió ayuda con su contraseña aparece marcado.
-- **Roles y permisos** (solo la cuenta de Administración): añadir, renombrar y borrar roles (vienen Director(a), Secretaría, Maestro(a), Facultad, Enfermería, Mantenimiento y Seguridad) y elegir qué puede hacer cada uno: ver y confirmar las ausencias de todos, administrar el personal, enviar mensajes, datos y reportes, y configurar la escuela. También se elige si sus ausencias **necesitan cobertura** (sustituto). Desde la ficha de un empleado, **+ Nuevo rol…** crea uno sin salir del formulario. Nadie puede dar un rol con más permisos que el suyo, y un rol solo se borra cuando nadie lo tiene.
+- **Personal**: crear, editar, desactivar y eliminar empleados, restablecer contraseñas y asignar roles, salón y grupos. Quien pidió ayuda con su contraseña aparece marcado. Se puede buscar por nombre, puesto, salón o grupo.
+- **Calendario escolar** (Secretaría, Director(a) y Administración; permiso *Calendario escolar*): horario de clases (7:40 a. m. a 3:30 p. m., lunes a viernes, se puede cambiar), **días sin clases** (*Feriado*: no se trabaja; *Sin estudiantes*: el personal trabaja, por ejemplo desarrollo profesional) y los **grados y grupos** de la escuela (uno a uno o varios a la vez: «del 7 al 12, grupos A, B, C»). Al cambiar el nombre de un grupo, quienes lo tienen lo conservan; al borrarlo, se les quita. Es la base de los próximos módulos (turnos, alertas y reservas).
+- **Roles y permisos** (solo la cuenta de Administración): añadir, renombrar y borrar roles (vienen Director(a), Secretaría, Maestro(a), Facultad, Enfermería, Mantenimiento y Seguridad) y elegir qué puede hacer cada uno: ver y confirmar las ausencias de todos, administrar el personal, el calendario escolar, enviar mensajes, datos y reportes, y configurar la escuela. También se elige si sus ausencias **necesitan cobertura** (sustituto). Desde la ficha de un empleado, **+ Nuevo rol…** crea uno sin salir del formulario. Nadie puede dar un rol con más permisos que el suyo, y un rol solo se borra cuando nadie lo tiene.
 - **Registrar, modificar o cancelar una ausencia a nombre de un empleado** (por ejemplo, si llamó por teléfono o para corregir un error). Solo la cuenta de Administración puede hacerlo; la directora y la secretaría no.
 - **Escuela y Teams**: nombre, código de escuela, webhooks de Microsoft Teams (ausencias y, opcionalmente, otro canal para contraseñas), cuenta de correo, mensaje de bienvenida y contraseña de administración.
 - **Cambiar el código de escuela** (solo la cuenta de Administración): por uno más fácil de recordar. No puede repetirse con el de otra escuela (ni con uno que otra escuela usó antes). Todo el personal recibe un aviso en la app y en el teléfono, y un correo si la escuela tiene uno conectado. Usuarios y contraseñas no cambian, y el código anterior y los enlaces viejos siguen funcionando.
@@ -53,13 +58,13 @@ Funciona con servicios gratuitos:
 
 Permisos con los que vienen los roles (la cuenta de Administración los cambia en **Más → Roles y permisos**):
 
-| Rol | Reporta, modifica y cancela | Ve y confirma las de todos | Personal, mensajes, Teams y datos | Necesita cobertura |
-|---|:-:|:-:|:-:|:-:|
-| Maestro(a), Facultad | Las suyas | | | ✅ |
-| Enfermería, Mantenimiento, Seguridad | Las suyas | | | |
-| Secretaría | Las suyas | ✅ | | ✅ |
-| Director(a) | Las suyas | ✅ | ✅ (sin liberar espacio) | ✅ |
-| Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | |
+| Rol | Reporta, modifica y cancela | Ve y confirma las de todos | Calendario escolar | Personal, mensajes, Teams y datos | Necesita cobertura |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Maestro(a), Facultad | Las suyas | | Lo ve | | ✅ |
+| Enfermería, Mantenimiento, Seguridad | Las suyas | | Lo ve | | |
+| Secretaría | Las suyas | ✅ | ✅ | | ✅ |
+| Director(a) | Las suyas | ✅ | ✅ | ✅ (sin liberar espacio) | ✅ |
+| Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | ✅ | |
 
 ---
 
@@ -82,12 +87,12 @@ Permisos con los que vienen los roles (la cuenta de Administración los cambia e
 
 1. Usa una cuenta de Gmail para la escuela (puede ser una nueva solo para esto).
 2. Activa la **verificación en 2 pasos** en [myaccount.google.com/security](https://myaccount.google.com/security).
-3. En [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) crea una contraseña de aplicación llamada “Leap Attendance Hub”.
+3. En [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) crea una contraseña de aplicación llamada “Hallway”.
 4. En la app: **Más → Escuela y Teams → Correo electrónico**, escribe el correo y la contraseña de 16 letras, **Guardar** y **Enviar prueba**.
 
 Gmail permite unos 500 correos al día. También sirve cualquier servidor SMTP en el puerto 465 o 2525 (por ejemplo Brevo). Outlook / Microsoft 365 no sirve: solo usa el puerto 587, que Supabase bloquea.
 
-**Remitente:** el nombre que verá el personal es el de *Nombre que verán* (por ejemplo, “Leap Attendance Hub – Leap Academy”). El circulito junto al remitente en Gmail es la **foto de perfil de esa cuenta de Google**: para que sea el ícono de la app, ponlo como foto en [myaccount.google.com](https://myaccount.google.com) → *Información personal* → *Foto* (puedes descargar el ícono desde `public/icons/icon-512.png`). Dentro del correo, el ícono de la app ya va incluido.
+**Remitente:** el nombre que verá el personal es el de *Nombre que verán* (por ejemplo, “Hallway – Leap Academy”). El circulito junto al remitente en Gmail es la **foto de perfil de esa cuenta de Google**: para que sea el ícono de la app, ponlo como foto en [myaccount.google.com](https://myaccount.google.com) → *Información personal* → *Foto* (puedes descargar el ícono desde `public/icons/icon-512.png`). Dentro del correo, el ícono de la app ya va incluido.
 
 ### Cambiar el ícono de la app
 
@@ -140,6 +145,8 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 - El webhook de Teams solo acepta dominios de Microsoft.
 - Las claves privadas (VAPID, contraseña de plataforma) están en la tabla `app_settings`, solo accesible para el servidor.
 - La contraseña del correo de cada escuela se guarda cifrada en **Supabase Vault**; solo las Edge Functions la leen (`email_account()`, exclusiva de `service_role`). Antes de enviar una contraseña temporal por correo, el servidor comprueba que sigue siendo la vigente.
+
+**Calendario, grupos y salón:** el horario y los grados y grupos están en `school_settings` (`day_start`, `day_end`, `school_days`, `groups`) y llegan a la app con `me()`; los días sin clases, en `school_closures`. Cada persona tiene `profiles.room` y `profiles.groups`; un *trigger* comprueba que sus grupos existan en la escuela. Se cambian con `save_school_hours`, `save_closure`, `add_school_groups`, `rename_school_group` y `remove_school_group` (permiso `calendar`), `set_my_room` (cada quien el suyo) y la función `admin` (salón y grupos de un empleado, borrar un día del calendario).
 
 **Avisos:** al crear una notificación, un *trigger* la pone en la tabla `outbox` y `pg_net` llama a la función `notify`, que envía el push y/o el mensaje de Teams. Cada aviso se procesa una sola vez.
 

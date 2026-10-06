@@ -1,4 +1,4 @@
-/* Leap Attendance Hub — mobile-first styles */
+/* Hallway — mobile-first styles */
 
 :root {
   --bg: #f3f5fa;
@@ -2345,4 +2345,91 @@ input[type='color'] {
 
 .role-summary {
   margin: -4px 0 0;
+}
+
+/* ---- Calendario escolar, salón y grupos ------------------------------------- */
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.list.flat {
+  margin: 0 -6px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.list.flat .item {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.item-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.closure-item .item-main strong,
+.closure-item .item-sub {
+  white-space: normal;
+}
+
+.item-icon.is-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.weekday-chips {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.weekday-chips .chip span {
+  width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+}
+
+.group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.group-chip {
+  gap: 6px;
+  color: var(--text);
+}
+
+.group-chip small {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-picker .chip span {
+  min-width: 52px;
+  justify-content: center;
 }

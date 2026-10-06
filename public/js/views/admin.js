@@ -9,6 +9,7 @@ import {
   formValues,
   getSchoolRoles,
   html,
+  schoolCalendar,
   timeAgo,
   toast,
   todayStr,
@@ -119,7 +120,8 @@ export async function employeesView({ el }) {
     const rows = employees.filter(
       (e) =>
         (showInactive || e.active) &&
-        (!needle || `${e.full_name} ${e.position || ''} ${e.username}`.toLowerCase().includes(needle)),
+        (!needle ||
+          `${e.full_name} ${e.position || ''} ${e.username} ${e.room || ''} ${(e.groups || []).join(' ')}`.toLowerCase().includes(needle)),
     );
     $('[data-list]', el).innerHTML = String(
       rows.length
@@ -131,6 +133,7 @@ export async function employeesView({ el }) {
                 <span class="item-sub">${[e.position, e.username].filter(Boolean).join(' · ')}</span>
                 <span class="item-tags">
                   <span class="tag">${e.role_label}</span>
+                  ${e.room ? html`<span class="tag">${icon('school', 14)} ${e.room}</span>` : ''}
                   ${e.absence_count ? html`<span class="tag">${icon('calendar', 14)} ${e.absence_count}</span>` : ''}
                   ${e.active ? '' : html`<span class="tag tag-warn">Inactivo</span>`}
                   ${e.active && !e.last_login_at ? html`<span class="tag">Nunca ha entrado</span>` : ''}
@@ -152,7 +155,7 @@ export async function employeesView({ el }) {
 
   el.innerHTML = String(html`
     <div class="toolbar">
-      <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre o puesto…" data-q></label>
+      <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre, puesto, salón o grupo…" data-q></label>
       <a class="btn btn-primary" href="#/employees/new">${icon('plus', 18)} Nuevo</a>
     </div>
     <div class="list-head">
@@ -184,6 +187,7 @@ export async function employeeFormView({ el, params, setTitle }) {
     getSchool(state.me.school.id),
   ]);
   const self = employee.id === me.id;
+  const schoolGroups = schoolCalendar(state.me.school).groups;
   setTitle(isNew ? 'Nuevo empleado' : employee.full_name);
 
   el.innerHTML = String(html`
@@ -202,6 +206,23 @@ export async function employeeFormView({ el, params, setTitle }) {
         </div>
         <label class="field"><span>Número de empleado <em class="optional">opcional</em></span>
           <input name="employee_number" maxlength="40" value="${employee.employee_number || ''}"></label>
+      </section>
+
+      <section class="card stack">
+        <h2 class="card-title">${icon('school')} Salón y grupos</h2>
+        <label class="field"><span>Salón <em class="optional">opcional</em></span>
+          <input name="room" maxlength="40" value="${employee.room || ''}" placeholder="Ej. 204 o Biblioteca" autocomplete="off"></label>
+        <div class="field"><span>Grupos en que da clase</span>
+          ${schoolGroups.length
+            ? html`<div class="chips group-picker" data-groups>${schoolGroups.map(
+                (g) => html`<label class="chip"><input type="checkbox" value="${g}" ${employee.groups?.includes(g) ? 'checked' : ''}><span>${g}</span></label>`,
+              )}</div>`
+            : html`<p class="hint">La escuela aún no tiene grados y grupos.
+                ${can(me, 'calendar')
+                  ? html`Créalos en <a href="#/calendar">Calendario escolar</a>.`
+                  : 'Pídele a la dirección o a la secretaría que los cree en Calendario escolar.'}</p>`}
+        </div>
+        <p class="hint">Cada maestro verá solo a los estudiantes de sus grupos. La persona también puede cambiar su salón desde su perfil.</p>
       </section>
 
       <section class="card stack">
@@ -281,6 +302,8 @@ export async function employeeFormView({ el, params, setTitle }) {
       const v = formValues(form);
       if (!v.full_name.trim()) throw new Error('Escribe el nombre del empleado.');
       if (v.role === NEW_ROLE) throw new Error('Elige un rol.');
+      const picker = $('[data-groups]', el);
+      if (picker) v.groups = [...picker.querySelectorAll('input:checked')].map((c) => c.value);
       if (isNew) {
         if (!v.username.trim() && !v.email.trim()) throw new Error('Escribe un usuario o un correo.');
         if (!v.password) delete v.password;
@@ -417,7 +440,7 @@ export async function settingsView({ el, reload }) {
         </div>
         <label class="field"><span>Correo que envía</span>
           <input name="from_email" type="email" maxlength="200" value="${school.email_from || ''}" autocapitalize="none" spellcheck="false"
-            placeholder="ej. asistencia.leap@gmail.com"></label>
+            placeholder="ej. asistencia.escuela@gmail.com"></label>
         <label class="field"><span>Nombre que verán <em class="optional">opcional</em></span>
           <input name="from_name" maxlength="100" value="${school.email_from_name || ''}" placeholder="${school.name}"></label>
         <div class="stack" data-smtp ${gmail ? 'hidden' : ''}>
@@ -447,7 +470,7 @@ export async function settingsView({ el, reload }) {
             <li>Usa una cuenta de Gmail para la escuela (puedes crear una solo para esto, por ejemplo <i>asistencia.tuescuela@gmail.com</i>).</li>
             <li>Activa la <b>verificación en 2 pasos</b> en <a href="https://myaccount.google.com/security" target="_blank" rel="noopener">myaccount.google.com/security</a>.</li>
             <li>Entra a <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>,
-              escribe “Leap Attendance Hub” y toca <b>Crear</b>.</li>
+              escribe “Hallway” y toca <b>Crear</b>.</li>
             <li>Copia la contraseña de 16 letras, pégala aquí con el correo y toca <b>Guardar</b>. Luego <b>Enviar prueba</b>.</li>
           </ol>
           <p class="hint">Gmail permite unos 500 correos al día. La contraseña se guarda cifrada y nadie puede verla, ni siquiera desde la app.</p>
@@ -497,7 +520,7 @@ export async function settingsView({ el, reload }) {
       message: 'Elige uno fácil de recordar para el personal, por ejemplo el nombre corto de la escuela.',
       body: html`<label class="field"><span>Código nuevo</span>
           <input name="code" required minlength="3" maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false"
-            placeholder="Ej. LEAP"></label>
+            placeholder="Ej. MIESCUELA"></label>
         <ul class="hint-list">
           <li>De 3 a 20 letras (sin acentos), números o guiones. No puede ser el de otra escuela.</li>
           <li>Todo el personal recibirá un aviso en la app y en el teléfono${school.email_provider ? ', y un correo,' : ''} con el código nuevo.</li>

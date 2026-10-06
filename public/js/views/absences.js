@@ -27,6 +27,7 @@ import {
   createAbsence,
   deleteAttachment,
   getAbsence,
+  listClosures,
   listEmployees,
   myAbsences,
   receiveAbsence,
@@ -37,6 +38,7 @@ import { MAX_FILES, MAX_UPLOAD_MB as maxMb } from '../config.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { absenceList, avatar, empty, installHint, statusBadge } from './common.js';
+import { closureNote } from './calendar.js';
 
 const ACCEPT = 'image/*,application/pdf,.pdf,.heic,.heif,.doc,.docx';
 
@@ -99,8 +101,12 @@ async function absenceForm({ el, query }, absence) {
   const editing = !!absence;
   // Only the school's Administración account registers absences for other people.
   const forOthers = !editing && me.role === 'admin';
-  const employees = forOthers ? (await listEmployees()).filter((e) => e.active) : [];
   const today = todayStr();
+  const [employees, closures] = await Promise.all([
+    forOthers ? listEmployees().then((list) => list.filter((e) => e.active)) : [],
+    // To warn when the chosen days have no classes; the form works without it.
+    listClosures({ from: addDays(today, -60) }).catch(() => []),
+  ]);
   const preselect = query.get('user_id') || '';
   const files = [];
   const v0 = absence || { start_date: today, end_date: today, partial: false, category: '', reason: '', coverage_notes: '' };
@@ -156,6 +162,7 @@ async function absenceForm({ el, query }, absence) {
           <label class="field"><span>Hasta <em class="optional">opcional</em></span><input type="time" name="end_time" value="${endTime}"></label>
         </div>
         <p class="hint" data-summary></p>
+        <p class="status-note warn" data-closure-note hidden></p>
       </section>
 
       <section class="card stack">
@@ -232,6 +239,9 @@ async function absenceForm({ el, query }, absence) {
         ? `Del ${fmtLongDate(start.value)} al ${fmtLongDate(end.value)} · ${days} día(s) laborable(s)`
         : `${fmtLongDate(start.value)}${partial ? ' · parte del día' : ''}`;
     }
+    const note = $('[data-closure-note]', el);
+    note.textContent = start.value ? closureNote(closures, start.value, multi ? end.value : start.value) : '';
+    note.hidden = !note.textContent;
   }
 
   for (const b of el.querySelectorAll('[data-quick]')) {

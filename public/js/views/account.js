@@ -3,10 +3,11 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  setMyRoom,
   testPush,
   updateMyContact,
 } from '../backend.js';
-import { $, busy, can, formValues, html, isStaff, roleLabel, timeAgo, toast } from '../lib.js';
+import { $, busy, can, formValues, html, isManager, isStaff, roleLabel, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { currentPushSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../pwa.js';
 import { logout, setUnread, state } from '../store.js';
@@ -114,6 +115,24 @@ export async function notificationsView({ el, isCurrent, onLeave }) {
 
 // ---- Perfil -----------------------------------------------------------------------
 
+/** The room where I usually am (I change it) and the groups I teach (the dirección assigns them). */
+function roomCard(user) {
+  const groups = user.groups || [];
+  return html`<form class="card stack" data-room novalidate>
+    <h2 class="card-title">${icon('school')} Mi salón y grupos</h2>
+    <label class="field"><span>Salón</span>
+      <input name="room" maxlength="40" value="${user.room || ''}" placeholder="Ej. 204 o Biblioteca" autocomplete="off"></label>
+    ${groups.length
+      ? html`<div class="field"><span>Mis grupos</span>
+          <div class="chips">${groups.map((g) => html`<span class="tag">${g}</span>`)}</div></div>
+        <p class="hint">Tus grupos los asigna la dirección. Si falta alguno, avísale.</p>`
+      : user.coverage
+        ? html`<p class="hint">Aún no tienes grupos asignados. Los asigna la dirección.</p>`
+        : ''}
+    <button class="btn btn-secondary" type="submit">Guardar salón</button>
+  </form>`;
+}
+
 export async function profileView({ el }) {
   const { user, school } = state.me;
   el.innerHTML = String(html`
@@ -135,6 +154,11 @@ export async function profileView({ el }) {
       <div data-push-slot></div>
       <div data-install-slot></div>
 
+      ${user.role !== 'admin' ? roomCard(user) : ''}
+      ${isStaff(user) || isManager(user)
+        ? ''
+        : html`<a class="card link-card" href="#/calendar">${icon('calendar')}<span><strong>Calendario escolar</strong><small>Horario de clases y días sin clases</small></span>${icon('chevron', 18)}</a>`}
+
       ${user.role !== 'admin'
         ? html`<form class="card stack" data-contact>
             <h2 class="card-title">${icon('user')} Mis datos de contacto</h2>
@@ -154,13 +178,23 @@ export async function profileView({ el }) {
       </form>
 
       <button class="btn btn-ghost-danger btn-block" data-logout>${icon('logout', 18)} Cerrar sesión</button>
-      <p class="hint center">Leap Attendance Hub</p>
+      <p class="hint center">Hallway</p>
     </div>`);
 
   bindPasswordToggles(el);
   pushCard($('[data-push-slot]', el));
   installHint($('[data-install-slot]', el), { dismissible: false });
   $('[data-logout]', el).addEventListener('click', logout);
+
+  const room = $('[data-room]', el);
+  room?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    busy(room.querySelector('[type=submit]'), async () => {
+      user.room = await setMyRoom(room.room.value);
+      room.room.value = user.room || '';
+      toast('Salón guardado', 'ok');
+    });
+  });
 
   const contact = $('[data-contact]', el);
   contact?.addEventListener('submit', (e) => {
@@ -199,6 +233,9 @@ export async function moreView({ el }) {
     can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
     can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
     admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,
+    can(user, 'calendar')
+      ? ['#/calendar', 'calendar', 'Calendario escolar', 'Horario, días sin clases y grados y grupos']
+      : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],
     can(user, 'reports') ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
     ['#/profile', 'user', 'Mi perfil', 'Notificaciones, contraseña e instalar la app'],
   ].filter(Boolean);

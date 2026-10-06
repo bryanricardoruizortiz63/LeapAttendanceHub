@@ -29,7 +29,7 @@ export async function platformView(ctx) {
     <div class="platform">
       <header class="platform-head">
         <div class="row"><img src="icons/icon-192.png" alt="" width="36" height="36">
-          <div><h1>Panel de plataforma</h1><small class="muted">Leap Attendance Hub · ${schools.length} escuela(s)</small></div></div>
+          <div><h1>Panel de plataforma</h1><small class="muted">Hallway · ${schools.length} escuela(s)</small></div></div>
         <button class="btn btn-ghost btn-sm" data-logout>${icon('logout', 16)} Salir</button>
       </header>
 
@@ -38,7 +38,7 @@ export async function platformView(ctx) {
         <label class="field"><span>Nombre de la escuela</span><input name="name" required maxlength="150"></label>
         <div class="grid2">
           <label class="field"><span>Código <em class="optional">vacío = automático</em></span>
-            <input name="code" maxlength="20" autocapitalize="characters" spellcheck="false" placeholder="Ej. LEAP-01"></label>
+            <input name="code" maxlength="20" autocapitalize="characters" spellcheck="false" placeholder="Ej. ESC-01"></label>
           <label class="field"><span>Contraseña de administración</span>
             <span class="pw"><input name="admin_password" type="text" required minlength="8" value="${randomPassword()}" autocomplete="off">
             <button type="button" class="pw-toggle" data-pw>Ocultar</button></span></label>
@@ -80,7 +80,7 @@ export async function platformView(ctx) {
     busy(form.querySelector('[type=submit]'), async () => {
       const v = formValues(form);
       const { school } = await call('create_school', v);
-      const text = `Leap Attendance Hub\nEnlace: ${APP_URL}?escuela=${encodeURIComponent(school.code)}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
+      const text = `Hallway\nEnlace: ${APP_URL}?escuela=${encodeURIComponent(school.code)}\nEscuela: ${school.name}\nCódigo de escuela: ${school.code}\nContraseña de administración: ${v.admin_password}`;
       const pending = dialog({
         title: 'Escuela creada ✅',
         body: html`<div class="credentials">
@@ -130,7 +130,7 @@ function platformLogin({ el, reload }) {
       <div class="auth-brand">
         <img src="icons/icon-192.png" alt="" class="auth-logo" width="64" height="64">
         <h1>Panel de plataforma</h1>
-        <p>Crea y administra las escuelas que usan Leap Attendance Hub.</p>
+        <p>Crea y administra las escuelas que usan Hallway.</p>
       </div>
       <form class="card stack" data-form>
         <label class="field"><span>Contraseña de plataforma</span>

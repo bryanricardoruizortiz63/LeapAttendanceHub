@@ -92,7 +92,7 @@ export async function sendEmails(account: EmailAccount, emails: Email[], brandin
           text: email.text,
           html: email.html || textToHtml(email.text),
           attachments: logo && email.html?.includes(`cid:${LOGO_CID}`)
-            ? [{ filename: 'leap-attendance-hub.png', content: logo, cid: LOGO_CID, contentType: 'image/png', contentDisposition: 'inline' }]
+            ? [{ filename: 'hallway.png', content: logo, cid: LOGO_CID, contentType: 'image/png', contentDisposition: 'inline' }]
             : undefined,
         });
         results.push('sent');
