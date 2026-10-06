@@ -29,6 +29,13 @@ Funciona con servicios gratuitos:
 - En *Perfil* ponen su **salón** (y lo cambian cuando quieran) y ven sus **grupos** (9-B, 10-A…), que asigna la dirección. También ven el **calendario escolar**: horario y días sin clases.
 - **Modifican o cancelan** su propia ausencia mientras no haya pasado. Al cancelar eligen el motivo; si la fecha o la hora estaban mal, la app los lleva a corregirla. Cada cambio queda en el **historial** de la ausencia, y si cambia la fecha u hora de una ausencia ya recibida, la dirección debe confirmarla de nuevo.
 
+**Alertas** (pestaña *Alertas*, para todo el personal)
+- **No ha llegado**: si un estudiante debía llegar al salón y no llegó, el maestro escribe su nombre y grupo, de dónde venía (Baño, Enfermería, Oficina… o lo que escriba) y elige a quién avisar: **Seguridad** (Seguridad, la dirección y la secretaría) o **todo el personal**. Les llega al instante con alarma. Quien lo encuentre toca **«Apareció / está conmigo»** (y si quiere, dónde estaba); el maestro puede tocar **«Ya llegó al salón»**. A todos les llega que apareció, y queda cuánto tardó.
+- **Salidas** (lo vienen a buscar): el maestro anota al estudiante, la hora aproximada y una nota («Lo recoge su abuela»), y Seguridad recibe el aviso. Cuando llega el encargado, lo marca el maestro (se avisa a Seguridad) o Seguridad (se avisa al maestro). Seguridad toca **«Voy al salón»** y luego **«Entregado»**, con quién lo recogió si quiere. Todos ven cada paso en *Salidas de hoy*.
+- **Relevo**: el maestro toca **«Pedir relevo»** (el salón sale de su perfil). Les llega a los maestros, la dirección y la secretaría; el primero que toca **«Yo lo relevo»** va, al maestro se le avisa quién, y a los demás que ya no hace falta.
+- **Estudiantes**: no hay lista de estudiantes. Solo se guarda el que un maestro apunta para una alerta o una salida, **24 horas**, para que otro maestro pueda seguirlo. Si se escribe un nombre parecido a uno apuntado ese día en el mismo grupo, la app pregunta «¿Es José Pérez Rivera (9-B)?». Pasadas las 24 horas se borran el nombre y los avisos que lo mencionaban; la alerta queda sin nombre.
+- **Avisos urgentes**: suenan y vibran con la app abierta (pantalla de alarma) y, con la app cerrada, la notificación vibra largo y se queda en pantalla (Android). Si nadie la abre, se repite cada minuto por 15 minutos o hasta que alguien se encargue. Una app web no puede sonar con el teléfono en silencio; para eso será la app de las tiendas, al final.
+
 **Dirección y secretaría**
 - **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
 - **Marcar como recibida** (con mensaje opcional al empleado), registrar **cobertura/arreglos** y comentar.
@@ -65,6 +72,8 @@ Permisos con los que vienen los roles (la cuenta de Administración los cambia e
 | Secretaría | Las suyas | ✅ | ✅ | | ✅ |
 | Director(a) | Las suyas | ✅ | ✅ | ✅ (sin liberar espacio) | ✅ |
 | Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | ✅ | |
+
+El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. La barra de abajo tiene **Alertas** para todos; en la dirección, *Personal* y *Reportar* pasaron a *Más*.
 
 ---
 
@@ -147,6 +156,8 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 - La contraseña del correo de cada escuela se guarda cifrada en **Supabase Vault**; solo las Edge Functions la leen (`email_account()`, exclusiva de `service_role`). Antes de enviar una contraseña temporal por correo, el servidor comprueba que sigue siendo la vigente.
 
 **Calendario, grupos y salón:** el horario y los grados y grupos están en `school_settings` (`day_start`, `day_end`, `school_days`, `groups`) y llegan a la app con `me()`; los días sin clases, en `school_closures`. Cada persona tiene `profiles.room` y `profiles.groups`; un *trigger* comprueba que sus grupos existan en la escuela. Se cambian con `save_school_hours`, `save_closure`, `add_school_groups`, `rename_school_group` y `remove_school_group` (permiso `calendar`), `set_my_room` (cada quien el suyo) y la función `admin` (salón y grupos de un empleado, borrar un día del calendario).
+
+**Alertas:** `students` (nombre, grupo y `expires_at` a las 24 horas), `student_alerts` («No ha llegado»), `student_pickups` (salidas) y `relief_requests` (relevos), con reglas de seguridad por permiso (`security`), grupo y quién la creó; las vistas `student_alerts_v` y `student_pickups_v` añaden el nombre mientras exista. Todo se cambia con funciones SQL (`similar_students` con `pg_trgm`, `create_student_alert`, `resolve_student_alert`, `create_pickup`, `advance_pickup`, `request_relief`, `take_relief`, `cancel_relief`). Las notificaciones urgentes llevan `urgent` y `tag`: `pg_cron` las vuelve a enviar cada minuto (`private.repeat_urgent`) hasta que se abren o alguien se encarga (`private.close_notifications`), por 15 minutos; y cada hora la función `notify` borra los estudiantes vencidos y los avisos de alertas de más de 24 horas.
 
 **Avisos:** al crear una notificación, un *trigger* la pone en la tabla `outbox` y `pg_net` llama a la función `notify`, que envía el push y/o el mensaje de Teams. Cada aviso se procesa una sola vez.
 

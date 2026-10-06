@@ -1,8 +1,10 @@
-import { getMe } from './backend.js';
-import { can, html, isManager, isStaff, raw, toast } from './lib.js';
+import { getMe, markAlertsRead } from './backend.js';
+import { can, html, isStaff, raw, toast } from './lib.js';
 import { icon } from './icons.js';
 import { initPwa, syncPush } from './pwa.js';
 import { go, homePath, refreshUnread, setUnread, state } from './store.js';
+import { anyManager, navItems } from './nav.js';
+import { showAlarm, unlockAudio } from './alarm.js';
 import { adoptSchoolFromUrl, changePasswordView, loginView, rememberSchool } from './views/auth.js';
 import { appIcon, applyBranding, restoreBranding } from './branding.js';
 import { absenceView, editAbsenceView, homeView, reportView } from './views/absences.js';
@@ -10,6 +12,14 @@ import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
 import { rolesView } from './views/roles.js';
 import { calendarView } from './views/calendar.js';
+import {
+  alertsView,
+  missingDetailView,
+  newMissingView,
+  newPickupView,
+  pickupDetailView,
+  reliefDetailView,
+} from './views/alerts.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
 import { composeView, messageView, messagesView } from './views/messages.js';
@@ -18,7 +28,6 @@ import { composeView, messageView, messagesView } from './views/messages.js';
 const PEOPLE = (u) => u.role !== 'admin';
 const STAFF = (u) => isStaff(u);
 const ADMIN = (u) => u.role === 'admin';
-const ANY_MANAGER = (u) => isStaff(u) || isManager(u);
 const may = (perm) => (u) => can(u, perm);
 
 const ROUTES = [
@@ -37,39 +46,20 @@ const ROUTES = [
   { re: /^\/settings$/, view: settingsView, title: 'Escuela y Teams', allow: may('settings'), back: true },
   { re: /^\/roles$/, view: rolesView, title: 'Roles y permisos', allow: ADMIN, back: true },
   { re: /^\/calendar$/, view: calendarView, title: 'Calendario escolar', back: true },
+  { re: /^\/alerts$/, view: alertsView, title: 'Alertas' },
+  { re: /^\/alerts\/new\/missing$/, view: newMissingView, title: 'No ha llegado', back: true },
+  { re: /^\/alerts\/new\/pickup$/, view: newPickupView, title: 'Salida', back: true },
+  { re: /^\/alerts\/missing\/(\d+)$/, view: missingDetailView, title: 'No ha llegado', back: true },
+  { re: /^\/alerts\/pickup\/(\d+)$/, view: pickupDetailView, title: 'Salida', back: true },
+  { re: /^\/alerts\/relief\/(\d+)$/, view: reliefDetailView, title: 'Relevo', back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
   { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages') },
   { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },
   { re: /^\/message\/(\d+)$/, view: messageView, title: 'Mensaje', back: true },
   { re: /^\/notifications$/, view: notificationsView, title: 'Avisos' },
   { re: /^\/profile$/, view: profileView, title: 'Mi perfil' },
-  { re: /^\/more$/, view: moreView, title: 'Más', allow: ANY_MANAGER },
+  { re: /^\/more$/, view: moreView, title: 'Más', allow: anyManager },
 ];
-
-function navItems(user) {
-  const report = { path: '/report', icon: 'plus', label: 'Reportar' };
-  const notices = { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] };
-  if (!ANY_MANAGER(user)) {
-    return [
-      { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] },
-      report,
-      notices,
-      { path: '/profile', icon: 'user', label: 'Perfil', match: ['/profile', '/calendar'] },
-    ];
-  }
-  const items = isStaff(user)
-    ? [
-        { path: '/dashboard', icon: 'grid', label: 'Panel' },
-        { path: '/absences', icon: 'list', label: 'Ausencias', match: ['/absences', '/absence/'] },
-        can(user, 'staff') ? { path: '/employees', icon: 'users', label: 'Personal' } : report,
-      ]
-    : [{ path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence'] }, report];
-  const moreMatch = ['/more', '/settings', '/roles', '/calendar', '/data', '/messages', '/profile', '/home', '/report'].filter(
-    (p) => !items.some((i) => i.path === p),
-  );
-  items.push(notices, { path: '/more', icon: 'menu', label: 'Más', match: moreMatch });
-  return items;
-}
 
 const appRoot = document.getElementById('app');
 let shellKey = null;
@@ -191,6 +181,21 @@ async function router() {
   if (user && !route.bare) refreshUnread();
 }
 
+/** An urgent notice while the app is open: alarm on screen (the screen already showing it just refreshes). */
+function onPush(e) {
+  refreshUnread();
+  const notice = e.detail;
+  if (!notice?.urgent || !state.me || document.visibilityState !== 'visible') return;
+  if (notice.link && location.hash === notice.link) return;
+  showAlarm(notice, {
+    onOpen: () => {
+      if (notice.link) location.hash = notice.link;
+    },
+    // Closing it counts as seen: no more repeats of that notice.
+    onClose: () => notice.link && markAlertsRead(notice.link).catch(() => {}),
+  });
+}
+
 function sessionEnded() {
   if (!state.me) return;
   state.me = null;
@@ -200,6 +205,7 @@ function sessionEnded() {
 
 async function boot() {
   initPwa();
+  unlockAudio();
   restoreBranding();
   adoptSchoolFromUrl();
   try {
@@ -216,7 +222,7 @@ async function boot() {
   window.addEventListener('hashchange', router);
   window.addEventListener('lah:unauthorized', sessionEnded);
   window.addEventListener('lah:signed-out', sessionEnded);
-  window.addEventListener('lah:push', refreshUnread);
+  window.addEventListener('lah:push', onPush);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refreshUnread();
   });

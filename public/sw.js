@@ -1,6 +1,6 @@
 // Hallway service worker: offline app shell + push notifications.
 // Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
-const VERSION = 'lah-v9';
+const VERSION = 'lah-v10';
 const SHELL = [
   './',
   'index.html',
@@ -29,6 +29,9 @@ const SHELL = [
   'js/views/archive.js',
   'js/views/messages.js',
   'js/views/calendar.js',
+  'js/views/alerts.js',
+  'js/nav.js',
+  'js/alarm.js',
   'icons/icon-192.png',
   'icons/badge-72.png',
 ];
@@ -81,6 +84,9 @@ self.addEventListener('push', (event) => {
     data = { body: event.data?.text() };
   }
   const url = scoped(data.url || '');
+  const urgent = !!data.urgent;
+  // Notices about the same thing (an alert and its "Apareció") replace each other.
+  const tag = data.tag || data.url || undefined;
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(data.title || 'Hallway', {
@@ -89,12 +95,19 @@ self.addEventListener('push', (event) => {
         icon: typeof data.icon === 'string' && data.icon.startsWith('https://') ? data.icon : scoped('icons/icon-192.png'),
         badge: scoped('icons/badge-72.png'),
         data: { url },
-        tag: data.url || undefined,
-        renotify: !!data.url,
+        tag,
+        renotify: !!tag,
+        // Urgent: stays on screen until touched and vibrates long (Android).
+        requireInteraction: urgent,
+        vibrate: urgent ? [500, 200, 500, 200, 900, 200, 900] : [200],
       }),
       self.clients
         .matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clients) => clients.forEach((c) => c.postMessage({ type: 'push' }))),
+        .then((clients) =>
+          clients.forEach((c) =>
+            c.postMessage({ type: 'push', urgent, title: data.title || '', body: data.body || '', link: data.url || '' }),
+          ),
+        ),
     ]),
   );
 });

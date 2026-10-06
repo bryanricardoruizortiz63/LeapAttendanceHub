@@ -1,7 +1,7 @@
 # Plan: próximos módulos
 
-Ideas y requisitos acordados para la siguiente etapa de la app. Ya están hechos el nombre (Hallway) y la parte de la
-base común que no depende de estudiantes (ver la sección 9).
+Ideas y requisitos acordados para la siguiente etapa de la app. Ya están hechos el nombre (Hallway), la base común y
+las alertas (ver la sección 9).
 
 ---
 
@@ -34,8 +34,8 @@ base común que no depende de estudiantes (ver la sección 9).
 **Hecho:** calendario escolar (horario, días de clases y días sin clases: *Feriado* o *Sin estudiantes*), grados y
 grupos de la escuela, salón y grupos de cada persona, y el permiso nuevo **Calendario escolar** (Secretaría,
 Director(a) y Administración). Al reportar una ausencia, la app avisa si ese día no hay clases.
-**Pendiente:** los estudiantes apuntados se construyen junto con su primer uso, las alertas («No ha llegado» y
-recogidos), para probarlos de punta a punta.
+Los estudiantes apuntados se hicieron junto con las alertas (sección 5): 24 horas y aviso de nombres parecidos en el
+mismo grupo.
 
 ---
 
@@ -110,6 +110,9 @@ directamente lo que necesita.
 - Quien pueda toca **Yo lo relevo** y ya: no hay más pasos. Al maestro le llega quién va, y a los demás se les quita el
   aviso.
 
+**Hecho.** Lo pueden pedir los roles que necesitan cobertura (maestros). Si nadie responde en 30 minutos, queda como
+«Sin respuesta».
+
 ---
 
 ## 5. Seguridad: estudiante que no llega y recogidos
@@ -138,6 +141,11 @@ directamente lo que necesita.
   - **Llegó el encargado**: lo marca seguridad (se avisa al maestro) o el maestro (se avisa a seguridad);
   - seguridad marca **Voy al salón** y luego **Entregado**; el maestro ve cada paso;
   - al entregar, seguridad puede anotar **quién lo recogió** (opcional).
+
+**Hecho**, con el permiso nuevo **Seguridad** (Seguridad, Secretaría, Director(a) y Administración) y la pestaña
+**Alertas**. Los avisos urgentes suenan con la app abierta y se repiten cada minuto por 15 minutos hasta que alguien
+los abre o se encarga. Falta la alerta a seguridad cuando un estudiante que va a enfermería se pasa del tiempo: viene
+con los Turnos.
 
 ---
 
@@ -192,7 +200,7 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 1. **Nombre nuevo: Hallway** (y dominio cuando lo haya). *Hecho el nombre visible; falta el dominio.*
 2. **Base común**: grupos y salón de cada maestro, calendario escolar (horario y feriados), permisos nuevos. *Hecho.*
 3. **Alertas**: estudiantes apuntados (24 horas, con aviso de nombres parecidos), «No ha llegado», recogidos y relevo
-   de maestros.
+   de maestros. *Hecho.*
 4. **Turnos de Enfermería y Trabajo Social**: fila, llamar, llegó, regresó, temporizadores, estado del profesional y
    alerta a seguridad.
 5. **Mantenimiento**.

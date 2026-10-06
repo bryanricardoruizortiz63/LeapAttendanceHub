@@ -30,7 +30,7 @@ const EMPLOYEE_FIELDS =
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** What a role can do besides reporting its own absences (see the roles migration). */
-const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports', 'calendar'];
+const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports', 'calendar', 'security'];
 
 type Role = { key: string; name: string; permissions: string[]; coverage: boolean; system: boolean; position: number };
 

@@ -1,6 +1,6 @@
-// Processes one outbox row: a push notification to a user's devices or a Teams card for the school.
-// Called by the database (pg_net) right after the row is inserted. Each row is processed only once,
-// so calling it again is harmless.
+// Processes one outbox row: a push notification to a user's devices, a Teams card for the school, or a
+// cleanup job. Called by the database (pg_net) right after the row is inserted. Each row is processed only
+// once, so calling it again is harmless.
 import { json, serve, serviceClient } from '../_shared/http.ts';
 import { deleteAbsences } from '../_shared/cleanup.ts';
 import { buildCard, CATEGORIES, fmtRangeEs, postToTeams, scheduleText } from '../_shared/teams.ts';
@@ -14,13 +14,15 @@ async function setting<T>(key: string): Promise<T | null> {
   return (data?.value as T) ?? null;
 }
 
-async function handlePush(payload: { notification_id: number }): Promise<string> {
+async function handlePush(payload: { notification_id: number; repeat?: boolean }): Promise<string> {
   const { data: n } = await db
     .from('notifications')
-    .select('id, user_id, title, body, link')
+    .select('id, user_id, title, body, link, tag, urgent, read_at')
     .eq('id', payload.notification_id)
     .maybeSingle();
   if (!n) return 'push: notification not found';
+  // An urgent notice is pushed again every minute until it's opened or someone takes care of it.
+  if (payload.repeat && n.read_at) return 'push: already read';
   const { data: subs } = await db.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', n.user_id);
   if (!subs?.length) return 'push: no subscriptions';
   const vapid = await setting<VapidKeys>('vapid');
@@ -32,11 +34,13 @@ async function handlePush(payload: { notification_id: number }): Promise<string>
   const icon = school?.icon_version
     ? `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/branding/${school.id}/icon-192.png?v=${school.icon_version}`
     : undefined;
-  const message = JSON.stringify({ title: n.title, body: n.body || '', url: n.link || '#/notifications', icon });
+  const message = JSON.stringify({ title: n.title, body: n.body || '', url: n.link || '#/notifications', icon, tag: n.tag, urgent: n.urgent });
+  // An urgent notice that arrives more than 15 minutes late is no use.
+  const options = { ttl: n.urgent ? 900 : 86400 };
   const results = await Promise.all(
     subs.map(async (s) => {
       try {
-        const res = await sendWebPush(s, message, vapid);
+        const res = await sendWebPush(s, message, vapid, options);
         if (res.status === 404 || res.status === 410) await db.from('push_subscriptions').delete().eq('id', s.id);
         return String(res.status);
       } catch (err) {
@@ -191,6 +195,23 @@ async function maintenance(jobId: number): Promise<string> {
   return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos`;
 }
 
+/**
+ * Hourly (pg_cron): the students noted for alerts and pickups are kept only 24 hours, and so are the
+ * notices that named them. The alerts themselves stay, without the name.
+ */
+async function purge(): Promise<string> {
+  const now = new Date().toISOString();
+  const { count: students, error } = await db.from('students').delete({ count: 'exact' }).lt('expires_at', now);
+  if (error) throw new Error(error.message);
+  const { count: notices, error: noticeError } = await db
+    .from('notifications')
+    .delete({ count: 'exact' })
+    .like('link', '#/alerts/%')
+    .lt('created_at', new Date(Date.now() - DAY).toISOString());
+  if (noticeError) throw new Error(noticeError.message);
+  return `purge: ${students ?? 0} estudiantes, ${notices ?? 0} avisos`;
+}
+
 serve(async (req) => {
   let id: unknown;
   try {
@@ -217,7 +238,9 @@ serve(async (req) => {
         ? await handlePush(job.payload)
         : job.kind === 'maintenance'
           ? await maintenance(job.id)
-          : await handleTeams(job.school_id, job.payload);
+          : job.kind === 'purge'
+            ? await purge()
+            : await handleTeams(job.school_id, job.payload);
   } catch (err) {
     result = `error: ${(err as Error).message}`;
   }
