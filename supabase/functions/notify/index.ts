@@ -180,8 +180,37 @@ async function handleTeams(schoolId: string, payload: TeamsPayload): Promise<str
 }
 
 /**
+ * Mantenimiento's photos go 30 days after the request is closed, and photos that never made it into a request
+ * after a day; the requests themselves after a year.
+ */
+async function cleanMaintenance(): Promise<number> {
+  const monthAgo = new Date(Date.now() - 30 * DAY).toISOString();
+  const yearAgo = new Date(Date.now() - 365 * DAY).toISOString();
+  const { data: closed, error } = await db
+    .from('maintenance_requests')
+    .select('id, photo_path')
+    .not('photo_path', 'is', null)
+    .or(`done_at.lt.${monthAgo},cancelled_at.lt.${monthAgo},created_at.lt.${yearAgo}`)
+    .limit(500);
+  if (error) throw new Error(error.message);
+  const { data: orphans, error: orphanError } = await db.rpc('maintenance_orphan_photos');
+  if (orphanError) throw new Error(orphanError.message);
+  const paths = [...(closed || []).map((m) => m.photo_path as string), ...((orphans as string[] | null) || [])];
+  // Files first: if Storage fails, the rows still point to them and the next run retries.
+  for (let i = 0; i < paths.length; i += 100) {
+    const { error: storageError } = await db.storage.from('maintenance').remove(paths.slice(i, i + 100));
+    if (storageError) throw new Error(storageError.message);
+  }
+  if (closed?.length) {
+    await db.from('maintenance_requests').update({ photo_path: null }).in('id', closed.map((m) => m.id as number));
+  }
+  await db.from('maintenance_requests').delete().lt('created_at', yearAgo);
+  return paths.length;
+}
+
+/**
  * Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days, notifications 180 days, messages
- * and the services' turns (Enfermería, Trabajo Social) a year.
+ * and the services' turns (Enfermería, Trabajo Social) a year; see cleanMaintenance for Mantenimiento.
  */
 async function maintenance(jobId: number): Promise<string> {
   const { data: old, error } = await db
@@ -196,7 +225,8 @@ async function maintenance(jobId: number): Promise<string> {
   await db.from('notifications').delete().lt('created_at', new Date(Date.now() - 180 * DAY).toISOString());
   await db.from('messages').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
   await db.from('service_requests').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
-  return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos`;
+  const photos = await cleanMaintenance();
+  return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos, ${photos} fotos de mantenimiento`;
 }
 
 /**

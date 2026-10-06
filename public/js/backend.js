@@ -615,6 +615,98 @@ export const requestService = ({ serviceId, student, room, severity, reason, not
 /** step: call · go · sent · arrived · return · back · finish (value: the outcome) · cancel · take (value: the room). */
 export const advanceTurn = (id, step, value) => rpc('advance_turn', { p_id: id, p_step: step, p_value: value || null });
 
+// ---- Mantenimiento ------------------------------------------------------------------------
+
+const MAINTENANCE_BUCKET = 'maintenance';
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
+/**
+ * Phone photos are big: a JPEG up to 1600 px is plenty to see a spill. A photo the browser can't open
+ * (HEIC outside Safari) goes as it is.
+ */
+async function shrinkPhoto(file) {
+  try {
+    const bitmap = await window.createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+    if (blob) return { blob, type: 'image/jpeg', ext: 'jpg' };
+  } catch {
+    /* the browser can't read it */
+  }
+  const type = fileType(file);
+  if (!PHOTO_TYPES.includes(type)) throw new ApiError('La foto debe ser JPG, PNG, WEBP o HEIC.');
+  if (file.size > 5 * 1024 * 1024) throw new ApiError('La foto pesa más de 5 MB.');
+  return { blob: file, type, ext: Object.keys(EXT_TYPES).find((k) => EXT_TYPES[k] === type) };
+}
+
+/** { staff: [{ id, name }], pending, on_the_way } */
+export const maintenanceOverview = () => rpc('maintenance_overview');
+
+/** kind: spill · cleaning · bathroom · trash · repair · other; urgency 1 (Cuando puedan) … 3 (Urgente); photo: a File. */
+export async function createMaintenanceRequest(me, { kind, place, urgency, note, photo }) {
+  let path = null;
+  if (photo) {
+    const p = await shrinkPhoto(photo);
+    path = `${me.school.id}/${me.user.id}/${crypto.randomUUID()}.${p.ext}`;
+    const { error } = await sb.storage.from(MAINTENANCE_BUCKET).upload(path, p.blob, { contentType: p.type, upsert: false });
+    if (error) throw new ApiError('No se pudo subir la foto. Inténtalo de nuevo o envía la solicitud sin foto.');
+  }
+  try {
+    return await rpc('create_maintenance_request', {
+      p_kind: kind,
+      p_place: place,
+      p_urgency: urgency,
+      p_note: note || null,
+      p_photo_path: path,
+    });
+  } catch (err) {
+    if (path) sb.storage.from(MAINTENANCE_BUCKET).remove([path]).catch(() => {});
+    throw err;
+  }
+}
+
+/** The open requests and the ones from today (each person only gets the ones they may see). */
+export function listMaintenance() {
+  return run(
+    sb
+      .from('maintenance_requests_v')
+      .select('*')
+      .or(`status.in.(pending,on_the_way),created_at.gte.${startOfToday()}`)
+      .order('created_at')
+      .limit(300),
+  );
+}
+
+/** What I asked for that is still open (Alertas lists them). */
+export const myOpenMaintenance = (userId) =>
+  run(
+    sb
+      .from('maintenance_requests_v')
+      .select('*')
+      .eq('created_by', userId)
+      .in('status', ['pending', 'on_the_way'])
+      .order('created_at')
+      .limit(50),
+  );
+
+/** One request, with a link to its photo (valid for an hour). */
+export async function getMaintenance(id) {
+  const m = await one('maintenance_requests_v', id, 'No se encontró la solicitud.');
+  if (m.photo_path) {
+    const { data } = await sb.storage.from(MAINTENANCE_BUCKET).createSignedUrls([m.photo_path], 3600);
+    m.photo_url = data?.[0]?.signedUrl || null;
+  }
+  return m;
+}
+
+/** step: go · release · done (note: what was done) · cancel (note: why). */
+export const advanceMaintenance = (id, step, note) => rpc('advance_maintenance', { p_id: id, p_step: step, p_note: note || null });
+
 // ---- Datos y reportes ------------------------------------------------------------
 
 function absenceDays(a, from, to) {

@@ -66,10 +66,14 @@ export const PERMISSIONS = [
   { key: 'staff', label: 'Administrar el personal', hint: 'Crear y editar empleados, contraseñas y enviar accesos por correo.' },
   { key: 'calendar', label: 'Calendario escolar', hint: 'Horario de clases, días sin clases y los grados y grupos de la escuela.' },
   { key: 'security', label: 'Seguridad', hint: 'Recibe las alertas de «No ha llegado» enviadas a Seguridad y se encarga de las salidas de estudiantes.' },
+  { key: 'maintenance', label: 'Mantenimiento', hint: 'Recibe las solicitudes de mantenimiento (derrames, limpieza, baños, reparaciones) y las atiende.' },
   { key: 'messages', label: 'Enviar mensajes', hint: 'Escribir a todo el personal o a grupos.' },
   { key: 'reports', label: 'Datos y reportes', hint: 'Estadísticas, exportar a Excel, respaldo y archivo anual.' },
   { key: 'settings', label: 'Configurar la escuela', hint: 'Nombre, Teams, correo y mensaje de bienvenida.' },
 ];
+
+/** Duties rather than powers over other people's data: whoever manages the staff can give a role with them. */
+export const DUTIES = ['maintenance'];
 
 // The school's roles ({ key, name, permissions, coverage }), from me().
 let schoolRoles = [];
