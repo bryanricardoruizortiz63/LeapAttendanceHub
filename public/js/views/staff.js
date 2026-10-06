@@ -1,5 +1,5 @@
 import { dashboard, exportAbsencesXlsx, listEmployees, schoolAbsences } from '../backend.js';
-import { $, addDays, busy, fmtLongDate, html, isManager, todayStr } from '../lib.js';
+import { $, addDays, busy, can, fmtLongDate, html, todayStr } from '../lib.js';
 import { icon } from '../icons.js';
 import { state } from '../store.js';
 import { absenceList, empty, installHint } from './common.js';
@@ -110,7 +110,7 @@ export async function absencesListView({ el, query, isCurrent }) {
     </form>
     <div class="list-head">
       <p class="muted" data-count></p>
-      ${isManager(me) ? html`<button type="button" class="btn btn-ghost btn-sm" data-export>${icon('download', 16)} Exportar a Excel</button>` : ''}
+      ${can(me, 'reports') ? html`<button type="button" class="btn btn-ghost btn-sm" data-export>${icon('download', 16)} Exportar a Excel</button>` : ''}
     </div>
     <div data-results><div class="loading"><span class="spinner"></span></div></div>`);
 

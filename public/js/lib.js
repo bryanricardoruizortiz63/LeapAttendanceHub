@@ -52,6 +52,7 @@ export const STATUS = {
   cancelled: { label: 'Cancelada', cls: 'badge-muted' },
 };
 
+/** Names for when the school's roles aren't loaded (and for roles deleted since). */
 export const ROLE_LABELS = {
   admin: 'Administración',
   director: 'Director(a)',
@@ -59,8 +60,32 @@ export const ROLE_LABELS = {
   teacher: 'Maestro(a)',
 };
 
-export const isStaff = (u) => ['admin', 'director', 'secretary'].includes(u?.role);
-export const isManager = (u) => ['admin', 'director'].includes(u?.role);
+/** What a role can do besides reporting its own absences. */
+export const PERMISSIONS = [
+  { key: 'absences', label: 'Ver y confirmar las ausencias de todos', hint: 'Panel, lista de ausencias, marcar como recibidas, cobertura y avisos de ausencias nuevas.' },
+  { key: 'staff', label: 'Administrar el personal', hint: 'Crear y editar empleados, contraseñas y enviar accesos por correo.' },
+  { key: 'messages', label: 'Enviar mensajes', hint: 'Escribir a todo el personal o a grupos.' },
+  { key: 'reports', label: 'Datos y reportes', hint: 'Estadísticas, exportar a Excel, respaldo y archivo anual.' },
+  { key: 'settings', label: 'Configurar la escuela', hint: 'Nombre, Teams, correo y mensaje de bienvenida.' },
+];
+
+// The school's roles ({ key, name, permissions, coverage }), from me().
+let schoolRoles = [];
+export function setSchoolRoles(list) {
+  schoolRoles = Array.isArray(list) ? list : [];
+}
+export const getSchoolRoles = () => schoolRoles;
+const findRole = (key) => schoolRoles.find((r) => r.key === key);
+export const roleLabel = (key) => findRole(key)?.name || ROLE_LABELS[key] || '';
+/** Absences of this role need someone to cover them (teachers); nursing or maintenance don't. */
+export const roleNeedsCoverage = (key) => findRole(key)?.coverage ?? key !== 'admin';
+
+/** Whether this user may do something (the Administración account can do everything). */
+export const can = (u, perm) => u?.role === 'admin' || !!u?.permissions?.includes(perm);
+/** Sees and confirms everyone's absences. */
+export const isStaff = (u) => can(u, 'absences');
+/** Has some management permission. */
+export const isManager = (u) => ['staff', 'settings', 'messages', 'reports'].some((p) => can(u, p));
 
 // ---- Dates ------------------------------------------------------------------
 

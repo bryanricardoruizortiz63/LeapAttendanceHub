@@ -1,4 +1,4 @@
-import { CATEGORIES, STATUS, colorIndex, dialog, fmtRange, html, initials, scheduleText, $ } from '../lib.js';
+import { CATEGORIES, STATUS, colorIndex, dialog, fmtRange, html, initials, roleNeedsCoverage, scheduleText, $ } from '../lib.js';
 import { appIcon } from '../branding.js';
 import { icon } from '../icons.js';
 import { canPromptInstall, isIos, isStandalone, promptInstall } from '../pwa.js';
@@ -31,7 +31,7 @@ export function absenceItem(a, { showName = true } = {}) {
   ].filter(Boolean);
   let coverage = '';
   if (!cancelled && a.substitute) coverage = html`<span class="tag tag-ok">${icon('check', 14)} ${a.substitute}</span>`;
-  else if (!cancelled && showName) coverage = html`<span class="tag tag-warn">Sin cubrir</span>`;
+  else if (!cancelled && showName && roleNeedsCoverage(a.employee_role)) coverage = html`<span class="tag tag-warn">Sin cubrir</span>`;
 
   return html`
     <a class="item ${cancelled ? 'is-muted' : ''}" href="#/absence/${a.id}">

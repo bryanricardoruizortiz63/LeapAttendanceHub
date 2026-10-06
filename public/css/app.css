@@ -2319,3 +2319,30 @@ input[type='color'] {
   flex: none;
   border-radius: 8px;
 }
+
+/* ---- Roles y permisos ---------------------------------------------------- */
+
+.perm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choice.is-fixed {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.role-item .role-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.role-item .item-sub {
+  white-space: normal;
+}
+
+.role-summary {
+  margin: -4px 0 0;
+}

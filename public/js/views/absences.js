@@ -1,7 +1,6 @@
 import {
   $,
   CATEGORIES,
-  ROLE_LABELS,
   addDays,
   busy,
   dialog,
@@ -10,8 +9,10 @@ import {
   fmtLongDate,
   formValues,
   html,
-  isManager,
+  can,
   isStaff,
+  roleLabel,
+  roleNeedsCoverage,
   scheduleText,
   timeAgo,
   toast,
@@ -103,6 +104,10 @@ async function absenceForm({ el, query }, absence) {
   const preselect = query.get('user_id') || '';
   const files = [];
   const v0 = absence || { start_date: today, end_date: today, partial: false, category: '', reason: '', coverage_notes: '' };
+  // Teachers' absences need someone to cover them; nursing, maintenance or security don't.
+  const needsCoverage = (roleKey) => !!roleKey && roleNeedsCoverage(roleKey);
+  const roleOf = (userId) => employees.find((e) => e.id === userId)?.role;
+  const initialRole = editing ? absence.employee_role : forOthers ? roleOf(preselect) : me.role;
   const startTime = absence?.start_time?.slice(0, 5) || '08:00';
   const endTime = absence?.end_time?.slice(0, 5) || '';
   const category = v0.category || '';
@@ -166,7 +171,7 @@ async function absenceForm({ el, query }, absence) {
         </label>
       </section>
 
-      <section class="card stack">
+      <section class="card stack" data-coverage-notes ${needsCoverage(initialRole) || v0.coverage_notes ? '' : 'hidden'}>
         <h2 class="card-title">${icon('users')} Para cubrir la clase <em class="optional">opcional</em></h2>
         <label class="field"><span>Instrucciones para quien te cubra</span>
           <textarea name="coverage_notes" rows="3" maxlength="1000"
@@ -244,6 +249,10 @@ async function absenceForm({ el, query }, absence) {
   }
   start.addEventListener('change', update);
   end.addEventListener('change', update);
+  form.user_id?.addEventListener('change', () => {
+    const notes = $('[data-coverage-notes]', el);
+    notes.hidden = !needsCoverage(roleOf(form.user_id.value)) && !notes.querySelector('textarea').value.trim();
+  });
   for (const r of form.querySelectorAll('[name=partial]')) r.addEventListener('change', update);
   update();
 
@@ -360,7 +369,7 @@ export async function absenceView({ el, params }) {
             ${avatar(a.employee_name, 'lg')}
             <div class="grow">
               <h2>${a.employee_name}</h2>
-              <p class="muted">${a.employee_position || ROLE_LABELS[a.employee_role]}</p>
+              <p class="muted">${a.employee_position || roleLabel(a.employee_role)}</p>
             </div>
             ${statusBadge(a.status)}
           </div>
@@ -389,7 +398,8 @@ export async function absenceView({ el, params }) {
           </dl>
         </section>
 
-        <section class="card stack">
+        ${roleNeedsCoverage(a.employee_role) || a.substitute
+          ? html`<section class="card stack">
           <h3 class="card-title">${icon('users')} Cobertura / arreglos</h3>
           ${staff && !cancelled
             ? html`<form class="inline-form" data-coverage>
@@ -399,7 +409,8 @@ export async function absenceView({ el, params }) {
                 <button class="btn btn-secondary" type="submit">Guardar</button>
               </form>`
             : html`<p>${a.substitute || html`<span class="muted">Aún no se han registrado arreglos.</span>`}</p>`}
-        </section>
+        </section>`
+          : ''}
 
         <section class="card stack">
           <h3 class="card-title">${icon('clip')} Documentos ${attachments.length ? html`<span class="count">${attachments.length}</span>` : ''}</h3>
@@ -413,7 +424,7 @@ export async function absenceView({ el, params }) {
                     <span class="att-name">${f.original_name}</span>
                     <small>${fileSize(f.size)} · ${f.uploaded_by_name || ''}</small>
                   </a>
-                  ${f.uploaded_by === me.id || isManager(me)
+                  ${f.uploaded_by === me.id || can(me, 'staff')
                     ? html`<button class="icon-btn att-del" data-del-att="${f.id}" aria-label="Eliminar archivo">${icon('trash', 16)}</button>`
                     : ''}
                 </div>`,
@@ -432,7 +443,7 @@ export async function absenceView({ el, params }) {
           ${comments.length
             ? html`<div class="thread">${comments.map(
                 (c) => html`<div class="bubble ${c.user_id === me.id ? 'mine' : ''}">
-                  <div class="bubble-head"><strong>${c.author_name}</strong><span>${ROLE_LABELS[c.author_role] || ''} · ${timeAgo(c.created_at)}</span></div>
+                  <div class="bubble-head"><strong>${c.author_name}</strong><span>${roleLabel(c.author_role)} · ${timeAgo(c.created_at)}</span></div>
                   <p class="pre">${c.body}</p>
                 </div>`,
               )}</div>`

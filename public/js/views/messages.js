@@ -1,18 +1,11 @@
 // Mensajes: the dirección writes to everyone, a role or specific people. Each person gets an in-app
 // notice and a push notification, and optionally an email.
 import { getMessage, getSchool, listEmployees, listMessages, previewEmail, sendMessage } from '../backend.js';
-import { $, busy, fmtDateTime, formValues, html, isManager, timeAgo, toast } from '../lib.js';
+import { $, busy, can, fmtDateTime, formValues, getSchoolRoles, html, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { avatar, empty, showEmailPreview } from './common.js';
 
-const GROUPS = [
-  ['all', 'Todo el personal'],
-  ['teacher', 'Maestros'],
-  ['secretary', 'Secretaría'],
-  ['director', 'Dirección'],
-  ['people', 'Elegir personas'],
-];
 const isEmail = (s) => !!s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
 function emailSummary(m) {
@@ -55,13 +48,19 @@ export async function composeView({ el, query }) {
   const preselected = new Set(query.get('to') ? [query.get('to')] : []);
   const emailReady = !!school.email_provider;
   const inGroup = (g) => (g === 'all' ? people : people.filter((p) => p.role === g));
+  // Everyone, each role that has someone, or specific people.
+  const groups = [
+    ['all', 'Todo el personal'],
+    ...getSchoolRoles().filter((r) => inGroup(r.key).length).map((r) => [r.key, r.name]),
+    ['people', 'Elegir personas'],
+  ];
 
   el.innerHTML = String(html`
     <form class="stack" data-form novalidate>
       <section class="card stack">
         <h2 class="card-title">${icon('users')} Para</h2>
         <div class="choices">
-          ${GROUPS.map(
+          ${groups.map(
             ([value, label]) => html`<label class="choice">
               <input type="radio" name="group" value="${value}" ${(preselected.size ? value === 'people' : value === 'all') ? 'checked' : ''}>
               <span>${label}${value === 'people' ? '' : html`<small>${inGroup(value).length} persona(s)</small>`}</span></label>`,
@@ -159,7 +158,7 @@ const STATUS_LABEL = (s) =>
 
 export async function messageView({ el, params }) {
   const { message: m, recipients } = await getMessage(params[0]);
-  const manager = isManager(state.me.user);
+  const manager = can(state.me.user, 'messages');
   el.innerHTML = String(html`
     <div class="stack">
       <section class="card stack">

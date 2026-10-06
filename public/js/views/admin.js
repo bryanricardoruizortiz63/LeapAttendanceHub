@@ -1,12 +1,13 @@
 import {
   $,
-  ROLE_LABELS,
   addDays,
   busy,
+  can,
   copyText,
   dialog,
   fmtDateTime,
   formValues,
+  getSchoolRoles,
   html,
   timeAgo,
   toast,
@@ -41,6 +42,9 @@ import { go, state } from '../store.js';
 import { bindPasswordToggles, rememberSchool } from './auth.js';
 import { archiveSection } from './archive.js';
 import { avatar, empty, showEmailPreview } from './common.js';
+import { permissionSummary, roleDialog } from './roles.js';
+
+const NEW_ROLE = '__new';
 
 /** Asked for a new password from the login screen in the last 3 days. */
 function recentHelp(e) {
@@ -171,8 +175,12 @@ export async function employeesView({ el }) {
 export async function employeeFormView({ el, params, setTitle }) {
   const isNew = params[0] === 'new';
   const me = state.me.user;
+  const roles = [...getSchoolRoles()];
+  // Nobody can give a role that can do more than they can.
+  const canGive = (r) => me.role === 'admin' || r.permissions.every((p) => can(me, p));
+  const firstRole = roles.find((r) => r.key === 'teacher' && canGive(r)) || roles.find(canGive);
   const [employee, school] = await Promise.all([
-    isNew ? { role: 'teacher', active: true } : getEmployee(params[0]),
+    isNew ? { role: firstRole?.key, active: true } : getEmployee(params[0]),
     getSchool(state.me.school.id),
   ]);
   const self = employee.id === me.id;
@@ -202,16 +210,15 @@ export async function employeeFormView({ el, params, setTitle }) {
           <input name="username" maxlength="100" value="${employee.username || ''}" autocapitalize="none" spellcheck="false"
             placeholder="${isNew ? 'Si lo dejas vacío se usa el correo' : ''}"></label>
         <label class="field"><span>Rol</span>
-          <select name="role" ${self ? 'disabled' : ''}>
-            ${['teacher', 'secretary', 'director'].map(
-              (r) => html`<option value="${r}" ${employee.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`,
+          <select name="role" ${self ? 'disabled' : ''} data-role>
+            ${roles.map(
+              (r) => html`<option value="${r.key}" ${employee.role === r.key ? 'selected' : ''} ${canGive(r) ? '' : 'disabled'}>${r.name}</option>`,
             )}
+            ${me.role === 'admin' && !self ? html`<option value="${NEW_ROLE}">+ Nuevo rol…</option>` : ''}
           </select>
         </label>
-        <p class="hint">
-          <b>Maestro(a):</b> reporta sus ausencias. <b>Secretaría:</b> además ve y confirma las ausencias de todos.
-          <b>Director(a):</b> acceso completo, incluido personal, configuración y datos.
-        </p>
+        <p class="hint role-summary" data-role-summary></p>
+        ${me.role === 'admin' ? html`<a class="btn btn-ghost btn-sm" href="#/roles">${icon('shield', 16)} Roles y permisos</a>` : ''}
         ${isNew
           ? html`<label class="field"><span>Contraseña temporal <em class="optional">opcional</em></span>
               <span class="pw"><input name="password" type="password" minlength="8" autocomplete="new-password"
@@ -242,11 +249,38 @@ export async function employeeFormView({ el, params, setTitle }) {
 
   bindPasswordToggles(el);
   const form = $('[data-form]', el);
+
+  const roleSelect = $('[data-role]', el);
+  let lastRole = roleSelect.value;
+  const describeRole = () => {
+    const role = roles.find((r) => r.key === roleSelect.value);
+    $('[data-role-summary]', el).textContent = role
+      ? `Puede: reportar sus ausencias${role.permissions.length ? ` · ${permissionSummary(role)}` : ''}.${role.coverage ? ' Sus ausencias necesitan cobertura.' : ''}`
+      : '';
+  };
+  roleSelect.addEventListener('change', async () => {
+    if (roleSelect.value === NEW_ROLE) {
+      const role = await roleDialog();
+      if (role) {
+        roles.push(role);
+        roleSelect.querySelector(`option[value="${NEW_ROLE}"]`).before(new Option(role.name, role.key));
+        roleSelect.value = role.key;
+        toast(`Rol «${role.name}» creado`, 'ok');
+      } else {
+        roleSelect.value = lastRole;
+      }
+    }
+    lastRole = roleSelect.value;
+    describeRole();
+  });
+  describeRole();
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     busy(form.querySelector('[type=submit]'), async () => {
       const v = formValues(form);
       if (!v.full_name.trim()) throw new Error('Escribe el nombre del empleado.');
+      if (v.role === NEW_ROLE) throw new Error('Elige un rol.');
       if (isNew) {
         if (!v.username.trim() && !v.email.trim()) throw new Error('Escribe un usuario o un correo.');
         if (!v.password) delete v.password;
