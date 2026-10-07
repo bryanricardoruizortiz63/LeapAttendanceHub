@@ -147,7 +147,9 @@ async function doStep(t, step, value) {
   if (step === 'take') {
     const v = await dialog({
       title: `¿${t.student_name} está contigo?`,
-      message: `Los avisos de este turno de ${t.service_name} te llegarán a ti.`,
+      message: t.status === 'on_the_way'
+        ? `${t.service_name} va en camino: le avisamos en qué salón está.`
+        : `Los avisos de este turno de ${t.service_name} te llegarán a ti.`,
       body: html`<label class="field"><span>¿En qué salón?</span>
         <input name="room" maxlength="40" value="${state.me.user.room || ''}" placeholder="Ej. 204" autocomplete="off"></label>`,
       confirmText: 'Está conmigo',
@@ -188,7 +190,7 @@ function turnActions(t, service, me) {
   if (teacher) {
     if (t.status === 'called') add('sent', 'Ya salió', 'primary');
     if (t.status === 'returning') add('back', 'Llegó al salón', 'primary');
-    if (['waiting', 'called', 'returning'].includes(t.status) && t.teacher_id !== me.id && !service.serves) add('take', 'Está conmigo');
+    if (['waiting', 'called', 'on_the_way', 'returning'].includes(t.status) && t.teacher_id !== me.id && !service.serves) add('take', 'Está conmigo');
   }
   if (service.serves && t.status === 'returning') add('back', 'Llegó al salón');
   const mine = t.created_by === me.id || t.teacher_id === me.id;
@@ -426,7 +428,7 @@ export async function newTurnView(ctx) {
   // The professional notes a student who came on their own.
   const here = query.get('here') === '1' && !!service?.serves && service.mode === 'visit';
   if (here) ctx.setTitle('Llegó sin turno');
-  // Already chosen on Turnos (or the only one): don't ask again, just show it.
+  // Already chosen on Turnos (or the only one): don't ask again, just show it. To change it, go back.
   const chosen = !here && !!service;
   const modeText = (s) => (s.mode === 'visit' ? 'El estudiante va a la oficina' : 'Va al salón');
 
@@ -438,18 +440,16 @@ export async function newTurnView(ctx) {
             ? html`<section class="card stack" data-chosen>
                 <h2 class="card-title">${icon('pulse')} Turno para ${service.name}</h2>
                 <p class="hint">${modeText(service)} · ${availabilityText(service)}</p>
-                ${services.length > 1 ? html`<p class="hint"><button type="button" class="link-btn" data-change-service>Cambiar de servicio</button></p>` : ''}
               </section>`
-            : ''}
-          <section class="card stack" data-pick-service ${chosen ? 'hidden' : ''}>
-            <h2 class="card-title">${icon('pulse')} ¿A qué servicio?</h2>
-            <div class="choices">
-              ${services.map(
-                (s) => html`<label class="choice"><input type="radio" name="service" value="${s.id}" ${service?.id === s.id ? 'checked' : ''}>
-                  <span><strong>${s.name}</strong><small>${modeText(s)} · ${availabilityText(s)}</small></span></label>`,
-              )}
-            </div>
-          </section>`}
+            : html`<section class="card stack" data-pick-service>
+                <h2 class="card-title">${icon('pulse')} ¿A qué servicio?</h2>
+                <div class="choices">
+                  ${services.map(
+                    (s) => html`<label class="choice"><input type="radio" name="service" value="${s.id}">
+                      <span><strong>${s.name}</strong><small>${modeText(s)} · ${availabilityText(s)}</small></span></label>`,
+                  )}
+                </div>
+              </section>`}`}
       <section class="card stack">
         <h2 class="card-title">${icon('user')} ¿Para quién?</h2>
         ${studentFields()}
@@ -475,7 +475,7 @@ export async function newTurnView(ctx) {
           <input name="room" maxlength="40" value="${here ? '' : me.room || ''}" placeholder="Ej. 204" autocomplete="off"></label>
       </section>
       <button class="btn btn-primary btn-block btn-lg" type="submit">${icon('send')} ${here ? 'Anotar visita' : 'Pedir turno'}</button>
-      ${here ? '' : html`<p class="hint center">Te avisamos cuando lo llamen. Si cambia de salón, el otro maestro del grupo toca «Está conmigo».</p>`}
+      ${here ? '' : html`<p class="hint center">Te avisamos cuando lo llamen. Si cambia de salón, a los otros maestros de su grupo también les llega el aviso.</p>`}
     </form>`);
 
   const form = $('[data-form]', el);
@@ -489,10 +489,6 @@ export async function newTurnView(ctx) {
       : 'El motivo y la nota solo los ven tú y el servicio.';
   };
   showService();
-  $('[data-change-service]', el)?.addEventListener('click', () => {
-    $('[data-chosen]', el).hidden = true;
-    $('[data-pick-service]', el).hidden = false;
-  });
   for (const input of el.querySelectorAll('[name=service]')) {
     input.addEventListener('change', () => {
       service = services.find((s) => s.id === Number(input.value));
@@ -550,7 +546,7 @@ function steps(t) {
 }
 
 function teacherHint(t) {
-  if (t.status === 'waiting') return 'Te avisamos cuando lo llamen. Si cambia de salón, el otro maestro del grupo toca «Está conmigo».';
+  if (t.status === 'waiting') return 'Te avisamos cuando lo llamen. Si cambia de salón, a los otros maestros de su grupo también les llega el aviso.';
   if (t.status === 'called') return 'Envíalo y toca «Ya salió». Si no llega a tiempo, se avisa a Seguridad.';
   if (t.status === 'returning') return 'Toca «Llegó al salón» cuando llegue.';
   return '';

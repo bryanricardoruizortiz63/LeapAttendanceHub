@@ -94,6 +94,9 @@ mismo grupo.
   maestro y a Seguridad (alerta «No ha llegado»). La enfermera anota también a quien llega sin turno.
 - Trabajo Social: Voy en camino → Atendido o Referido.
 - Si el estudiante cambia de salón, el maestro que lo tiene toca «Está conmigo» y los avisos le llegan a él.
+- Después: el grupo del estudiante sale de los grupos asignados al maestro, y al llamarlo (o ir a buscarlo, o
+  regresarlo) el aviso también les llega, sin alarma, a los otros maestros del grupo. «Está conmigo» también mientras
+  Trabajo Social va en camino (le llega el salón nuevo).
 - El motivo y la nota solo los ven quien pidió el turno y el servicio. Los maestros ven los turnos de sus grupos
   24 horas; el servicio conserva su historial con nombre (como máximo un año) y ve las visitas anteriores de cada
   estudiante.
