@@ -426,17 +426,27 @@ export async function newTurnView(ctx) {
   // The professional notes a student who came on their own.
   const here = query.get('here') === '1' && !!service?.serves && service.mode === 'visit';
   if (here) ctx.setTitle('Llegó sin turno');
+  // Already chosen on Turnos (or the only one): don't ask again, just show it.
+  const chosen = !here && !!service;
+  const modeText = (s) => (s.mode === 'visit' ? 'El estudiante va a la oficina' : 'Va al salón');
 
   el.innerHTML = String(html`
     <form class="stack" data-form novalidate>
       ${here
         ? html`<p class="status-note ok">${icon('check', 16)} ${service.name}: el estudiante ya está en la oficina.</p>`
-        : html`<section class="card stack">
+        : html`${chosen
+            ? html`<section class="card stack" data-chosen>
+                <h2 class="card-title">${icon('pulse')} Turno para ${service.name}</h2>
+                <p class="hint">${modeText(service)} · ${availabilityText(service)}</p>
+                ${services.length > 1 ? html`<p class="hint"><button type="button" class="link-btn" data-change-service>Cambiar de servicio</button></p>` : ''}
+              </section>`
+            : ''}
+          <section class="card stack" data-pick-service ${chosen ? 'hidden' : ''}>
             <h2 class="card-title">${icon('pulse')} ¿A qué servicio?</h2>
             <div class="choices">
               ${services.map(
                 (s) => html`<label class="choice"><input type="radio" name="service" value="${s.id}" ${service?.id === s.id ? 'checked' : ''}>
-                  <span><strong>${s.name}</strong><small>${s.mode === 'visit' ? 'El estudiante va a la oficina' : 'Va al salón'} · ${availabilityText(s)}</small></span></label>`,
+                  <span><strong>${s.name}</strong><small>${modeText(s)} · ${availabilityText(s)}</small></span></label>`,
               )}
             </div>
           </section>`}
@@ -479,6 +489,10 @@ export async function newTurnView(ctx) {
       : 'El motivo y la nota solo los ven tú y el servicio.';
   };
   showService();
+  $('[data-change-service]', el)?.addEventListener('click', () => {
+    $('[data-chosen]', el).hidden = true;
+    $('[data-pick-service]', el).hidden = false;
+  });
   for (const input of el.querySelectorAll('[name=service]')) {
     input.addEventListener('change', () => {
       service = services.find((s) => s.id === Number(input.value));

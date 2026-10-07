@@ -196,7 +196,7 @@ los Turnos.
 - Vista de calendario (semana/mes) sin choques entre reservas aprobadas.
 - Avisos al aprobar, rechazar o reemplazar, con horarios libres sugeridos.
 
-**Hecho**, en *Inicio → Salón de conferencias* (en la dirección, *Más*):
+**Hecho**, en la pestaña *Reservas* (para todo el personal):
 - Se reserva por horas, solo en días de clases y dentro del horario escolar; los días marcados en el calendario
   escolar no se pueden reservar y el formulario lo recuerda.
 - Semana (con las horas libres de cada día y un botón para reservarlas) y mes (cuántas reservas tiene cada día).
@@ -254,6 +254,9 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
 7. **Paneles** con exportación a Excel y **tablero en vivo** de la directora: panel de cada servicio (con «Cerrar el
    año»), de mantenimiento y del salón, y «En vivo» con Enfermería, Trabajo Social, alertas, salidas, relevos,
    mantenimiento y salón. *Hecho.*
+   - Después: **navegación más clara**. La misma barra para todos (Ausencias, Alertas, Turnos, Reservas, Más; sin
+     «Inicio» ni «Panel»), *Más* en grupos, la guía *Así está organizada Hallway* la primera vez y *Cómo usar
+     Hallway* con «¿Dónde está…?». Y el formulario de turno ya no vuelve a preguntar el servicio. *Hecho.*
 8. Al final, con todo listo: app nativa en las tiendas (alarmas fuertes).
 
 ---

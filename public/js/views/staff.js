@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { state } from '../store.js';
 import { absenceList, empty, installHint } from './common.js';
 import { approvesBookings, waitingCard } from './rooms.js';
+import { guideHint } from './guide.js';
 
 export async function dashboardView({ el, onLeave, isCurrent }) {
   const me = state.me.user;
@@ -27,6 +28,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
         <a class="stat ${c.pending ? 'stat-warn' : ''}" href="#pending"><strong>${c.pending}</strong><span>Por confirmar</span></a>
         <a class="stat" href="#upcoming"><strong>${c.upcoming}</strong><span>Próximos 14 días</span></a>
       </div>
+      <div data-guide-slot></div>
       <div data-install-slot></div>
       ${waitingCard(bookings)}
       ${can(me, 'reports')
@@ -65,6 +67,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
         document.getElementById(a.getAttribute('href').slice(1))?.scrollIntoView({ behavior: 'smooth' });
       });
     }
+    guideHint($('[data-guide-slot]', el));
     installHint($('[data-install-slot]', el));
   };
 

@@ -713,7 +713,7 @@ export const advanceMaintenance = (id, step, note) => rpc('advance_maintenance',
 export const listBookings = (from, to) =>
   run(sb.from('room_bookings').select('*').gte('day', from).lte('day', to).order('day').order('start_time').limit(1000));
 
-/** My reservations from a date on (Inicio and Reservas list them). */
+/** My reservations from a date on (Reservas lists them). */
 export const myBookings = (userId, from) =>
   run(sb.from('room_bookings').select('*').eq('created_by', userId).gte('day', from).order('day').order('start_time').limit(100));
 
