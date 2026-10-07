@@ -413,6 +413,8 @@ export const removeEmailAccount = () => rpc('remove_email_account');
 export const saveWelcomeTemplate = (subject, body) => rpc('save_welcome_template', { p_subject: subject, p_body: body });
 export const testEmail = () => callFunction('admin', { action: 'test_email' });
 export const sendCredentials = (id, password) => callFunction('admin', { action: 'send_credentials', id, password });
+/** New temporary passwords for these people who haven't signed in yet: { people: [{ id, full_name, username, password } | { …, error }] }. */
+export const resetNeverSignedIn = (ids) => callFunction('admin', { action: 'reset_never_signed_in', ids });
 /** to: 'all' | a role key | [employee ids] */
 export const sendMessage = ({ to, subject, body, email }) =>
   callFunction('admin', { action: 'send_message', to, subject, body, email: !!email });

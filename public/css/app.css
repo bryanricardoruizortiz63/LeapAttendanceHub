@@ -3021,3 +3021,117 @@ input[type='color'] {
 .live-service .item-sub {
   white-space: normal;
 }
+
+/* Accesos para repartir: one card per person, two per row when printed. */
+.access-sheet {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.access-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.access-card header strong {
+  display: block;
+  font-size: 16px;
+}
+
+.access-card header small,
+.access-card dt,
+.access-steps {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.access-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.access-qr {
+  flex: none;
+  width: 104px;
+  height: 104px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.access-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.access-body dl {
+  margin: 0;
+  min-width: 0;
+}
+
+.access-body dd {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.access-steps {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.access-link {
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  @page {
+    margin: 10mm;
+  }
+
+  body,
+  .main-col,
+  .view {
+    background: #fff !important;
+  }
+
+  .tabbar,
+  .topbar,
+  .no-print,
+  #toasts {
+    display: none !important;
+  }
+
+  .main-col,
+  .view {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .access-sheet {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6mm;
+    margin: 0;
+  }
+
+  .access-card {
+    break-inside: avoid;
+    border-color: #888;
+    background: #fff;
+  }
+
+  .access-card,
+  .access-card * {
+    color: #000 !important;
+  }
+}
