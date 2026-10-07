@@ -1,6 +1,6 @@
 // Hallway service worker: offline app shell + push notifications.
 // Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
-const VERSION = 'lah-v19';
+const VERSION = 'lah-v20';
 const SHELL = [
   './',
   'index.html',

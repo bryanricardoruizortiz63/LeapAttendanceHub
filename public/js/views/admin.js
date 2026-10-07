@@ -13,6 +13,7 @@ import {
   isStaff,
   schoolCalendar,
   schoolYearStart,
+  teachesClasses,
   timeAgo,
   toast,
   todayStr,
@@ -158,7 +159,7 @@ export async function employeesView({ el }) {
 
   el.innerHTML = String(html`
     <div class="toolbar">
-      <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre, puesto, salón o grupo…" data-q></label>
+      <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre, materia, salón o grupo…" data-q></label>
       <a class="btn btn-primary" href="#/employees/new">${icon('plus', 18)} Nuevo</a>
     </div>
     <div class="list-head">
@@ -199,8 +200,6 @@ export async function employeeFormView({ el, params, setTitle }) {
         <h2 class="card-title">${icon('user')} Datos del empleado</h2>
         <label class="field"><span>Nombre completo</span>
           <input name="full_name" required maxlength="120" value="${employee.full_name || ''}" autocomplete="off"></label>
-        <label class="field"><span>Puesto / grado / materia</span>
-          <input name="position" maxlength="120" value="${employee.position || ''}" placeholder="Ej. Maestra de 3er grado"></label>
         <div class="grid2">
           <label class="field"><span>Correo</span>
             <input name="email" type="email" maxlength="200" value="${employee.email || ''}" autocapitalize="none"></label>
@@ -226,6 +225,8 @@ export async function employeeFormView({ el, params, setTitle }) {
                   : 'Pídele a la dirección o a la secretaría que los cree en Calendario escolar.'}</p>`}
         </div>
         <p class="hint">Cada maestro verá solo a los estudiantes de sus grupos. La persona también puede cambiar su salón desde su perfil.</p>
+        <label class="field" data-subject><span>Materia <em class="optional">opcional</em></span>
+          <input name="position" maxlength="120" value="${employee.position || ''}" placeholder="Ej. Matemáticas" autocomplete="off"></label>
       </section>
 
       <section class="card stack">
@@ -278,6 +279,8 @@ export async function employeeFormView({ el, params, setTitle }) {
   let lastRole = roleSelect.value;
   const describeRole = () => {
     const role = roles.find((r) => r.key === roleSelect.value);
+    // The subject only for those who give classes; the role already says what the rest do.
+    $('[data-subject]', el).hidden = !teachesClasses(role);
     $('[data-role-summary]', el).textContent = role
       ? `Puede: reportar sus ausencias${role.permissions.length ? ` · ${permissionSummary(role)}` : ''}.${role.coverage ? ' Sus ausencias necesitan cobertura.' : ''}`
       : '';
@@ -307,6 +310,8 @@ export async function employeeFormView({ el, params, setTitle }) {
       if (v.role === NEW_ROLE) throw new Error('Elige un rol.');
       const picker = $('[data-groups]', el);
       if (picker) v.groups = [...picker.querySelectorAll('input:checked')].map((c) => c.value);
+      // Not a teacher: whatever was there stays as it was.
+      if ($('[data-subject]', el).hidden) delete v.position;
       if (isNew) {
         if (!v.username.trim() && !v.email.trim()) throw new Error('Escribe un usuario o un correo.');
         if (!v.password) delete v.password;

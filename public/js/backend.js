@@ -825,7 +825,7 @@ const HISTORY_ACTIONS = { edited: 'Modificada', cancelled: 'Cancelada', received
 const ABSENCE_COLUMNS = [
   { header: 'ID', width: 7 },
   { header: 'Empleado', width: 26 },
-  { header: 'Puesto', width: 18 },
+  { header: 'Puesto o materia', width: 18 },
   { header: 'Desde', width: 12 },
   { header: 'Hasta', width: 12 },
   { header: 'Días laborables', width: 10 },
@@ -878,7 +878,7 @@ export async function exportEmployeesXlsx(code) {
   const rows = await listEmployees();
   const columns = [
     { header: 'Nombre', width: 28 }, { header: 'Usuario', width: 18 }, { header: 'Rol', width: 14 },
-    { header: 'Puesto', width: 20 }, { header: 'Correo', width: 28 }, { header: 'Teléfono', width: 15 },
+    { header: 'Puesto o materia', width: 20 }, { header: 'Correo', width: 28 }, { header: 'Teléfono', width: 15 },
     { header: 'Núm. empleado', width: 14 }, { header: 'Salón', width: 12 }, { header: 'Grupos', width: 18 },
     { header: 'Activo', width: 8 }, { header: 'Ausencias', width: 10 },
     { header: 'Último acceso', width: 17 }, { header: 'Creado', width: 17 },
@@ -986,7 +986,7 @@ export function exportArchiveXlsx(school, data) {
     {
       name: 'Por empleado',
       columns: [
-        { header: 'Empleado', width: 28 }, { header: 'Puesto', width: 20 }, { header: 'Ausencias', width: 11 },
+        { header: 'Empleado', width: 28 }, { header: 'Puesto o materia', width: 20 }, { header: 'Ausencias', width: 11 },
         { header: 'Días laborables', width: 15 }, { header: 'Sin confirmar', width: 13 },
       ],
       rows: [...perEmployee.values()].sort((x, y) => y[3] - x[3]),

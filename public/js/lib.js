@@ -85,6 +85,11 @@ const findRole = (key) => schoolRoles.find((r) => r.key === key);
 export const roleLabel = (key) => findRole(key)?.name || ROLE_LABELS[key] || '';
 /** Absences of this role need someone to cover them (teachers); nursing or maintenance don't. */
 export const roleNeedsCoverage = (key) => findRole(key)?.coverage ?? key !== 'admin';
+/** Gives classes: its absences need cover and it has no management permission (Maestro(a), Facultad…). */
+export const teachesClasses = (role) => !!role && role.coverage && role.permissions.every((p) => DUTIES.includes(p));
+/** What the person does: "Maestro(a) · Matemáticas" for a teacher with a subject; otherwise the position or the role. */
+export const jobText = (u) =>
+  (teachesClasses(findRole(u.role)) && u.position ? `${roleLabel(u.role)} · ${u.position}` : u.position || roleLabel(u.role));
 
 /** Whether this user may do something (the Administración account can do everything). */
 export const can = (u, perm) => u?.role === 'admin' || !!u?.permissions?.includes(perm);
