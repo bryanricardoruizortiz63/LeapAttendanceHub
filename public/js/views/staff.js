@@ -1,15 +1,19 @@
-import { dashboard, exportAbsencesXlsx, listEmployees, schoolAbsences } from '../backend.js';
+import { dashboard, exportAbsencesXlsx, listEmployees, pendingBookings, schoolAbsences } from '../backend.js';
 import { $, addDays, busy, can, fmtLongDate, html, todayStr } from '../lib.js';
 import { icon } from '../icons.js';
 import { state } from '../store.js';
 import { absenceList, empty, installHint } from './common.js';
+import { approvesBookings, waitingCard } from './rooms.js';
 
 export async function dashboardView({ el, onLeave, isCurrent }) {
   const me = state.me.user;
   const firstName = me.role === 'admin' ? '' : `, ${me.full_name.replace(/^(dra?|sra?|lcda?)\.?\s+/i, '').split(' ')[0]}`;
 
   const load = async () => {
-    const d = await dashboard(todayStr());
+    const [d, bookings] = await Promise.all([
+      dashboard(todayStr()),
+      approvesBookings(me) ? pendingBookings(todayStr()).catch(() => []) : [],
+    ]);
     if (!isCurrent()) return;
     const c = d.counts;
     el.innerHTML = String(html`
@@ -24,6 +28,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
         <a class="stat" href="#upcoming"><strong>${c.upcoming}</strong><span>Próximos 14 días</span></a>
       </div>
       <div data-install-slot></div>
+      ${waitingCard(bookings)}
 
       <section class="section" id="today">
         <h3 class="section-title">Ausentes hoy</h3>

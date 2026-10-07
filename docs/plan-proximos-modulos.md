@@ -195,6 +195,19 @@ los Turnos.
 - Vista de calendario (semana/mes) sin choques entre reservas aprobadas.
 - Avisos al aprobar, rechazar o reemplazar, con horarios libres sugeridos.
 
+**Hecho**, en *Inicio → Salón de conferencias* (en la dirección, *Más*):
+- Se reserva por horas, solo en días de clases y dentro del horario escolar; los días marcados en el calendario
+  escolar no se pueden reservar y el formulario lo recuerda.
+- Semana (con las horas libres de cada día y un botón para reservarlas) y mes (cuántas reservas tiene cada día).
+- Aprueban la secretaría y la dirección (permiso *Calendario escolar*): les llega un aviso y en el *Panel* ven
+  cuántas esperan. Al aprobar una, las otras pedidas para esa hora se rechazan solas. Quien no recibe la
+  aprobación recibe el aviso con las horas libres de ese día.
+- Sus propias reservas se aprueban solas. Encima de la de un maestro, la app pregunta «¿Reemplazar la reserva?»;
+  si dicen que sí, se cancela la del maestro y se le avisa con las horas libres.
+- Dos reservas aprobadas nunca chocan: lo impide la propia base de datos.
+- Todo el personal ve para qué es cada reserva. Las reservas se borran al año.
+- Queda para la etapa de **Paneles**: uso del salón y exportación a Excel.
+
 ---
 
 ## 7. Notificaciones fuertes (límite técnico)
@@ -235,7 +248,8 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
    alerta a seguridad. *Hecho.*
 5. **Mantenimiento**: solicitud con tipo, lugar, urgencia y foto; fila con En camino → Listo y la siguiente
    sugerida. *Hecho.*
-6. **Reservas del salón de conferencias**.
+6. **Reservas del salón de conferencias**: por horas, con aprobación, prioridad de la dirección y horas libres
+   sugeridas. *Hecho.*
 7. **Paneles** con exportación a Excel y **tablero en vivo** de la directora.
 8. Al final, con todo listo: app nativa en las tiendas (alarmas fuertes).
 

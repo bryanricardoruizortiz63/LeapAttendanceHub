@@ -235,6 +235,9 @@ export async function moreView({ el }) {
     !admin && isStaff(user) ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
     ['#/turns', 'pulse', 'Turnos', 'Enfermería, Trabajo Social y otros servicios'],
     ['#/maintenance', 'wrench', 'Mantenimiento', 'Pide limpieza o reparaciones y sigue las solicitudes'],
+    can(user, 'calendar')
+      ? ['#/rooms', 'room', 'Salón de conferencias', 'Reserva el salón y aprueba las reservas del personal']
+      : ['#/rooms', 'room', 'Salón de conferencias', 'Resérvalo o mira quién lo tiene'],
     can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
     can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
     admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,

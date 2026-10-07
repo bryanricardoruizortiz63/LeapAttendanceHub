@@ -707,6 +707,29 @@ export async function getMaintenance(id) {
 /** step: go · release · done (note: what was done) · cancel (note: why). */
 export const advanceMaintenance = (id, step, note) => rpc('advance_maintenance', { p_id: id, p_step: step, p_note: note || null });
 
+// ---- Reservas del salón de conferencias ------------------------------------------------
+
+/** Reservations between two dates: everyone's waiting and approved ones, plus my own (and all, for Secretaría). */
+export const listBookings = (from, to) =>
+  run(sb.from('room_bookings').select('*').gte('day', from).lte('day', to).order('day').order('start_time').limit(1000));
+
+/** My reservations from a date on (Inicio and Reservas list them). */
+export const myBookings = (userId, from) =>
+  run(sb.from('room_bookings').select('*').eq('created_by', userId).gte('day', from).order('day').order('start_time').limit(100));
+
+/** Requests waiting for Secretaría or the dirección, oldest day first. */
+export const pendingBookings = (from) =>
+  run(sb.from('room_bookings').select('*').eq('status', 'pending').gte('day', from).order('day').order('start_time').limit(200));
+
+export const getBooking = (id) => one('room_bookings', id, 'No se encontró la reserva.');
+
+/** Secretaría and the dirección need replace: true to take a time someone else has. */
+export const createBooking = ({ day, start, end, purpose, replace = false }) =>
+  rpc('create_room_booking', { p_day: day, p_start: start, p_end: end, p_purpose: purpose, p_replace: replace });
+
+export const decideBooking = (id, approve, note) => rpc('decide_room_booking', { p_id: id, p_approve: approve, p_note: note || null });
+export const cancelBooking = (id, note) => rpc('cancel_room_booking', { p_id: id, p_note: note || null });
+
 // ---- Datos y reportes ------------------------------------------------------------
 
 function absenceDays(a, from, to) {
@@ -838,7 +861,7 @@ export async function exportEmployeesXlsx(code) {
 
 export async function exportBackupJson(school) {
   const all = (table, select = '*') => fetchAll(() => sb.from(table).select(select).order('id'));
-  const [employees, absences, history, comments, attachments, closures, services] = await Promise.all([
+  const [employees, absences, history, comments, attachments, closures, services, bookings] = await Promise.all([
     run(sb.from('profiles').select('id, role, username, full_name, email, phone, employee_number, position, room, groups, active, last_login_at, created_at')),
     all('absences'),
     all('absence_history'),
@@ -847,11 +870,12 @@ export async function exportBackupJson(school) {
     all('school_closures', 'id, start_date, end_date, name, kind, created_at'),
     // How the services work (the turns stay with each service).
     all('school_services', 'id, name, mode, arrive_minutes, roles, reasons, active, position, created_at'),
+    all('room_bookings', 'id, day, start_time, end_time, purpose, status, priority, created_by_name, created_at, approved_by_name, approved_at, closed_by_name, closed_at, close_note'),
   ]);
   const backup = {
     generated_at: new Date().toISOString(),
     school: { code: school.code, name: school.name },
-    calendar: school.calendar, school_closures: closures, school_services: services,
+    calendar: school.calendar, school_closures: closures, school_services: services, room_bookings: bookings,
     employees, absences, absence_history: history, comments, attachments,
   };
   download(`respaldo_${school.code}_${todayStr()}.json`, JSON.stringify(backup, null, 2), 'application/json');

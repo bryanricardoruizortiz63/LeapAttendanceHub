@@ -45,6 +45,7 @@ const PATHS = {
   drop: '<path d="M12 2.7s-6 6.3-6 11.3a6 6 0 0 0 12 0c0-5-6-11.3-6-11.3z"/>',
   sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17v4M17 19h4"/>',
   door: '<path d="M6 21V3h12v18"/><path d="M3 21h18"/><path d="M14 12h.01"/>',
+  room: '<path d="M2 4h20"/><rect x="4" y="4" width="16" height="11" rx="1"/><path d="M12 15v3M8 21l4-3 4 3"/>',
 };
 
 export function icon(name, size = 20) {
