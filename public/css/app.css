@@ -792,6 +792,16 @@ select {
   outline: 2px solid var(--primary);
 }
 
+/* "Otro grupo": the rest of the school's groups, once it's chosen. */
+.group-other {
+  display: none;
+  margin-top: 4px;
+}
+
+.field:has([data-other-group]:checked) .group-other {
+  display: block;
+}
+
 .chip-btn.active {
   background: var(--primary);
   border-color: var(--primary);

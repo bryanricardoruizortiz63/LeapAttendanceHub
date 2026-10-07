@@ -21,19 +21,42 @@ export function keepFresh({ onLeave, isCurrent }, load) {
   });
 }
 
+/**
+ * The student's name and group. The groups the dirección gave the teacher come first, one tap away (already chosen
+ * when it's just one): the notices of a turn also reach the other teachers of that group. "Otro grupo" has the rest.
+ */
 export function studentFields() {
   const { groups } = schoolCalendar(state.me.school);
-  return html`
-    <label class="field"><span>Nombre del estudiante</span>
-      <input name="student" required maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"></label>
-    <label class="field"><span>Grado y grupo</span>
-      ${groups.length
-        ? html`<select name="group" required>
-            <option value="" selected disabled>Elige…</option>
-            ${groups.map((g) => html`<option value="${g}">${g}</option>`)}
+  const mine = (state.me.user.groups || []).filter((g) => groups.includes(g));
+  const others = groups.filter((g) => !mine.includes(g));
+  const name = html`<label class="field"><span>Nombre del estudiante</span>
+      <input name="student" required maxlength="100" autocomplete="off" autocapitalize="words" placeholder="Nombre y apellidos"></label>`;
+  if (!mine.length) {
+    return html`${name}
+      <label class="field"><span>Grado y grupo</span>
+        ${groups.length
+          ? html`<select name="group" required>
+              <option value="" selected disabled>Elige…</option>
+              ${groups.map((g) => html`<option value="${g}">${g}</option>`)}
+            </select>`
+          : html`<input name="group" required maxlength="20" autocomplete="off" placeholder="Ej. 9-B">`}
+      </label>`;
+  }
+  return html`${name}
+    <div class="field"><span>Grado y grupo</span>
+      <div class="chips" role="radiogroup" aria-label="Grado y grupo">
+        ${mine.map(
+          (g) => html`<label class="chip"><input type="radio" name="group" value="${g}" ${mine.length === 1 ? 'checked' : ''}><span>${g}</span></label>`,
+        )}
+        ${others.length ? html`<label class="chip"><input type="radio" name="group" value="" data-other-group><span>Otro grupo</span></label>` : ''}
+      </div>
+      ${others.length
+        ? html`<select name="group_other" class="group-other" aria-label="Otro grupo">
+            <option value="" selected disabled>Elige el grupo…</option>
+            ${others.map((g) => html`<option value="${g}">${g}</option>`)}
           </select>`
-        : html`<input name="group" required maxlength="20" autocomplete="off" placeholder="Ej. 9-B">`}
-    </label>`;
+        : ''}
+    </div>`;
 }
 
 /**
@@ -67,7 +90,10 @@ export async function confirmStudent(name, group) {
 /** Reads and checks the name and group of a form; the form's own validation shows what's missing. */
 export function studentFrom(form) {
   const name = form.student.value.trim().replace(/\s+/g, ' ');
-  const group = form.group.value.trim();
+  // The teacher's groups are chips (radios); otherwise a list or a text field.
+  const chip = form.querySelector('[name=group]:checked');
+  const field = form.querySelector('select[name=group], input[name=group]:not([type=radio])');
+  const group = (chip ? (chip.hasAttribute('data-other-group') ? form.group_other.value : chip.value) : field?.value || '').trim();
   if (name.length < 2) throw new Error('Escribe el nombre del estudiante.');
   if (!group) throw new Error('Elige el grado y grupo del estudiante.');
   return { name, group };
