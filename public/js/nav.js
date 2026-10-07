@@ -27,7 +27,7 @@ export function navItems(user) {
     : [{ ...home, match: ['/home', '/absence'] }, alerts, turns];
   const moreMatch = [
     '/more', '/employees', '/settings', '/roles', '/calendar', '/services', '/data', '/messages', '/profile', '/home', '/report',
-    '/turns', '/maintenance', '/rooms',
+    '/turns', '/maintenance', '/rooms', '/live',
   ].filter((p) => !items.some((i) => i.path === p));
   items.push(notices, { path: '/more', icon: 'menu', label: 'Más', match: moreMatch });
   return items;

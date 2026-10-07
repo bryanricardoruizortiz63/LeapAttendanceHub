@@ -10,7 +10,9 @@ import {
   formValues,
   getSchoolRoles,
   html,
+  isStaff,
   schoolCalendar,
+  schoolYearStart,
   timeAgo,
   toast,
   todayStr,
@@ -708,11 +710,6 @@ export async function settingsView({ el, reload }) {
 
 // ---- Datos y reportes ------------------------------------------------------------
 
-function schoolYearStart(today) {
-  const [y, m] = today.split('-').map(Number);
-  return `${m >= 8 ? y : y - 1}-08-01`;
-}
-
 export async function dataView({ el, isCurrent }) {
   const today = todayStr();
   const presets = {
@@ -743,6 +740,22 @@ export async function dataView({ el, isCurrent }) {
         <button type="button" class="btn btn-secondary btn-block" data-export="all">${icon('download', 18)} Todas las ausencias (Excel)</button>
         <button type="button" class="btn btn-secondary btn-block" data-export="employees">${icon('download', 18)} Lista de personal (Excel)</button>
         <button type="button" class="btn btn-ghost btn-block" data-export="backup">${icon('shield', 18)} Respaldo completo (JSON)</button>
+      </section>
+      <section class="card stack">
+        <h2 class="card-title">${icon('chart')} Más paneles</h2>
+        <div class="list flat">
+          <a class="item" href="#/live"><span class="item-icon">${icon('pulse')}</span>
+            <span class="item-main"><strong>En vivo</strong><span class="item-sub">Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo</span></span>${icon('chevron', 18)}</a>
+          ${can(state.me.user, 'maintenance') || isStaff(state.me.user)
+            ? html`<a class="item" href="#/maintenance/panel"><span class="item-icon">${icon('wrench')}</span>
+                <span class="item-main"><strong>Mantenimiento</strong><span class="item-sub">Solicitudes por tipo y lugar, tiempos de respuesta y Excel</span></span>${icon('chevron', 18)}</a>`
+            : ''}
+          ${can(state.me.user, 'calendar')
+            ? html`<a class="item" href="#/rooms/panel"><span class="item-icon">${icon('room')}</span>
+                <span class="item-main"><strong>Salón de conferencias</strong><span class="item-sub">Horas reservadas, por persona y Excel</span></span>${icon('chevron', 18)}</a>`
+            : ''}
+        </div>
+        <p class="hint">Enfermería y Trabajo Social tienen su propio panel en <b>Turnos</b>: solo lo ve quien atiende el servicio.</p>
       </section>
       <div data-archive-slot></div>
     </div>`);

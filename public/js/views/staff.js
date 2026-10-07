@@ -29,6 +29,10 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
       </div>
       <div data-install-slot></div>
       ${waitingCard(bookings)}
+      ${can(me, 'reports')
+        ? html`<a class="card link-card room-link" href="#/live">${icon('pulse')}<span><strong>En vivo</strong>
+            <small>Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo</small></span>${icon('chevron', 18)}</a>`
+        : ''}
 
       <section class="section" id="today">
         <h3 class="section-title">Ausentes hoy</h3>

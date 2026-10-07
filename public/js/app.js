@@ -23,6 +23,7 @@ import {
 import { newTurnView, serviceFormView, servicesView, turnDetailView, turnsView } from './views/turns.js';
 import { maintenanceDetailView, maintenanceView, newMaintenanceView } from './views/maintenance.js';
 import { bookingDetailView, newBookingView, roomsView } from './views/rooms.js';
+import { liveView, maintenancePanelView, roomsPanelView, servicePanelView } from './views/panels.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
 import { composeView, messageView, messagesView } from './views/messages.js';
@@ -58,14 +59,19 @@ const ROUTES = [
   { re: /^\/turns$/, view: turnsView, title: 'Turnos' },
   { re: /^\/turns\/new$/, view: newTurnView, title: 'Pedir turno', back: true },
   { re: /^\/turns\/(\d+)$/, view: turnDetailView, title: 'Turno', back: true },
+  // Only whoever attends the service (checked in the view and by the database).
+  { re: /^\/turns\/panel\/(\d+)$/, view: servicePanelView, title: 'Panel del servicio', back: true },
   { re: /^\/services$/, view: servicesView, title: 'Servicios', allow: may('settings'), back: true },
   { re: /^\/services\/(new|\d+)$/, view: serviceFormView, title: 'Servicio', allow: may('settings'), back: true },
   { re: /^\/maintenance$/, view: maintenanceView, title: 'Mantenimiento' },
   { re: /^\/maintenance\/new$/, view: newMaintenanceView, title: 'Pedir mantenimiento', back: true },
   { re: /^\/maintenance\/(\d+)$/, view: maintenanceDetailView, title: 'Mantenimiento', back: true },
+  { re: /^\/maintenance\/panel$/, view: maintenancePanelView, title: 'Panel de mantenimiento', allow: (u) => can(u, 'maintenance') || isStaff(u), back: true },
   { re: /^\/rooms$/, view: roomsView, title: 'Salón de conferencias', back: true },
   { re: /^\/rooms\/new$/, view: newBookingView, title: 'Reservar el salón', back: true },
   { re: /^\/rooms\/(\d+)$/, view: bookingDetailView, title: 'Reserva del salón', back: true },
+  { re: /^\/rooms\/panel$/, view: roomsPanelView, title: 'Uso del salón', allow: may('calendar'), back: true },
+  { re: /^\/live$/, view: liveView, title: 'En vivo', allow: may('reports'), back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
   { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages') },
   { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },

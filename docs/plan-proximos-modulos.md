@@ -97,8 +97,9 @@ mismo grupo.
 - El motivo y la nota solo los ven quien pidió el turno y el servicio. Los maestros ven los turnos de sus grupos
   24 horas; el servicio conserva su historial con nombre (como máximo un año) y ve las visitas anteriores de cada
   estudiante.
-- Quedan para la etapa de **Paneles**: el dashboard y la exportación de Enfermería y Trabajo Social, el tablero en
-  vivo de la directora, y cerrar el historial al terminar el año escolar (descargarlo y borrarlo).
+- **Hecho en la etapa de Paneles**: el panel de cada servicio con su Excel (sin las notas), el tablero en vivo de la
+  directora (sin el motivo ni la nota) y «Cerrar el año»: el servicio descarga el Excel del período y borra los
+  turnos terminados, para que el historial con nombres no pase al año siguiente.
 
 ---
 
@@ -129,7 +130,7 @@ directamente lo que necesita.
 - Las fotos son privadas y se borran 30 días después de cerrarse la solicitud; las solicitudes, al año.
 - Como la directora no tiene el permiso Mantenimiento, se permite que quien administra el personal dé ese rol
   (es una tarea, no da acceso a datos de otros).
-- Queda para la etapa de **Paneles**: tiempos de respuesta, solicitudes por salón y por tipo, y exportación a Excel.
+- **Hecho en la etapa de Paneles**: tiempos de respuesta, solicitudes por lugar, por tipo y por urgencia, y Excel.
 
 ---
 
@@ -206,7 +207,7 @@ los Turnos.
   si dicen que sí, se cancela la del maestro y se le avisa con las horas libres.
 - Dos reservas aprobadas nunca chocan: lo impide la propia base de datos.
 - Todo el personal ve para qué es cada reserva. Las reservas se borran al año.
-- Queda para la etapa de **Paneles**: uso del salón y exportación a Excel.
+- **Hecho en la etapa de Paneles**: uso del salón (horas, parte del horario de clases, por persona y por día) y Excel.
 
 ---
 
@@ -250,7 +251,9 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
    sugerida. *Hecho.*
 6. **Reservas del salón de conferencias**: por horas, con aprobación, prioridad de la dirección y horas libres
    sugeridas. *Hecho.*
-7. **Paneles** con exportación a Excel y **tablero en vivo** de la directora.
+7. **Paneles** con exportación a Excel y **tablero en vivo** de la directora: panel de cada servicio (con «Cerrar el
+   año»), de mantenimiento y del salón, y «En vivo» con Enfermería, Trabajo Social, alertas, salidas, relevos,
+   mantenimiento y salón. *Hecho.*
 8. Al final, con todo listo: app nativa en las tiendas (alarmas fuertes).
 
 ---

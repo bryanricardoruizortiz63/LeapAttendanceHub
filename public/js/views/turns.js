@@ -18,16 +18,16 @@ import { go, state } from '../store.js';
 import { empty } from './common.js';
 import { confirmStudent, fact, keepFresh, studentFields, studentFrom } from './students.js';
 
-const SEVERITY = {
+export const SEVERITY = {
   1: { label: 'Baja', cls: '' },
   2: { label: 'Media', cls: 'tag-info' },
   3: { label: 'Alta', cls: 'tag-warn' },
   4: { label: 'Urgente', cls: 'tag-danger' },
 };
 
-const STAFF_STATUS = { available: 'Disponible', meeting: 'En reunión', lunch: 'Almuerzo', away: 'Fuera' };
+export const STAFF_STATUS = { available: 'Disponible', meeting: 'En reunión', lunch: 'Almuerzo', away: 'Fuera' };
 
-const OUTCOMES = {
+export const OUTCOMES = {
   returned: 'Regresó al salón',
   picked_up: 'Lo recogieron',
   referred: 'Referido',
@@ -336,9 +336,12 @@ export async function turnsView(ctx) {
             ${waiting.length
               ? html`<div class="list">${waiting.map((t) => queueItem(t, me, service))}</div>`
               : html`<p class="hint">No hay nadie en fila${active.length ? '' : ' ni en curso'}.</p>`}
-            ${service.mode === 'visit'
-              ? html`<a class="btn btn-ghost btn-sm" href="#/turns/new?service=${service.id}&here=1">${icon('plus', 18)} Llegó sin turno</a>`
-              : ''}
+            <div class="button-row">
+              ${service.mode === 'visit'
+                ? html`<a class="btn btn-ghost btn-sm" href="#/turns/new?service=${service.id}&here=1">${icon('plus', 18)} Llegó sin turno</a>`
+                : ''}
+              <a class="btn btn-ghost btn-sm" href="#/turns/panel/${service.id}">${icon('chart', 18)} Panel y Excel</a>
+            </div>
           </section>`;
         })}
 

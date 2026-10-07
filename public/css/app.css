@@ -2968,3 +2968,9 @@ input[type='color'] {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ---- Paneles -------------------------------------------------------------- */
+
+.live-service .item-sub {
+  white-space: normal;
+}
