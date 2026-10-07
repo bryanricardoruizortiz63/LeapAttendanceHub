@@ -12,7 +12,7 @@ import {
   setMyServiceStatus,
   turnHistory,
 } from '../backend.js';
-import { $, busy, dialog, fmtDateTime, getSchoolRoles, html, timeAgo, toast } from '../lib.js';
+import { $, busy, dialog, fmtDateTime, fmtTime, getSchoolRoles, html, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { empty } from './common.js';
@@ -41,7 +41,7 @@ const isOpen = (t) => OPEN.includes(t.status);
 const who = (t) => `${t.student_name} (${t.group_name})`;
 // The group doesn't break at its hyphen.
 const whoHtml = (t) => html`${t.student_name} <span class="nowrap">(${t.group_name})</span>`;
-const timeOf = (iso) => new Date(iso).toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' });
+const timeOf = (iso) => fmtTime(new Date(iso));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 /** Called (or on the way) and past the time to get there. */
@@ -285,7 +285,7 @@ function statusCard(me, myServices) {
     </div>
     <p class="hint">${mine.status === 'available'
       ? 'Los maestros ven si estás disponible cuando piden un turno.'
-      : `Los maestros ven: ${STAFF_STATUS[mine.status]}${mine.until ? ` hasta ${timeOf(mine.until)}` : ''}.`}</p>
+      : `Los maestros ven: ${STAFF_STATUS[mine.status]}${mine.until ? ` hasta ${timeOf(mine.until)}` : '.'}`}</p>
   </section>`;
 }
 

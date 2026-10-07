@@ -132,12 +132,14 @@ export function fmtRange(start, end) {
   return `${dayLabel(start)} – ${dayLabel(end)}`;
 }
 
+/**
+ * "13:05", "13:05:00" or a Date → "1:05 p. m.", the same as the notices. Non-breaking spaces keep each time on
+ * one line.
+ */
 export function fmtTime(t) {
   if (!t) return '';
-  const [h, m] = t.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d.toLocaleTimeString('es', { hour: 'numeric', minute: '2-digit' });
+  const [h, m] = t instanceof Date ? [t.getHours(), t.getMinutes()] : String(t).split(':').map(Number);
+  return `${h % 12 || 12}:${pad(m)}\u00a0${h < 12 ? 'a.\u00a0m.' : 'p.\u00a0m.'}`;
 }
 
 export function scheduleText(a) {
@@ -147,7 +149,8 @@ export function scheduleText(a) {
 
 export function fmtDateTime(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleString('es', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('es', { day: 'numeric', month: 'short' })}, ${fmtTime(d)}`;
 }
 
 export function timeAgo(iso) {
