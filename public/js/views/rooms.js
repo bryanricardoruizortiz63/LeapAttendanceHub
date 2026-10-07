@@ -2,6 +2,8 @@
 // "calendar") approve. Their own reservations are approved at once and can replace someone else's (the app
 // asks first). Days marked in the school calendar can't be reserved.
 import {
+  addBookingNote,
+  bookingNotes,
   cancelBooking,
   createBooking,
   decideBooking,
@@ -27,6 +29,7 @@ import {
   fmtTime,
   html,
   isoWeekday,
+  roleLabel,
   schoolCalendar,
   timeAgo,
   toast,
@@ -397,6 +400,9 @@ export async function newBookingView({ el, query }) {
         </div>
         <p class="hint">Horario escolar: ${fmtTime(cal.day_start)} – ${fmtTime(cal.day_end)}, de ${daysText(cal.school_days)}.</p>
         <p class="status-note" data-clash hidden></p>
+        <label class="field"><span>${manager ? 'Nota' : 'Nota para la dirección'} <em class="optional">opcional</em></span>
+          <textarea name="note" rows="2" maxlength="1000" placeholder="Ej. Necesito el proyector y 30 sillas"></textarea></label>
+        <p class="hint">Solo la ven tú, la secretaría y la dirección. Luego pueden seguir conversando en la reserva.</p>
       </section>
       <section class="card stack" data-day-agenda></section>
       <p class="status-note muted">${icon('calendar', 16)} <span>Revisa que ese día no sea feriado ni día sin clases. Los días marcados en el
@@ -516,7 +522,7 @@ export async function newBookingView({ el, query }) {
           replace = true;
         }
       }
-      const b = await createBooking({ day: d, start: s, end: en, purpose, replace });
+      const b = await createBooking({ day: d, start: s, end: en, purpose, replace, note: field('note').value.trim() });
       toast(manager ? 'Salón reservado' : 'Reserva pedida. Te avisamos cuando respondan.', 'ok');
       go(`/rooms/${b.id}`, { replace: true });
     });
@@ -535,11 +541,17 @@ export async function bookingDetailView(ctx) {
 
   async function load() {
     const b = await getBooking(id);
-    // Secretaría sees what else is asked or reserved at that time before deciding.
-    const sameDay = manager && b.status === 'pending' ? await listBookings(b.day, b.day) : [];
-    if (!isCurrent()) return;
-    const s = statusTag(b);
     const mine = b.created_by === me.id;
+    const [sameDay, notes] = await Promise.all([
+      // Secretaría sees what else is asked or reserved at that time before deciding.
+      manager && b.status === 'pending' ? listBookings(b.day, b.day) : [],
+      // The conversation is only between whoever asked and Secretaría / the dirección.
+      mine || manager ? bookingNotes(id) : [],
+    ]);
+    if (!isCurrent()) return;
+    // What was being written survives a refresh.
+    const draft = $('[data-note-form] textarea', el)?.value || '';
+    const s = statusTag(b);
     const past = isPast(b);
     const active = isActive(b);
     const clashes = sameDay.filter((x) => x.id !== b.id && isActive(x) && overlaps(x, b.start_time, b.end_time));
@@ -590,8 +602,25 @@ export async function bookingDetailView(ctx) {
           : ''}
         ${buttons}
         ${b.status === 'pending' && mine && !past ? html`<p class="hint">Te avisamos cuando la secretaría o la dirección respondan.</p>` : ''}
+        ${mine || manager ? notesSection(b, notes, me, mine) : ''}
         <a class="btn btn-ghost btn-block" href="#/rooms?day=${b.day}">${icon('calendar', 18)} Ver ese día</a>
       </div>`);
+
+    const noteForm = $('[data-note-form]', el);
+    if (noteForm) {
+      noteForm.body.value = draft;
+      noteForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const body = noteForm.body.value.trim();
+        if (!body) return;
+        busy(noteForm.querySelector('button'), async () => {
+          await addBookingNote(id, body);
+          noteForm.body.value = '';
+          await load();
+          $('[data-notes] .bubble:last-child', el)?.scrollIntoView({ block: 'center' });
+        });
+      });
+    }
 
     for (const btn of el.querySelectorAll('[data-step]')) {
       btn.addEventListener('click', () =>
@@ -624,7 +653,34 @@ export async function bookingDetailView(ctx) {
 
   await load();
   markAlertsRead(`#/rooms/${id}`).catch(() => {});
-  keepFresh(ctx, load);
+  // Not while someone is writing a note.
+  const writing = () => {
+    const box = $('[data-note-form] textarea', el);
+    return !!box && (document.activeElement === box || !!box.value.trim());
+  };
+  keepFresh(ctx, () => (writing() ? Promise.resolve() : load()));
+}
+
+/** The notes between whoever asked and Secretaría / the dirección about that day. */
+function notesSection(b, notes, me, mine) {
+  const who = mine ? 'tú, la secretaría y la dirección' : `${b.created_by_name}, la secretaría y la dirección`;
+  return html`<section class="card stack" data-notes>
+    <h3 class="card-title">${icon('chat')} Notas ${notes.length ? html`<span class="count">${notes.length}</span>` : ''}</h3>
+    ${notes.length
+      ? html`<div class="thread">${notes.map(
+          (n) => html`<div class="bubble ${n.user_id === me.id ? 'mine' : ''}">
+            <div class="bubble-head"><strong>${n.author_name}</strong><span>${roleLabel(n.author_role)} · ${timeAgo(n.created_at)}</span></div>
+            <p class="pre">${n.body}</p>
+          </div>`,
+        )}</div>`
+      : html`<p class="muted">${mine ? 'Escríbele a la secretaría o a la dirección sobre este día.' : `Escríbele a ${b.created_by_name} sobre este día.`}</p>`}
+    <form class="comment-form" data-note-form>
+      <textarea name="body" rows="2" maxlength="1000" required
+        placeholder="${mine ? 'Escribe una nota para la dirección…' : 'Escribe una nota…'}"></textarea>
+      <button class="btn btn-primary" type="submit" aria-label="Enviar nota">${icon('send', 18)}</button>
+    </form>
+    <p class="hint">Solo la ven ${who}.</p>
+  </section>`;
 }
 
 /** On Ausencias of Secretaría and the dirección: requests waiting for them. */

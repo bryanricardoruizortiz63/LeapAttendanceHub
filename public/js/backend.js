@@ -725,9 +725,13 @@ export const pendingBookings = (from) =>
 
 export const getBooking = (id) => one('room_bookings', id, 'No se encontró la reserva.');
 
-/** Secretaría and the dirección need replace: true to take a time someone else has. */
-export const createBooking = ({ day, start, end, purpose, replace = false }) =>
-  rpc('create_room_booking', { p_day: day, p_start: start, p_end: end, p_purpose: purpose, p_replace: replace });
+/** Secretaría and the dirección need replace: true to take a time someone else has. note: for whoever approves. */
+export const createBooking = ({ day, start, end, purpose, replace = false, note = '' }) =>
+  rpc('create_room_booking', { p_day: day, p_start: start, p_end: end, p_purpose: purpose, p_replace: replace, p_note: note || null });
+
+/** The reservation's notes (only whoever asked and Secretaría / the dirección see them). */
+export const bookingNotes = (id) => run(sb.from('room_booking_notes').select('*').eq('booking_id', id).order('id'));
+export const addBookingNote = (id, body) => rpc('add_room_booking_note', { p_id: id, p_body: body });
 
 export const decideBooking = (id, approve, note) => rpc('decide_room_booking', { p_id: id, p_approve: approve, p_note: note || null });
 export const cancelBooking = (id, note) => rpc('cancel_room_booking', { p_id: id, p_note: note || null });
