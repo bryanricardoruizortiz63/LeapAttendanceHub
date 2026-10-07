@@ -1,7 +1,7 @@
 // Mensajes: the dirección writes to everyone, a role or specific people. Each person gets an in-app
 // notice and a push notification, and optionally an email.
 import { getMessage, getSchool, listEmployees, listMessages, previewEmail, sendMessage } from '../backend.js';
-import { $, busy, can, fmtDateTime, formValues, getSchoolRoles, html, jobText, timeAgo, toast } from '../lib.js';
+import { $, busy, can, fmtDateTime, formValues, getSchoolRoles, html, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { avatar, empty, showEmailPreview } from './common.js';
@@ -72,7 +72,7 @@ export async function composeView({ el, query }) {
             (p) => html`<label class="person" data-name="${`${p.full_name} ${p.position || ''}`.toLowerCase()}">
               <input type="checkbox" value="${p.id}" ${preselected.has(p.id) ? 'checked' : ''}>
               ${avatar(p.full_name)}
-              <span class="grow"><strong>${p.full_name}</strong><small>${jobText(p)}${p.email ? '' : ' · sin correo'}</small></span>
+              <span class="grow"><strong>${p.full_name}</strong><small>${p.position || p.role_label}${p.email ? '' : ' · sin correo'}</small></span>
             </label>`,
           )}</div>
         </div>

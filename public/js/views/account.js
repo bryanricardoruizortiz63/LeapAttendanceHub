@@ -7,7 +7,7 @@ import {
   testPush,
   updateMyContact,
 } from '../backend.js';
-import { $, busy, can, formValues, html, isManager, isStaff, jobText, timeAgo, toast } from '../lib.js';
+import { $, busy, can, formValues, html, isManager, isStaff, roleLabel, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { currentPushSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from '../pwa.js';
 import { logout, setUnread, state } from '../store.js';
@@ -141,7 +141,7 @@ export async function profileView({ el }) {
       <section class="card profile-head">
         ${avatar(user.full_name, 'xl')}
         <h2>${user.full_name}</h2>
-        <p class="muted">${jobText(user)}</p>
+        <p class="muted">${user.position || roleLabel(user.role)}</p>
         <div class="profile-meta">
           <span>${icon('school', 16)} ${school.name}</span>
           <span>${icon('key', 16)} ${school.code} · ${user.username}</span>
