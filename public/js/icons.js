@@ -46,6 +46,7 @@ const PATHS = {
   sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17v4M17 19h4"/>',
   door: '<path d="M6 21V3h12v18"/><path d="M3 21h18"/><path d="M14 12h.01"/>',
   room: '<path d="M2 4h20"/><rect x="4" y="4" width="16" height="11" rx="1"/><path d="M12 15v3M8 21l4-3 4 3"/>',
+  live: '<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>',
 };
 
 export function icon(name, size = 20) {
