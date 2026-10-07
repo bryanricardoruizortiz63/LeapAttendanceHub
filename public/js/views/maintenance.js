@@ -9,13 +9,13 @@ import {
   maintenanceOverview,
   markAlertsRead,
 } from '../backend.js';
-import { $, busy, can, dialog, fmtDateTime, html, timeAgo, toast } from '../lib.js';
+import { $, busy, can, dialog, fmtDateTime, html, isStaff, timeAgo, toast } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { empty } from './common.js';
 import { fact, keepFresh } from './students.js';
 
-const KINDS = {
+export const KINDS = {
   spill: { label: 'Derrame o líquido', icon: 'drop' },
   cleaning: { label: 'Limpieza', icon: 'sparkle' },
   bathroom: { label: 'Baño', icon: 'door' },
@@ -24,7 +24,7 @@ const KINDS = {
   other: { label: 'Otro', icon: 'chat' },
 };
 
-const URGENCY = {
+export const URGENCY = {
   1: { label: 'Cuando puedan', cls: '' },
   2: { label: 'Pronto', cls: 'tag-warn' },
   3: { label: 'Urgente', cls: 'tag-danger' },
@@ -161,6 +161,7 @@ export async function maintenanceView(ctx) {
         <p class="hint">${fixer
           ? 'Van por urgencia y, dentro de cada una, por orden de llegada. «Voy en camino» le avisa a quien lo pidió y al resto de Mantenimiento.'
           : 'Te avisamos cuando Mantenimiento vaya en camino y cuando esté listo.'}</p>
+        ${fixer || isStaff(me) ? html`<a class="btn btn-ghost btn-block" href="#/maintenance/panel">${icon('chart', 18)} Panel y Excel</a>` : ''}
       </div>`);
 
     $('[data-done-list]', el)?.addEventListener('click', () => {

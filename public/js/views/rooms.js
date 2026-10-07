@@ -301,6 +301,7 @@ export async function roomsView(ctx) {
         <p class="hint">${manager
           ? 'Tus reservas quedan aprobadas al momento. Si eliges una hora que ya tiene otra persona, la app te pregunta antes de reemplazarla.'
           : 'La secretaría o la dirección aprueban las reservas. Te avisamos cuando respondan.'}</p>
+        ${manager ? html`<a class="btn btn-ghost btn-block" href="#/rooms/panel">${icon('chart', 18)} Uso del salón y Excel</a>` : ''}
       </div>`);
 
     for (const btn of el.querySelectorAll('[data-day]')) {

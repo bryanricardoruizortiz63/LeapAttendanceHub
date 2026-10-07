@@ -60,6 +60,13 @@ Funciona con servicios gratuitos:
 - **Prioridad**: las reservas de la secretaría y la dirección se aprueban solas. Si eligen una hora que ya tiene un maestro, la app pregunta «¿Reemplazar la reserva?»; si dicen que sí, la del maestro se cancela y le llega el aviso con las horas libres. Una reserva de la secretaría o la dirección no la reemplaza nadie.
 - Quien reservó puede cancelarla; la secretaría y la dirección también, con el motivo. Dos reservas aprobadas nunca chocan.
 
+**Paneles** (cada uno con su Excel; período: este mes, mes pasado, año escolar, año escolar pasado o las fechas que elijas)
+- **En vivo** (*Panel* o *Más → En vivo*; permiso *Datos y reportes*: la dirección y Administración): lo que pasa ahora en la escuela. De Enfermería y Trabajo Social, quién atiende y su estado, y quién está en fila, en camino o en atención y desde cuándo (sin el motivo ni la nota); también las alertas «No ha llegado», las salidas de hoy, los relevos pedidos, el mantenimiento abierto y el salón de conferencias de hoy. Se actualiza solo.
+- **Panel de cada servicio** (*Turnos → Panel y Excel*; solo quien atiende el servicio): turnos, estudiantes, espera y atención promedio, resultados, quién no llegó a tiempo y quién llegó sin turno; por motivo, día, hora, grupo y gravedad, y los estudiantes con más turnos. El Excel trae cada turno, las visitas por estudiante y por motivo, pero nunca las notas.
+- **Cerrar el año** del servicio: al terminar el año escolar, se elige el período, se descarga el Excel y se borran de la app los turnos terminados de ese período, para que el historial con nombres no pase al año siguiente.
+- **Panel de mantenimiento** (*Mantenimiento → Panel y Excel*; Mantenimiento, la dirección y la secretaría): solicitudes, resueltas, tiempo hasta «en camino» y hasta «listo»; por tipo, lugar, urgencia, día y quién las resolvió.
+- **Uso del salón** (*Salón de conferencias → Uso del salón y Excel*; la secretaría y la dirección): reservas aprobadas, horas, qué parte del horario de clases se usó, horas por persona y por día, y el estado de las reservas.
+
 **Dirección y secretaría**
 - **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
 - **Marcar como recibida** (con mensaje opcional al empleado), registrar **cobertura/arreglos** y comentar.
@@ -76,7 +83,7 @@ Funciona con servicios gratuitos:
 - **Enviar el acceso por correo**: al crear un empleado o restablecer su contraseña, un botón le envía su usuario y contraseña temporal al correo de su ficha, con las instrucciones. El texto es editable (*Mensaje con usuario y contraseña*, con `{nombre}`, `{usuario}`, `{contraseña}`, `{enlace}`, `{escuela}`, `{codigo}`) y también es el que se copia o comparte.
 - **Correos con diseño**: los correos llevan los colores y el ícono de la app. Las líneas `1.`, `2.` se ven como pasos; una línea que solo tiene un enlace, como botón; las líneas con sangría `Usuario: …`, en un recuadro destacado; y las que empiezan con `•` o `-`, como lista. **Vista previa** muestra el correo tal como llegará.
 - **Mensajes**: escribe a todo el personal, a un rol (Maestro(a), Enfermería…) o a personas concretas. Les llega como aviso en la app y notificación en el teléfono, y si quieres también por correo. Se ve a quién le llegó el correo y a quién no.
-- **Datos y reportes**: estadísticas, exportación a Excel (.xlsx) y respaldo completo (JSON) de *esa* escuela.
+- **Datos y reportes**: estadísticas, exportación a Excel (.xlsx) y respaldo completo (JSON) de *esa* escuela, y los enlaces a los demás paneles.
 - **Archivo anual**: al terminar el año escolar (1 ago – 31 jul), descarga un Excel con todas sus ausencias (hojas de ausencias, resumen por empleado, historial, comentarios y documentos) y un ZIP con las excusas. Después, la cuenta de Administración puede **liberar espacio**: borra de la app las ausencias recibidas y canceladas de ese año con sus archivos (las que están sin confirmar se quedan).
 - Las ausencias **canceladas se borran solas 15 días** después de cancelarse, con sus archivos.
 
@@ -97,7 +104,7 @@ Permisos con los que vienen los roles (la cuenta de Administración los cambia e
 | Director(a) | Las suyas | ✅ | ✅ | ✅ (sin liberar espacio) | ✅ |
 | Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | ✅ | |
 
-El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. El permiso **Mantenimiento** (recibe y atiende las solicitudes de mantenimiento) viene en Mantenimiento y Administración. La barra de abajo tiene **Alertas** para todos y **Turnos** (Mantenimiento tiene **Pedidos** en su lugar); en la dirección, *Turnos*, *Mantenimiento*, *Salón de conferencias*, *Personal* y *Reportar* están en *Más*, y para los demás *Reportar* es el botón grande de *Inicio*, donde también está el *Salón de conferencias*.
+El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. El permiso **Mantenimiento** (recibe y atiende las solicitudes de mantenimiento) viene en Mantenimiento y Administración. El permiso **Datos y reportes** también abre el tablero **En vivo**. La barra de abajo tiene **Alertas** para todos y **Turnos** (Mantenimiento tiene **Pedidos** en su lugar); en la dirección, *Turnos*, *Mantenimiento*, *Salón de conferencias*, *Personal* y *Reportar* están en *Más*, y para los demás *Reportar* es el botón grande de *Inicio*, donde también está el *Salón de conferencias*.
 
 ---
 
@@ -188,6 +195,8 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 **Solicitudes de mantenimiento:** `maintenance_requests` (qué, dónde, urgencia, nota, foto y cada paso con quién y cuándo), visible para quien la pidió y los permisos `maintenance` y `absences`; la vista `maintenance_requests_v` añade el lugar en la fila (`private.maintenance_position`: urgencia y llegada). Se cambian con `create_maintenance_request` (valida la foto, evita duplicados abiertos y limita a 20 por hora) y `advance_maintenance` (voy en camino, ya no puedo ir, listo, cancelar); `maintenance_overview` da quién atiende y cuántas hay. Las fotos se guardan en el bucket privado `maintenance/{escuela}/{persona}/` (5 MB, se reducen en el teléfono antes de subirlas) y se ven con enlaces temporales.
 
 **Reservas del salón:** `room_bookings` (día, desde, hasta, para qué, estado y quién la pidió, aprobó, rechazó, canceló o reemplazó). Todos ven las pendientes y aprobadas de su escuela; las rechazadas, canceladas y reemplazadas solo quien las pidió y el permiso `calendar`. Una restricción de exclusión (`btree_gist`) impide en la propia base de datos que dos reservas aprobadas se crucen. Se cambian con `create_room_booking` (valida día de clases, horario y días sin clases; la secretaría y la dirección necesitan `p_replace` para quitarle la hora a otro), `decide_room_booking` y `cancel_room_booking`, que avisan con las horas libres del día (`private.room_free_text`). Reservar y aprobar van de uno en uno por escuela (`pg_advisory_xact_lock`), así dos personas no toman la misma hora a la vez.
+
+**Paneles:** los paneles de servicio, mantenimiento y salón leen en el teléfono las filas que cada persona ya puede ver (las reglas de seguridad no cambian) y arman el Excel con `public/js/xlsx.js`. El tablero en vivo usa `live_board(p_since, p_today)`, que exige el permiso `reports` y devuelve el movimiento de hoy sin el motivo ni la nota de los turnos; el teléfono le dice cuándo empezó su día, porque la base de datos no conoce la zona horaria de la escuela. «Cerrar el año» de un servicio es la acción `close_service_year` de la función `admin`: solo quien atiende ese servicio (o Administración) borra los turnos terminados del período; los abiertos se quedan.
 
 **Avisos:** al crear una notificación, un *trigger* la pone en la tabla `outbox` y `pg_net` llama a la función `notify`, que envía el push y/o el mensaje de Teams. Cada aviso se procesa una sola vez.
 

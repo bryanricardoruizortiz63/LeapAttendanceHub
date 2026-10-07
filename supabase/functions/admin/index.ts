@@ -68,7 +68,6 @@ async function currentUser(req: Request): Promise<Me> {
   if (error) throw new Error(error.message);
   const roles = new Map((rows as Role[]).map((r) => [r.key, r]));
   const permissions = me.role === 'admin' ? PERMISSIONS : roles.get(me.role)?.permissions || [];
-  if (!permissions.length) throw new HttpError(403, NO_PERMISSION);
   return { ...me, school, permissions, roles } as Me;
 }
 
@@ -830,12 +829,51 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     });
     return json(removed);
   },
+
+  /**
+   * At the end of the school year a service (Enfermería, Trabajo Social…) downloads its history and closes it:
+   * the finished turns of the period are deleted; open ones stay. Only whoever attends the service (or the
+   * Administración account) can do it. from_ts / to_ts: the period's start and end on the phone's clock.
+   */
+  async close_service_year(me, b) {
+    if (b.confirm !== 'BORRAR') throw new HttpError(400, 'Escribe BORRAR para confirmar.');
+    const from = Date.parse(String(b.from_ts || ''));
+    const to = Date.parse(String(b.to_ts || ''));
+    if (Number.isNaN(from) || Number.isNaN(to) || from >= to) throw new HttpError(400, 'El período no es válido.');
+    if (to > Date.now()) throw new HttpError(400, 'Solo se puede cerrar un período que ya terminó.');
+    const { data: service, error } = await db
+      .from('school_services')
+      .select('id, name, roles')
+      .eq('id', Number(b.service_id) || 0)
+      .eq('school_id', me.school_id)
+      .maybeSingle();
+    check(error, 'No se pudo leer el servicio.');
+    if (!service) throw new HttpError(404, 'No se encontró el servicio.');
+    if (me.role !== 'admin' && !(service.roles as string[]).includes(me.role)) {
+      throw new HttpError(403, 'Solo quien atiende el servicio puede cerrar su historial.');
+    }
+    const { error: deleteError, count } = await db
+      .from('service_requests')
+      .delete({ count: 'exact' })
+      .eq('service_id', service.id)
+      .eq('school_id', me.school_id)
+      .in('status', ['done', 'cancelled'])
+      .gte('created_at', new Date(from).toISOString())
+      .lt('created_at', new Date(to).toISOString());
+    check(deleteError, 'No se pudo borrar el historial. Inténtalo de nuevo.');
+    return json({ removed: count ?? 0 });
+  },
 };
+
+/** Actions for roles without permissions (Enfermería, Trabajo Social…): they check who may use them. */
+const SERVICE_ACTIONS = ['close_service_year'];
 
 serve(async (req) => {
   const me = await currentUser(req);
   const body = await readJson(req);
-  const action = actions[String(body.action)];
+  const name = String(body.action);
+  const action = actions[name];
   if (!action) throw new HttpError(400, 'Acción no válida.');
+  if (!me.permissions.length && !SERVICE_ACTIONS.includes(name)) throw new HttpError(403, NO_PERMISSION);
   return action(me, body);
 });

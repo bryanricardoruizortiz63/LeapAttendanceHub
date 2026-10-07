@@ -730,6 +730,47 @@ export const createBooking = ({ day, start, end, purpose, replace = false }) =>
 export const decideBooking = (id, approve, note) => rpc('decide_room_booking', { p_id: id, p_approve: approve, p_note: note || null });
 export const cancelBooking = (id, note) => rpc('cancel_room_booking', { p_id: id, p_note: note || null });
 
+// ---- Paneles ----------------------------------------------------------------------------
+
+/** From the start of the phone's day `from` to the start of the day after `to`, as timestamps. */
+export const dayBounds = (from, to) => [new Date(`${from}T00:00:00`).toISOString(), new Date(`${addDays(to, 1)}T00:00:00`).toISOString()];
+
+/** A service's turns in a period, with the reason (only the service sees them) and never the note. */
+export function serviceTurns(serviceId, from, to) {
+  const [start, end] = dayBounds(from, to);
+  return fetchAll(() =>
+    sb
+      .from('service_requests_v')
+      .select('id, service_id, student_name, student_key, group_name, severity, status, outcome, reason, created_by_name, '
+        + 'handled_by_name, out_of_order, created_at, called_at, sent_at, arrived_at, on_the_way_at, returning_at, closed_at, late_at')
+      .eq('service_id', serviceId)
+      .gte('created_at', start)
+      .lt('created_at', end)
+      .order('id'));
+}
+
+/** Maintenance requests made in a period (Mantenimiento, the dirección and the secretaría see them all). */
+export function maintenanceBetween(from, to) {
+  const [start, end] = dayBounds(from, to);
+  return fetchAll(() => sb.from('maintenance_requests').select('*').gte('created_at', start).lt('created_at', end).order('id'));
+}
+
+/** Conference room reservations for the days of a period. */
+export const bookingsBetween = (from, to) =>
+  fetchAll(() => sb.from('room_bookings').select('*').gte('day', from).lte('day', to).order('id'));
+
+/** What is happening now in the school (the dirección's live board). */
+export const liveBoard = () => rpc('live_board', { p_since: startOfToday(), p_today: todayStr() });
+
+/** A service closes a finished period: its finished turns are deleted. */
+export function closeServiceYear(serviceId, from, to) {
+  const [start, end] = dayBounds(from, to);
+  return callFunction('admin', { action: 'close_service_year', service_id: serviceId, from_ts: start, to_ts: end, confirm: 'BORRAR' });
+}
+
+/** sheets: [{ name, columns: [{ header, width, wrap }], rows }] */
+export const downloadXlsx = (filename, sheets) => download(filename, buildXlsx(sheets));
+
 // ---- Datos y reportes ------------------------------------------------------------
 
 function absenceDays(a, from, to) {

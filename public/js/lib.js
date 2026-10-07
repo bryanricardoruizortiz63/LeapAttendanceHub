@@ -101,6 +101,12 @@ export function todayStr(d = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** The school year runs from August 1 to July 31. */
+export function schoolYearStart(today = todayStr()) {
+  const [y, m] = today.split('-').map(Number);
+  return `${m >= 8 ? y : y - 1}-08-01`;
+}
+
 export function addDays(dateStr, days) {
   const d = new Date(`${dateStr}T12:00:00`);
   d.setDate(d.getDate() + days);
