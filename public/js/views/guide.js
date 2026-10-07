@@ -114,6 +114,7 @@ function tasks(user) {
     isStaff(user) && !admin ? ['#/home', 'calendar', 'Ver mis ausencias', 'Más › Mis ausencias'] : null,
     isStaff(user) ? ['#/absences', 'list', 'Buscar o exportar las ausencias del personal', `${absences} › Ver todas`] : null,
     ['#/rooms', 'room', 'Pedir el salón de conferencias', `${where('/rooms', 'Salón de conferencias')} › Reservar el salón`],
+    ['#/rooms/history', 'list', 'Ver las reservas canceladas y su historial', `${where('/rooms', 'Salón de conferencias')} › Historial y canceladas`],
     ['#/turns', 'pulse', 'Mandar un estudiante a Enfermería o Trabajo Social', `${where('/turns', 'Turnos')} › Pedir turno`],
     ['#/alerts/new/missing', 'alert', 'Avisar que un estudiante no ha llegado', 'Alertas › No ha llegado'],
     ['#/alerts/new/pickup', 'logout', 'Avisar que vienen a buscar a un estudiante', 'Alertas › Salida'],

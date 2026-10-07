@@ -723,6 +723,17 @@ export const myBookings = (userId, from) =>
 export const pendingBookings = (from) =>
   run(sb.from('room_bookings').select('*').eq('status', 'pending').gte('day', from).order('day').order('start_time').limit(200));
 
+/**
+ * History: reservations asked, approved, rejected, cancelled or replaced since a date (all of them without one),
+ * newest first. userId: only that person's (whoever doesn't approve sees only their own).
+ */
+export const bookingHistory = ({ since = null, userId = null } = {}) => {
+  let q = sb.from('room_bookings').select('*');
+  if (since) q = q.or(`created_at.gte.${since},approved_at.gte.${since},closed_at.gte.${since}`);
+  if (userId) q = q.eq('created_by', userId);
+  return run(q.order('id', { ascending: false }).limit(1000));
+};
+
 export const getBooking = (id) => one('room_bookings', id, 'No se encontró la reserva.');
 
 /** Secretaría and the dirección need replace: true to take a time someone else has. note: for whoever approves. */
