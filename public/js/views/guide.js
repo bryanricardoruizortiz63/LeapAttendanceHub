@@ -42,6 +42,8 @@ function tabText(path, user) {
       return 'Enfermería y Trabajo Social: pide turno para un estudiante y te avisamos cuando lo llamen.';
     case '/maintenance':
       return 'Los pedidos de limpieza y reparación que te tocan.';
+    case '/live':
+      return 'Lo que pasa ahora en la escuela: Enfermería, Trabajo Social, alertas, mantenimiento y el salón.';
     case '/rooms':
       return can(user, 'calendar')
         ? 'El salón de conferencias: resérvalo y aprueba las reservas del personal.'
@@ -123,7 +125,7 @@ function tasks(user) {
     ['#/profile', 'user', 'Activar notificaciones o cambiar mi contraseña', 'Más › Mi perfil'],
     can(user, 'staff') ? ['#/employees', 'users', 'Añadir personal o enviarle su acceso', 'Más › Personal'] : null,
     can(user, 'messages') ? ['#/messages/new', 'mail', 'Escribirle al personal', 'Más › Mensajes'] : null,
-    can(user, 'reports') ? ['#/live', 'pulse', 'Ver lo que pasa ahora en la escuela', 'Más › En vivo'] : null,
+    can(user, 'reports') ? ['#/live', 'live', 'Ver lo que pasa ahora en la escuela', where('/live', 'En vivo')] : null,
   ].filter(Boolean);
 }
 

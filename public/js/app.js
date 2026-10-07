@@ -72,7 +72,7 @@ const ROUTES = [
   { re: /^\/rooms\/new$/, view: newBookingView, title: 'Reservar el salón', back: true },
   { re: /^\/rooms\/(\d+)$/, view: bookingDetailView, title: 'Reserva del salón', back: true },
   { re: /^\/rooms\/panel$/, view: roomsPanelView, title: 'Uso del salón', allow: may('calendar'), back: true },
-  { re: /^\/live$/, view: liveView, title: 'En vivo', allow: may('reports'), back: true },
+  { re: /^\/live$/, view: liveView, title: 'En vivo', allow: may('reports') },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
   { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages'), back: true },
   { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },

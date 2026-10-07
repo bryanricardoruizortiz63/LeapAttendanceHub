@@ -243,7 +243,7 @@ export async function moreView({ el }) {
       can(user, 'calendar')
         ? ['#/rooms', 'room', 'Salón de conferencias', 'Reserva el salón y aprueba las reservas del personal']
         : ['#/rooms', 'room', 'Salón de conferencias', 'Resérvalo o mira quién lo tiene'],
-      can(user, 'reports') ? ['#/live', 'pulse', 'En vivo', 'Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo'] : null,
+      can(user, 'reports') ? ['#/live', 'live', 'En vivo', 'Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo'] : null,
       can(user, 'calendar')
         ? ['#/calendar', 'calendar', 'Calendario escolar', 'Horario, días sin clases y grados y grupos']
         : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],

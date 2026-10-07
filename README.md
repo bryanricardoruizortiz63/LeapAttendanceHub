@@ -18,7 +18,7 @@ Funciona con servicios gratuitos:
 ## Qué hace
 
 **Cómo está organizada** (la barra de abajo, la misma para todos)
-- **Ausencias** (reportar y ver las tuyas; en la dirección y la secretaría, quién falta hoy), **Alertas**, **Turnos**, **Reservas** (el salón de conferencias) y **Más** (lo demás, en grupos: *Ausencias*, *Día a día*, *Administración* y *Tu cuenta*). El personal de Mantenimiento tiene **Pedidos** en lugar de *Turnos*.
+- **Ausencias** (reportar y ver las tuyas; en la dirección y la secretaría, quién falta hoy), **Alertas**, **Turnos**, **Reservas** (el salón de conferencias) y **Más** (lo demás, en grupos: *Ausencias*, *Día a día*, *Administración* y *Tu cuenta*). El personal de Mantenimiento tiene **Pedidos** en lugar de *Turnos*, y la dirección (permiso *Datos y reportes*) tiene además **En vivo**, junto a *Ausencias*.
 - La **campana** de arriba abre los avisos y muestra cuántos hay sin leer.
 - **La primera vez**, la pantalla de inicio muestra *Así está organizada Hallway*: una línea por cada pestaña con lo que hay en ella, según el rol. Se cierra con **«Entendido»** (se recuerda por persona en ese teléfono) y se vuelve a ver en *Más → Cómo usar Hallway*, junto con **«¿Dónde está…?»**: las tareas de siempre, dónde están («Reservas › Reservar el salón») y un enlace directo.
 
@@ -68,7 +68,7 @@ Funciona con servicios gratuitos:
 - Quien reservó puede cancelarla; la secretaría y la dirección también, con el motivo. Dos reservas aprobadas nunca chocan.
 
 **Paneles** (cada uno con su Excel; período: este mes, mes pasado, año escolar, año escolar pasado o las fechas que elijas)
-- **En vivo** (*Ausencias* o *Más → En vivo*; permiso *Datos y reportes*: la dirección y Administración): lo que pasa ahora en la escuela. De Enfermería y Trabajo Social, quién atiende y su estado, y quién está en fila, en camino o en atención y desde cuándo (sin el motivo ni la nota); también las alertas «No ha llegado», las salidas de hoy, los relevos pedidos, el mantenimiento abierto y el salón de conferencias de hoy. Se actualiza solo.
+- **En vivo** (su propia pestaña; permiso *Datos y reportes*: la dirección y Administración): lo que pasa ahora en la escuela. De Enfermería y Trabajo Social, quién atiende y su estado, y quién está en fila, en camino o en atención y desde cuándo (sin el motivo ni la nota); también las alertas «No ha llegado», las salidas de hoy, los relevos pedidos, el mantenimiento abierto y el salón de conferencias de hoy. Se actualiza solo.
 - **Panel de cada servicio** (*Turnos → Panel y Excel*; solo quien atiende el servicio): turnos, estudiantes, espera y atención promedio, resultados, quién no llegó a tiempo y quién llegó sin turno; por motivo, día, hora, grupo y gravedad, y los estudiantes con más turnos. El Excel trae cada turno, las visitas por estudiante y por motivo, pero nunca las notas.
 - **Cerrar el año** del servicio: al terminar el año escolar, se elige el período, se descarga el Excel y se borran de la app los turnos terminados de ese período, para que el historial con nombres no pase al año siguiente.
 - **Panel de mantenimiento** (*Mantenimiento → Panel y Excel*; Mantenimiento, la dirección y la secretaría): solicitudes, resueltas, tiempo hasta «en camino» y hasta «listo»; por tipo, lugar, urgencia, día y quién las resolvió.
@@ -111,7 +111,7 @@ Permisos con los que vienen los roles (la cuenta de Administración los cambia e
 | Director(a) | Las suyas | ✅ | ✅ | ✅ (sin liberar espacio) | ✅ |
 | Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | ✅ | |
 
-El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. El permiso **Mantenimiento** (recibe y atiende las solicitudes de mantenimiento) viene en Mantenimiento y Administración. El permiso **Datos y reportes** también abre el tablero **En vivo**. La barra de abajo es la misma para todos: **Ausencias**, **Alertas**, **Turnos** (Mantenimiento tiene **Pedidos** en su lugar), **Reservas** y **Más**. Lo de cada rol está dentro: en *Ausencias* la dirección y la secretaría ven las de todos (y *Reportar mi ausencia*); los demás, el botón grande *Reportar ausencia*. *Personal*, *Mensajes*, *Servicios*, *Datos y reportes* y lo demás de la administración están en *Más*.
+El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. El permiso **Mantenimiento** (recibe y atiende las solicitudes de mantenimiento) viene en Mantenimiento y Administración. El permiso **Datos y reportes** también abre el tablero **En vivo**, que tiene su propia pestaña. La barra de abajo es la misma para todos: **Ausencias**, **Alertas**, **Turnos** (Mantenimiento tiene **Pedidos** en su lugar), **Reservas** y **Más**; la dirección tiene además **En vivo**, junto a *Ausencias*. Lo de cada rol está dentro: en *Ausencias* la dirección y la secretaría ven las de todos (y *Reportar mi ausencia*); los demás, el botón grande *Reportar ausencia*. *Personal*, *Mensajes*, *Servicios*, *Datos y reportes* y lo demás de la administración están en *Más*.
 
 ---
 

@@ -259,6 +259,17 @@ h3 {
   right: 4px;
 }
 
+/* Six tabs (En vivo for the dirección) on a narrow phone: a little tighter so they all fit. */
+@media (max-width: 385px) {
+  .tabbar:has(a.tab:nth-of-type(6)) .tab {
+    font-size: 10.5px;
+  }
+
+  .tabbar:has(a.tab:nth-of-type(6)) .tab-icon {
+    padding: 3px 10px;
+  }
+}
+
 @media (min-width: 900px) {
   .tabbar {
     top: 0;
