@@ -5,6 +5,7 @@ import {
   can,
   copyText,
   dialog,
+  DUTIES,
   fmtDateTime,
   formValues,
   getSchoolRoles,
@@ -180,7 +181,7 @@ export async function employeeFormView({ el, params, setTitle }) {
   const me = state.me.user;
   const roles = [...getSchoolRoles()];
   // Nobody can give a role that can do more than they can.
-  const canGive = (r) => me.role === 'admin' || r.permissions.every((p) => can(me, p));
+  const canGive = (r) => me.role === 'admin' || r.permissions.every((p) => DUTIES.includes(p) || can(me, p));
   const firstRole = roles.find((r) => r.key === 'teacher' && canGive(r)) || roles.find(canGive);
   const [employee, school] = await Promise.all([
     isNew ? { role: firstRole?.key, active: true } : getEmployee(params[0]),

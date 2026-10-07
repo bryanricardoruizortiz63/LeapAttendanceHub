@@ -41,6 +41,10 @@ const PATHS = {
   camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
   teams: '<rect x="2" y="6" width="13" height="13" rx="2"/><path d="M5.5 10h6M8.5 10v6"/><circle cx="18.5" cy="6.5" r="2.5"/><path d="M17 11h4a1 1 0 0 1 1 1v4a3 3 0 0 1-5 2.2"/>',
   pulse: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  drop: '<path d="M12 2.7s-6 6.3-6 11.3a6 6 0 0 0 12 0c0-5-6-11.3-6-11.3z"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17v4M17 19h4"/>',
+  door: '<path d="M6 21V3h12v18"/><path d="M3 21h18"/><path d="M14 12h.01"/>',
 };
 
 export function icon(name, size = 20) {

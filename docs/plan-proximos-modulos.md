@@ -117,6 +117,20 @@ directamente lo que necesita.
   - el maestro recibe aviso cuando van en camino y cuando terminan.
 - Panel: tiempos de respuesta y solicitudes por salón y por tipo, con exportación a Excel.
 
+**Hecho**, con el permiso nuevo **Mantenimiento** (rol Mantenimiento y Administración):
+- El maestro lo pide desde **Alertas → Mantenimiento**: qué hace falta, dónde (su salón, ya puesto), urgencia
+  (Cuando puedan, Pronto, Urgente) y una nota o foto opcional. Si ya hay una abierta de lo mismo en el mismo lugar,
+  la app lo dice en vez de repetirla.
+- *Pronto* y *Urgente* llegan con alarma y se repiten cada minuto hasta que alguien las abre.
+- El personal de Mantenimiento tiene la pestaña **Pedidos**: la fila por urgencia y llegada, **Voy en camino** (al
+  maestro le llega quién va; al resto de Mantenimiento, que ya va alguien), **Listo** (con lo que se hizo) y la
+  siguiente sugerida. Si quien iba no puede, **Ya no puedo ir** la devuelve a la fila.
+- El maestro sigue sus solicitudes en *Alertas* y puede cancelarlas. La dirección y la secretaría ven todas.
+- Las fotos son privadas y se borran 30 días después de cerrarse la solicitud; las solicitudes, al año.
+- Como la directora no tiene el permiso Mantenimiento, se permite que quien administra el personal dé ese rol
+  (es una tarea, no da acceso a datos de otros).
+- Queda para la etapa de **Paneles**: tiempos de respuesta, solicitudes por salón y por tipo, y exportación a Excel.
+
 ---
 
 ## 4. Relevo de maestros
@@ -219,7 +233,8 @@ Una app web (PWA) **no puede** saltarse el modo silencioso ni poner una alarma p
    de maestros. *Hecho.*
 4. **Turnos de Enfermería y Trabajo Social**: fila, llamar, llegó, regresó, temporizadores, estado del profesional y
    alerta a seguridad. *Hecho.*
-5. **Mantenimiento**.
+5. **Mantenimiento**: solicitud con tipo, lugar, urgencia y foto; fila con En camino → Listo y la siguiente
+   sugerida. *Hecho.*
 6. **Reservas del salón de conferencias**.
 7. **Paneles** con exportación a Excel y **tablero en vivo** de la directora.
 8. Al final, con todo listo: app nativa en las tiendas (alarmas fuertes).
