@@ -627,14 +627,7 @@ export async function bookingDetailView(ctx) {
   keepFresh(ctx, load);
 }
 
-/** "Salón de conferencias" on Inicio, with how many of my reservations are coming up. */
-export function roomLink(mine = []) {
-  const n = mine.filter((b) => isActive(b) && !isPast(b)).length;
-  return html`<a class="card link-card room-link" href="#/rooms">${icon('room')}<span><strong>Salón de conferencias</strong>
-    <small>${n ? `Tienes ${n} ${n === 1 ? 'reserva próxima' : 'reservas próximas'}` : 'Resérvalo o mira quién lo tiene'}</small></span>${icon('chevron', 18)}</a>`;
-}
-
-/** On the Panel of Secretaría and the dirección: requests waiting for them. */
+/** On Ausencias of Secretaría and the dirección: requests waiting for them. */
 export function waitingCard(pending = []) {
   const n = pending.filter((b) => !isPast(b)).length;
   if (!n) return '';

@@ -221,46 +221,67 @@ export async function profileView({ el }) {
   });
 }
 
-// ---- Más (staff) ----------------------------------------------------------------
+// ---- Más ------------------------------------------------------------------------
 
 export async function moreView({ el }) {
   const { user } = state.me;
   const admin = user.role === 'admin';
-  // Whatever the bottom bar doesn't already have (see nav.js).
-  const links = [
-    can(user, 'staff') ? ['#/employees', 'users', 'Personal', 'Empleados, contraseñas, roles, salón y grupos'] : null,
-    admin
-      ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error']
-      : ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar'],
-    !admin && isStaff(user) ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias'] : null,
-    ['#/turns', 'pulse', 'Turnos', 'Enfermería, Trabajo Social y otros servicios'],
-    ['#/maintenance', 'wrench', 'Mantenimiento', 'Pide limpieza o reparaciones y sigue las solicitudes'],
-    can(user, 'calendar')
-      ? ['#/rooms', 'room', 'Salón de conferencias', 'Reserva el salón y aprueba las reservas del personal']
-      : ['#/rooms', 'room', 'Salón de conferencias', 'Resérvalo o mira quién lo tiene'],
-    can(user, 'reports') ? ['#/live', 'pulse', 'En vivo', 'Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo'] : null,
-    can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
-    can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
-    admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,
-    can(user, 'settings') ? ['#/services', 'sliders', 'Servicios', 'Enfermería, Trabajo Social: quién atiende, motivos y tiempo para llegar'] : null,
-    can(user, 'calendar')
-      ? ['#/calendar', 'calendar', 'Calendario escolar', 'Horario, días sin clases y grados y grupos']
-      : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],
-    can(user, 'reports') ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
-    ['#/profile', 'user', 'Mi perfil', 'Notificaciones, contraseña e instalar la app'],
-  ].filter((link) => link && !inTabBar(user, link[0].slice(1)));
+  // Whatever the bottom bar doesn't already have (see nav.js), in groups so each thing is easy to find.
+  const groups = [
+    ['Ausencias', [
+      isStaff(user)
+        ? admin
+          ? ['#/report', 'plus', 'Registrar ausencia de un empleado', 'Si alguien no pudo reportarla o hubo un error']
+          : ['#/report', 'plus', 'Reportar mi ausencia', 'Avisa que vas a faltar']
+        : null,
+      !admin && isStaff(user) ? ['#/home', 'calendar', 'Mis ausencias', 'Tus propias ausencias y su estado'] : null,
+      isStaff(user) ? ['#/absences', 'list', 'Todas las ausencias', 'Busca por persona o fechas y exporta a Excel'] : null,
+    ]],
+    ['Día a día', [
+      ['#/turns', 'pulse', 'Turnos', 'Enfermería, Trabajo Social y otros servicios'],
+      ['#/maintenance', 'wrench', 'Mantenimiento', 'Pide limpieza o reparaciones y sigue las solicitudes'],
+      can(user, 'calendar')
+        ? ['#/rooms', 'room', 'Salón de conferencias', 'Reserva el salón y aprueba las reservas del personal']
+        : ['#/rooms', 'room', 'Salón de conferencias', 'Resérvalo o mira quién lo tiene'],
+      can(user, 'reports') ? ['#/live', 'pulse', 'En vivo', 'Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo'] : null,
+      can(user, 'calendar')
+        ? ['#/calendar', 'calendar', 'Calendario escolar', 'Horario, días sin clases y grados y grupos']
+        : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],
+    ]],
+    ['Administración', [
+      can(user, 'staff') ? ['#/employees', 'users', 'Personal', 'Empleados, contraseñas, roles, salón y grupos'] : null,
+      can(user, 'messages') ? ['#/messages', 'mail', 'Mensajes', 'Escribe al personal: aviso en la app y por correo'] : null,
+      can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
+      admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,
+      can(user, 'settings') ? ['#/services', 'sliders', 'Servicios', 'Enfermería, Trabajo Social: quién atiende, motivos y tiempo para llegar'] : null,
+      can(user, 'reports') ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
+    ]],
+    ['Tu cuenta', [
+      ['#/notifications', 'bell', 'Avisos', state.unread ? `${state.unread} sin leer` : 'Lo que te ha llegado: ausencias, turnos, alertas y mensajes'],
+      ['#/profile', 'user', 'Mi perfil', 'Notificaciones, contraseña, tu salón e instalar la app'],
+      ['#/guide', 'sparkle', 'Cómo usar Hallway', 'Dónde está cada cosa'],
+    ]],
+  ]
+    .map(([title, links]) => [title, links.filter((link) => link && !inTabBar(user, link[0].slice(1)))])
+    .filter(([, links]) => links.length);
 
   el.innerHTML = String(html`
-    <div class="stack">
-      <div class="list">${links.map(
-        ([href, ic, title, sub]) => html`<a class="item" href="${href}">
-          <span class="item-icon">${icon(ic)}</span>
-          <span class="item-main"><strong>${title}</strong><span class="item-sub">${sub}</span></span>
-          ${icon('chevron', 18)}
-        </a>`,
-      )}</div>
-      <button class="btn btn-ghost-danger btn-block" data-logout>${icon('logout', 18)} Cerrar sesión</button>
+    <div class="more-groups">
+      ${groups.map(
+        ([title, links]) => html`<section class="section">
+          <h3 class="section-title">${title}</h3>
+          <div class="list">${links.map(
+            ([href, ic, name, sub]) => html`<a class="item" href="${href}">
+              <span class="item-icon">${icon(ic)}</span>
+              <span class="item-main"><strong>${name}</strong><span class="item-sub">${sub}</span></span>
+              ${icon('chevron', 18)}
+            </a>`,
+          )}</div>
+        </section>`,
+      )}
+      <div class="section">
+        <button class="btn btn-ghost-danger btn-block" data-logout>${icon('logout', 18)} Cerrar sesión</button>
+      </div>
     </div>`);
   $('[data-logout]', el).addEventListener('click', logout);
 }
-

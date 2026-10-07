@@ -17,6 +17,11 @@ Funciona con servicios gratuitos:
 
 ## Qué hace
 
+**Cómo está organizada** (la barra de abajo, la misma para todos)
+- **Ausencias** (reportar y ver las tuyas; en la dirección y la secretaría, quién falta hoy), **Alertas**, **Turnos**, **Reservas** (el salón de conferencias) y **Más** (lo demás, en grupos: *Ausencias*, *Día a día*, *Administración* y *Tu cuenta*). El personal de Mantenimiento tiene **Pedidos** en lugar de *Turnos*.
+- La **campana** de arriba abre los avisos y muestra cuántos hay sin leer.
+- **La primera vez**, la pantalla de inicio muestra *Así está organizada Hallway*: una línea por cada pestaña con lo que hay en ella, según el rol. Se cierra con **«Entendido»** (se recuerda por persona en ese teléfono) y se vuelve a ver en *Más → Cómo usar Hallway*, junto con **«¿Dónde está…?»**: las tareas de siempre, dónde están («Reservas › Reservar el salón») y un enlace directo.
+
 **Maestros y personal**
 - Entran con **usuario + contraseña**. El código de escuela viene ya puesto en el enlace que reciben con sus credenciales (`…/?escuela=CÓDIGO`) y el teléfono lo recuerda; solo lo escriben si abren la app sin ese enlace. La primera vez deben cambiar la contraseña temporal.
 - **¿Olvidaste tu contraseña?**: avisa a la dirección (en la app, push y Teams). La dirección le da una contraseña temporal desde *Personal*.
@@ -26,7 +31,7 @@ Funciona con servicios gratuitos:
 - Dejan instrucciones para quien cubra su clase (solo en los roles que necesitan cobertura, como Maestro(a); Enfermería, Mantenimiento o Seguridad no ven esos campos).
 - Ven si la dirección **recibió** su ausencia, quién los cubre y los **comentarios** que les dejaron.
 - Al elegir la fecha, la app avisa si ese día no hay clases (feriado o día sin estudiantes del calendario escolar).
-- En *Perfil* ponen su **salón** (y lo cambian cuando quieran) y ven sus **grupos** (9-B, 10-A…), que asigna la dirección. También ven el **calendario escolar**: horario y días sin clases.
+- En *Más → Mi perfil* ponen su **salón** (y lo cambian cuando quieran) y ven sus **grupos** (9-B, 10-A…), que asigna la dirección. En *Más → Calendario escolar* ven el horario y los días sin clases.
 - **Modifican o cancelan** su propia ausencia mientras no haya pasado. Al cancelar eligen el motivo; si la fecha o la hora estaban mal, la app los lleva a corregirla. Cada cambio queda en el **historial** de la ausencia, y si cambia la fecha u hora de una ausencia ya recibida, la dirección debe confirmarla de nuevo.
 
 **Alertas** (pestaña *Alertas*, para todo el personal)
@@ -37,7 +42,7 @@ Funciona con servicios gratuitos:
 - **Avisos urgentes**: suenan y vibran con la app abierta (pantalla de alarma) y, con la app cerrada, la notificación vibra largo y se queda en pantalla (Android). Si nadie la abre, se repite cada minuto por 15 minutos o hasta que alguien se encargue. Una app web no puede sonar con el teléfono en silencio; para eso será la app de las tiendas, al final.
 
 **Turnos** (pestaña *Turnos*: Enfermería, Trabajo Social y otros servicios)
-- **Pedir turno**: el maestro elige el servicio (ve si hay alguien disponible y cuántos hay en fila), el estudiante, **qué tan grave es** (Baja, Media, Alta o Urgente), el **motivo** (de una lista del servicio) y una nota. El motivo y la nota solo los ven ese maestro y el servicio; los otros maestros del grupo ven cómo va el turno, no por qué.
+- **Pedir turno**: el maestro toca el servicio en *Turnos* (ve si hay alguien disponible y cuántos hay en fila) y el formulario ya viene con ese servicio, sin volver a preguntarlo (*Cambiar de servicio* si se equivocó); luego el estudiante, **qué tan grave es** (Baja, Media, Alta o Urgente), el **motivo** (de una lista del servicio) y una nota. El motivo y la nota solo los ven ese maestro y el servicio; los otros maestros del grupo ven cómo va el turno, no por qué.
 - **La fila** del servicio va por gravedad y, dentro de cada nivel, por orden de llegada; cada 30 minutos de espera un turno sube un nivel (hasta Alta) para que nadie se quede olvidado. Urgente llega con alarma. El profesional puede escoger otro turno y queda anotado.
 - **Enfermería** (el estudiante va a la oficina): la enfermera toca **«Llamar»** y al maestro le llega «Envía a Juan (9-B)» con alarma; el maestro toca **«Ya salió»**. Si no llega en 5 minutos (se cambia por servicio), se avisa a la enfermera, al maestro y a **Seguridad**, que recibe una alerta «No ha llegado». La enfermera marca **«Llegó»** y luego **«Regresa al salón»** (el maestro toca **«Llegó al salón»**), **«Lo recogieron»** o **«Referido»**. Si llega un estudiante sin turno, la enfermera lo anota con **«Llegó sin turno»**.
 - **Trabajo Social** (la profesional va al salón): **«Voy en camino»** le avisa al maestro, y luego **«Atendido»** o **«Referido»**.
@@ -53,24 +58,24 @@ Funciona con servicios gratuitos:
 - El maestro sigue sus solicitudes en *Alertas* y puede cancelarlas; Mantenimiento también, con el motivo. La dirección y la secretaría ven todas en *Más → Mantenimiento*.
 - Las fotos solo las ven quien pidió y quien puede ver la solicitud, y se borran 30 días después de cerrarse.
 
-**Salón de conferencias** (*Inicio → Salón de conferencias*; en la dirección, *Más*)
+**Salón de conferencias** (pestaña *Reservas*, para todo el personal)
 - **Reservar por horas**: para qué es, el día y de qué hora a qué hora, dentro del horario escolar. Los días marcados en el calendario escolar (*Feriado* o *Sin estudiantes*) no se pueden reservar, y la app recuerda revisarlo. Todo el personal ve para qué es, así que no se escriben datos privados.
 - **Semana y mes**: cada día muestra las reservas aprobadas, las que esperan aprobación y las **horas libres**, con un botón para reservar en ellas. En el mes, cada día dice cuántas reservas tiene y los días sin clases salen en gris.
-- **Aprobación**: la secretaría y la dirección (permiso *Calendario escolar*) aprueban o no, con el motivo si quieren. Les llega un aviso con cada pedido y en el *Panel* ven cuántos esperan. Al aprobar una, las demás pedidas para esa hora se rechazan solas. A quien no se le aprueba le llega el aviso con las horas libres de ese día.
+- **Aprobación**: la secretaría y la dirección (permiso *Calendario escolar*) aprueban o no, con el motivo si quieren. Les llega un aviso con cada pedido y en *Ausencias* ven cuántos esperan. Al aprobar una, las demás pedidas para esa hora se rechazan solas. A quien no se le aprueba le llega el aviso con las horas libres de ese día.
 - **Prioridad**: las reservas de la secretaría y la dirección se aprueban solas. Si eligen una hora que ya tiene un maestro, la app pregunta «¿Reemplazar la reserva?»; si dicen que sí, la del maestro se cancela y le llega el aviso con las horas libres. Una reserva de la secretaría o la dirección no la reemplaza nadie.
 - Quien reservó puede cancelarla; la secretaría y la dirección también, con el motivo. Dos reservas aprobadas nunca chocan.
 
 **Paneles** (cada uno con su Excel; período: este mes, mes pasado, año escolar, año escolar pasado o las fechas que elijas)
-- **En vivo** (*Panel* o *Más → En vivo*; permiso *Datos y reportes*: la dirección y Administración): lo que pasa ahora en la escuela. De Enfermería y Trabajo Social, quién atiende y su estado, y quién está en fila, en camino o en atención y desde cuándo (sin el motivo ni la nota); también las alertas «No ha llegado», las salidas de hoy, los relevos pedidos, el mantenimiento abierto y el salón de conferencias de hoy. Se actualiza solo.
+- **En vivo** (*Ausencias* o *Más → En vivo*; permiso *Datos y reportes*: la dirección y Administración): lo que pasa ahora en la escuela. De Enfermería y Trabajo Social, quién atiende y su estado, y quién está en fila, en camino o en atención y desde cuándo (sin el motivo ni la nota); también las alertas «No ha llegado», las salidas de hoy, los relevos pedidos, el mantenimiento abierto y el salón de conferencias de hoy. Se actualiza solo.
 - **Panel de cada servicio** (*Turnos → Panel y Excel*; solo quien atiende el servicio): turnos, estudiantes, espera y atención promedio, resultados, quién no llegó a tiempo y quién llegó sin turno; por motivo, día, hora, grupo y gravedad, y los estudiantes con más turnos. El Excel trae cada turno, las visitas por estudiante y por motivo, pero nunca las notas.
 - **Cerrar el año** del servicio: al terminar el año escolar, se elige el período, se descarga el Excel y se borran de la app los turnos terminados de ese período, para que el historial con nombres no pase al año siguiente.
 - **Panel de mantenimiento** (*Mantenimiento → Panel y Excel*; Mantenimiento, la dirección y la secretaría): solicitudes, resueltas, tiempo hasta «en camino» y hasta «listo»; por tipo, lugar, urgencia, día y quién las resolvió.
 - **Uso del salón** (*Salón de conferencias → Uso del salón y Excel*; la secretaría y la dirección): reservas aprobadas, horas, qué parte del horario de clases se usó, horas por persona y por día, y el estado de las reservas.
 
 **Dirección y secretaría**
-- **Panel**: quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
+- **Ausencias** (su pestaña): quién falta hoy, quién no tiene cobertura, qué falta por confirmar y lo que viene en 14 días.
 - **Marcar como recibida** (con mensaje opcional al empleado), registrar **cobertura/arreglos** y comentar.
-- Lista de todas las ausencias con búsqueda y filtros.
+- **Todas las ausencias** (*Ausencias → Ver todas*) con búsqueda y filtros.
 
 **Administración (directora)**
 - Acceso con **solo el código de escuela + contraseña de administración** (pestaña “Administración”).
@@ -90,7 +95,7 @@ Funciona con servicios gratuitos:
 **Notificaciones**
 - **Microsoft Teams**: cada ausencia nueva, modificada (con qué cambió) o cancelada (quién y por qué) se publica en el canal que elija la escuela. Las solicitudes de contraseña van al mismo canal o a otro distinto.
 - **En la app**: campana con avisos y contador.
-- **Push al teléfono**: se activan en *Perfil*. Funcionan en Android, computadoras e iPhone (iOS 16.4+ con la app añadida a la pantalla de inicio).
+- **Push al teléfono**: se activan en *Más → Mi perfil*. Funcionan en Android, computadoras e iPhone (iOS 16.4+ con la app añadida a la pantalla de inicio).
 
 **Varias escuelas:** cada una tiene su código, su personal, sus ausencias y sus archivos, separados por reglas de seguridad en la base de datos. Desde el **Panel de plataforma** (`#/platform`) se crean escuelas nuevas.
 
@@ -104,7 +109,7 @@ Permisos con los que vienen los roles (la cuenta de Administración los cambia e
 | Director(a) | Las suyas | ✅ | ✅ | ✅ (sin liberar espacio) | ✅ |
 | Administración (código + contraseña) | Las de cualquier empleado | ✅ | ✅ | ✅ | |
 
-El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. El permiso **Mantenimiento** (recibe y atiende las solicitudes de mantenimiento) viene en Mantenimiento y Administración. El permiso **Datos y reportes** también abre el tablero **En vivo**. La barra de abajo tiene **Alertas** para todos y **Turnos** (Mantenimiento tiene **Pedidos** en su lugar); en la dirección, *Turnos*, *Mantenimiento*, *Salón de conferencias*, *Personal* y *Reportar* están en *Más*, y para los demás *Reportar* es el botón grande de *Inicio*, donde también está el *Salón de conferencias*.
+El permiso **Seguridad** (recibe las alertas «No ha llegado» enviadas a Seguridad y se encarga de las salidas) viene en Seguridad, Secretaría, Director(a) y Administración. El permiso **Mantenimiento** (recibe y atiende las solicitudes de mantenimiento) viene en Mantenimiento y Administración. El permiso **Datos y reportes** también abre el tablero **En vivo**. La barra de abajo es la misma para todos: **Ausencias**, **Alertas**, **Turnos** (Mantenimiento tiene **Pedidos** en su lugar), **Reservas** y **Más**. Lo de cada rol está dentro: en *Ausencias* la dirección y la secretaría ven las de todos (y *Reportar mi ausencia*); los demás, el botón grande *Reportar ausencia*. *Personal*, *Mensajes*, *Servicios*, *Datos y reportes* y lo demás de la administración están en *Más*.
 
 ---
 
@@ -148,7 +153,7 @@ El ícono **predeterminado** (el de las escuelas sin ícono propio) está en `pu
 - **iPhone (Safari):** abre la app → **Compartir** → **Añadir a pantalla de inicio**.
 - **Android (Chrome):** abre la app → **Instalar app** (o menú ⋮ → *Instalar app*).
 
-Después, en **Perfil → Activar notificaciones**.
+Después, en **Más → Mi perfil → Activar notificaciones**.
 
 Conviene abrir primero el enlace recibido con las credenciales: así el código de escuela queda puesto. En iPhone, la app de la pantalla de inicio guarda sus datos aparte de Safari, así que puede pedir el código una vez más; después lo recuerda.
 

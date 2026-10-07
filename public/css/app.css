@@ -2958,6 +2958,32 @@ input[type='color'] {
   color: var(--muted);
 }
 
+.more-groups > .section:first-child {
+  margin-top: 0;
+}
+
+/* The first-time guide: its list sits inside the card and says everything (no "…"). */
+.view .guide {
+  margin-top: 16px;
+}
+
+.view .stack > .guide {
+  margin-top: 0;
+}
+
+.guide .list {
+  box-shadow: none;
+}
+
+.guide .item-sub,
+.guide-tasks .item-main strong {
+  white-space: normal;
+}
+
+.guide-tasks.section {
+  margin-top: 0;
+}
+
 .link-btn {
   padding: 0;
   border: 0;

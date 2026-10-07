@@ -62,7 +62,7 @@ export const ROLE_LABELS = {
 
 /** What a role can do besides reporting its own absences. */
 export const PERMISSIONS = [
-  { key: 'absences', label: 'Ver y confirmar las ausencias de todos', hint: 'Panel, lista de ausencias, marcar como recibidas, cobertura y avisos de ausencias nuevas.' },
+  { key: 'absences', label: 'Ver y confirmar las ausencias de todos', hint: 'Ausencias de hoy, lista de todas, marcar como recibidas, cobertura y avisos de ausencias nuevas.' },
   { key: 'staff', label: 'Administrar el personal', hint: 'Crear y editar empleados, contraseñas y enviar accesos por correo.' },
   { key: 'calendar', label: 'Calendario escolar', hint: 'Horario de clases, días sin clases y los grados y grupos de la escuela.' },
   { key: 'security', label: 'Seguridad', hint: 'Recibe las alertas de «No ha llegado» enviadas a Seguridad y se encarga de las salidas de estudiantes.' },
