@@ -50,6 +50,17 @@ import { permissionSummary, roleDialog } from './roles.js';
 
 const NEW_ROLE = '__new';
 
+/** Nobody can manage a role that can do things they can't (Administración can do everything). */
+const canHandle = (me, roleKey) => {
+  if (me.role === 'admin') return true;
+  const role = getSchoolRoles().find((r) => r.key === roleKey);
+  return !!role && role.permissions.every((p) => DUTIES.includes(p) || can(me, p));
+};
+
+/** Active people who have never signed in, whose access this person can renew (see Accesos para repartir). */
+export const neverSignedIn = (employees, me) =>
+  employees.filter((e) => e.active && !e.last_login_at && e.role !== 'admin' && e.id !== me.id && canHandle(me, e.role));
+
 /** Asked for a new password from the login screen in the last 3 days. */
 function recentHelp(e) {
   return !!e.password_help_at && Date.now() - new Date(e.password_help_at).getTime() < 3 * 86400000;
@@ -58,7 +69,7 @@ function recentHelp(e) {
 // ---- Credentials card ------------------------------------------------------
 
 /** The school's welcome text (Escuela y Teams → Mensaje con usuario y contraseña) filled in for one person. */
-function renderWelcome(school, employee, password) {
+export function renderWelcome(school, employee, password) {
   const vars = {
     nombre: employee.full_name,
     usuario: employee.username,
@@ -149,6 +160,12 @@ export async function employeesView({ el }) {
         : empty('users', employees.length ? 'Sin resultados' : 'Aún no hay personal', employees.length ? '' : 'Añade a tus maestros y personal para que puedan reportar ausencias.'),
     );
     $('[data-total]', el).textContent = `${employees.filter((e) => e.active).length} activos`;
+    const pending = neverSignedIn(employees, state.me.user).length;
+    $('[data-pending]', el).innerHTML = pending
+      ? String(html`<a class="card link-card room-link is-warn" href="#/employees/accesos">${icon('key')}<span>
+          <strong>${pending} ${pending === 1 ? 'persona no ha entrado' : 'personas no han entrado'}</strong>
+          <small>Crea sus accesos para imprimirlos o enviarlos por Teams</small></span>${icon('chevron', 18)}</a>`)
+      : '';
   };
 
   const load = async () => {
@@ -161,6 +178,7 @@ export async function employeesView({ el }) {
       <label class="search grow">${icon('search', 18)}<input type="search" placeholder="Buscar por nombre, puesto, salón o grupo…" data-q></label>
       <a class="btn btn-primary" href="#/employees/new">${icon('plus', 18)} Nuevo</a>
     </div>
+    <div data-pending></div>
     <div class="list-head">
       <p class="muted" data-total></p>
       <label class="switch-inline"><input type="checkbox" data-inactive> Mostrar inactivos</label>

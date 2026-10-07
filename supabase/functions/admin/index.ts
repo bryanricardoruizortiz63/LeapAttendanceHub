@@ -349,6 +349,43 @@ const actions: Record<string, (me: Me, b: Record<string, unknown>) => Promise<Re
     return json({ temp_password: password });
   },
 
+  /**
+   * A new temporary password for everyone active who hasn't signed in yet (ids: some of them), to hand
+   * out printed or by Teams when the access emails don't arrive. Only roles this person can manage.
+   */
+  async reset_never_signed_in(me, b) {
+    need(me, 'staff');
+    const only = Array.isArray(b.ids) ? new Set(b.ids.map(String)) : null;
+    const { data, error } = await db
+      .from('profiles')
+      .select('id, role, username, full_name, email')
+      .eq('school_id', me.school_id)
+      .eq('active', true)
+      .is('last_login_at', null)
+      .neq('role', 'admin')
+      .neq('id', me.id)
+      .order('full_name');
+    check(error);
+    const people = (data || []).filter((p) => canHandleRole(me, p.role) && (!only || only.has(p.id)));
+    if (people.length > 200) throw new HttpError(400, 'Son demasiadas personas a la vez. Elige menos.');
+    const results: Record<string, unknown>[] = [];
+    // A few at a time: fast enough for a whole school without hammering Auth.
+    for (let i = 0; i < people.length; i += 5) {
+      const batch = people.slice(i, i + 5);
+      results.push(...(await Promise.all(batch.map(async (p) => {
+        const password = generatePassword();
+        const { error: authError } = await db.auth.admin.updateUserById(p.id, { password });
+        if (authError) return { id: p.id, full_name: p.full_name, username: p.username, error: 'No se pudo cambiar la contraseña.' };
+        await db
+          .from('profiles')
+          .update({ must_change_password: true, password_help_at: null, updated_at: new Date().toISOString() })
+          .eq('id', p.id);
+        return { id: p.id, full_name: p.full_name, username: p.username, role: p.role, email: p.email, password };
+      }))));
+    }
+    return json({ people: results });
+  },
+
   async delete_employee(me, b) {
     need(me, 'staff');
     const employee = await loadEmployee(me, b.id);
