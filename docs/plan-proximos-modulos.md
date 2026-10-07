@@ -97,6 +97,9 @@ mismo grupo.
 - Después: el grupo del estudiante sale de los grupos asignados al maestro, y al llamarlo (o ir a buscarlo, o
   regresarlo) el aviso también les llega, sin alarma, a los otros maestros del grupo. «Está conmigo» también mientras
   Trabajo Social va en camino (le llega el salón nuevo).
+- Después: el regreso al salón tiene el mismo tiempo para llegar; si nadie toca «Llegó al salón», alarma al maestro que
+  lo envió, a los del grupo y al servicio, y alerta «No ha llegado» a Seguridad. Al maestro que lo envió le llega
+  cuando otro lo recibe. Un regreso que nadie confirmó queda como «Regreso sin confirmar».
 - El motivo y la nota solo los ven quien pidió el turno y el servicio. Los maestros ven los turnos de sus grupos
   24 horas; el servicio conserva su historial con nombre (como máximo un año) y ve las visitas anteriores de cada
   estudiante.

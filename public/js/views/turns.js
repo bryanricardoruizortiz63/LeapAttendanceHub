@@ -34,6 +34,7 @@ export const OUTCOMES = {
   attended: 'Atendido',
   cancelled: 'Cancelado',
   expired: 'Nadie lo cerró',
+  unconfirmed: 'Regreso sin confirmar',
 };
 
 const OPEN = ['waiting', 'called', 'sent', 'arrived', 'on_the_way', 'returning'];
@@ -44,14 +45,19 @@ const whoHtml = (t) => html`${t.student_name} <span class="nowrap">(${t.group_na
 const timeOf = (iso) => fmtTime(new Date(iso));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-/** Called (or on the way) and past the time to get there. */
-const isLate = (t) => ['called', 'sent'].includes(t.status) && (!!t.late_at || (!!t.due_at && Date.now() > new Date(t.due_at)));
+// With a time to get there: to the service, or back to class.
+const TIMED = ['called', 'sent', 'returning'];
+const pastDue = (t) => !!t.due_at && Date.now() > new Date(t.due_at);
+
+/** Past the time to get to the service, or back to class. */
+const isLate = (t) =>
+  (['called', 'sent'].includes(t.status) && (!!t.late_at || pastDue(t))) || (t.status === 'returning' && (!!t.return_late_at || pastDue(t)));
 
 /** The teacher who asked, has the student now, or teaches the group. */
 const teacherSide = (t, me) => t.created_by === me.id || t.teacher_id === me.id || (me.groups || []).includes(t.group_name);
 
 function statusTag(t) {
-  if (isLate(t)) return { label: `No ha llegado a ${t.service_name}`, cls: 'tag-danger' };
+  if (isLate(t)) return { label: t.status === 'returning' ? 'No ha llegado al salón' : `No ha llegado a ${t.service_name}`, cls: 'tag-danger' };
   const open = {
     waiting: { label: t.position ? `En fila · turno ${t.position}` : 'En fila', cls: '' },
     called: { label: 'Lo llamaron', cls: 'tag-warn' },
@@ -62,6 +68,7 @@ function statusTag(t) {
   }[t.status];
   if (open) return open;
   if (t.status === 'cancelled') return { label: 'Cancelado', cls: '' };
+  if (t.outcome === 'unconfirmed') return { label: OUTCOMES.unconfirmed, cls: 'tag-warn' };
   return { label: OUTCOMES[t.outcome] || 'Terminado', cls: t.outcome === 'expired' ? '' : 'tag-ok' };
 }
 
@@ -246,7 +253,7 @@ function queueItem(t, me, service) {
             ? html`<span class="tag">${icon('clock', 14)} ${timeAgo(t.created_at)}</span>
                 ${t.level > t.severity ? html`<span class="tag">Sube por la espera</span>` : ''}`
             : html`<span class="tag ${s.cls}">${s.label}</span>`}
-          ${['called', 'sent'].includes(t.status) && t.due_at ? html`<span class="tag" data-due="${t.due_at}">${countdown(t.due_at)}</span>` : ''}
+          ${TIMED.includes(t.status) && t.due_at ? html`<span class="tag" data-due="${t.due_at}">${countdown(t.due_at)}</span>` : ''}
         </span>
       </span>
     </a>
@@ -268,7 +275,7 @@ function studentTurnItem(t, me) {
           .filter(Boolean)
           .join(' · ')}</span>
         <span class="item-tags"><span class="tag ${s.cls}">${s.label}</span>
-          ${['called', 'sent'].includes(t.status) && t.due_at ? html`<span class="tag" data-due="${t.due_at}">${countdown(t.due_at)}</span>` : ''}</span>
+          ${TIMED.includes(t.status) && t.due_at ? html`<span class="tag" data-due="${t.due_at}">${countdown(t.due_at)}</span>` : ''}</span>
       </span>
     </a>
     ${next ? actionButton(next, 'sm') : ''}
@@ -548,7 +555,7 @@ function steps(t) {
 function teacherHint(t) {
   if (t.status === 'waiting') return 'Te avisamos cuando lo llamen. Si cambia de salón, a los otros maestros de su grupo también les llega el aviso.';
   if (t.status === 'called') return 'Envíalo y toca «Ya salió». Si no llega a tiempo, se avisa a Seguridad.';
-  if (t.status === 'returning') return 'Toca «Llegó al salón» cuando llegue.';
+  if (t.status === 'returning') return 'Toca «Llegó al salón» cuando llegue. Si no llega a tiempo, se avisa a Seguridad.';
   return '';
 }
 
@@ -567,7 +574,7 @@ export async function turnDetailView(ctx) {
     const late = isLate(t);
     const s = statusTag(t);
     const actions = turnActions(t, service, me);
-    const timed = ['called', 'sent'].includes(t.status) && t.due_at;
+    const timed = TIMED.includes(t.status) && t.due_at;
     const hint = service.serves ? '' : teacherHint(t);
     el.innerHTML = String(html`
       <div class="stack" data-turn="${t.id}">
