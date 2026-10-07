@@ -493,7 +493,7 @@ export async function newBookingView({ el, query }) {
       if (en <= s) throw new Error('La hora de fin debe ser después de la de inicio.');
       if (toMin(en) - toMin(s) < 15) throw new Error('Reserva al menos 15 minutos.');
       if (s < cal.day_start || en > cal.day_end) {
-        throw new Error(`Elige una hora dentro del horario escolar: de ${fmtTime(cal.day_start)} a ${fmtTime(cal.day_end)}.`);
+        throw new Error(`Elige una hora dentro del horario escolar: de ${fmtTime(cal.day_start)} a ${fmtTime(cal.day_end)}`);
       }
       if (d === today && toMin(s) < nowMin() - 5) throw new Error('Esa hora ya pasó.');
 

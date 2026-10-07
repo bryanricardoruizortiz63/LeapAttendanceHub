@@ -1,6 +1,6 @@
 // All data access for the app: Supabase Auth, database (RLS + RPC functions), Storage and Edge Functions.
 import { MAX_UPLOAD_MB, SUPABASE_KEY, SUPABASE_URL } from './config.js';
-import { CATEGORIES, STATUS, addDays, roleLabel, roleNeedsCoverage, setSchoolRoles, todayStr, weekdays } from './lib.js';
+import { CATEGORIES, STATUS, addDays, roleLabel, roleNeedsCoverage, scheduleText, setSchoolRoles, todayStr, weekdays } from './lib.js';
 import { buildXlsx, xDate, xDateTime } from './xlsx.js';
 import { zip } from './zip.js';
 
@@ -804,11 +804,7 @@ const ABSENCE_COLUMNS = [
   { header: 'Motivo de cancelación', width: 30, wrap: true },
 ];
 
-function scheduleLabel(a) {
-  if (!a.partial) return 'Día completo';
-  const t = (v) => (v ? v.slice(0, 5) : '');
-  return a.end_time ? `${t(a.start_time)} – ${t(a.end_time)}` : `Desde ${t(a.start_time)}`;
-}
+const scheduleLabel = (a) => scheduleText(a).replace(/\u00a0/g, ' ');
 
 function absenceRow(a, cancelReasons = new Map()) {
   return [
