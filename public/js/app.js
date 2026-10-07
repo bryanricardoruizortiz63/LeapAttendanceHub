@@ -22,6 +22,7 @@ import {
 } from './views/alerts.js';
 import { newTurnView, serviceFormView, servicesView, turnDetailView, turnsView } from './views/turns.js';
 import { maintenanceDetailView, maintenanceView, newMaintenanceView } from './views/maintenance.js';
+import { bookingDetailView, newBookingView, roomsView } from './views/rooms.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { platformView } from './views/platform.js';
 import { composeView, messageView, messagesView } from './views/messages.js';
@@ -62,6 +63,9 @@ const ROUTES = [
   { re: /^\/maintenance$/, view: maintenanceView, title: 'Mantenimiento' },
   { re: /^\/maintenance\/new$/, view: newMaintenanceView, title: 'Pedir mantenimiento', back: true },
   { re: /^\/maintenance\/(\d+)$/, view: maintenanceDetailView, title: 'Mantenimiento', back: true },
+  { re: /^\/rooms$/, view: roomsView, title: 'Salón de conferencias', back: true },
+  { re: /^\/rooms\/new$/, view: newBookingView, title: 'Reservar el salón', back: true },
+  { re: /^\/rooms\/(\d+)$/, view: bookingDetailView, title: 'Reserva del salón', back: true },
   { re: /^\/data$/, view: dataView, title: 'Datos y reportes', allow: may('reports'), back: true },
   { re: /^\/messages$/, view: messagesView, title: 'Mensajes', allow: may('messages') },
   { re: /^\/messages\/new$/, view: composeView, title: 'Nuevo mensaje', allow: may('messages'), back: true },

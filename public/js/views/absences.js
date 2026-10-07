@@ -30,6 +30,7 @@ import {
   listClosures,
   listEmployees,
   myAbsences,
+  myBookings,
   receiveAbsence,
   setCoverage,
   updateAbsence,
@@ -39,14 +40,19 @@ import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { absenceList, avatar, empty, installHint, statusBadge } from './common.js';
 import { closureNote } from './calendar.js';
+import { roomLink } from './rooms.js';
 
 const ACCEPT = 'image/*,application/pdf,.pdf,.heic,.heif,.doc,.docx';
 
 // ---- Mis ausencias --------------------------------------------------------
 
 export async function homeView({ el }) {
-  const absences = await myAbsences(state.me.user.id);
   const today = todayStr();
+  const [absences, bookings] = await Promise.all([
+    myAbsences(state.me.user.id),
+    // Only for "you have N reservations"; Inicio works without it.
+    myBookings(state.me.user.id, today).catch(() => []),
+  ]);
   const current = absences
     .filter((a) => a.status !== 'cancelled' && a.end_date >= today)
     .sort((a, b) => a.start_date.localeCompare(b.start_date));
@@ -63,6 +69,7 @@ export async function homeView({ el }) {
       <a href="#/report" class="btn btn-light btn-lg btn-block">${icon('plus')} Reportar ausencia</a>
     </section>
     <div data-install-slot></div>
+    ${roomLink(bookings)}
     <section class="section">
       <h3 class="section-title">Hoy y próximas</h3>
       ${current.length

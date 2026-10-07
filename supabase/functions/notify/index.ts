@@ -209,8 +209,9 @@ async function cleanMaintenance(): Promise<number> {
 }
 
 /**
- * Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days, notifications 180 days, messages
- * and the services' turns (Enfermería, Trabajo Social) a year; see cleanMaintenance for Mantenimiento.
+ * Daily (pg_cron): cancelled absences are kept 15 days, delivery logs 30 days, notifications 180 days, messages,
+ * the services' turns (Enfermería, Trabajo Social) and the conference room reservations a year; see
+ * cleanMaintenance for Mantenimiento.
  */
 async function maintenance(jobId: number): Promise<string> {
   const { data: old, error } = await db
@@ -225,6 +226,7 @@ async function maintenance(jobId: number): Promise<string> {
   await db.from('notifications').delete().lt('created_at', new Date(Date.now() - 180 * DAY).toISOString());
   await db.from('messages').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
   await db.from('service_requests').delete().lt('created_at', new Date(Date.now() - 365 * DAY).toISOString());
+  await db.from('room_bookings').delete().lt('day', new Date(Date.now() - 365 * DAY).toISOString().slice(0, 10));
   const photos = await cleanMaintenance();
   return `maintenance: ${removed.absences} canceladas borradas, ${removed.files} archivos, ${photos} fotos de mantenimiento`;
 }

@@ -9,7 +9,7 @@ export function navItems(user) {
   const maintenance = { path: '/maintenance', icon: 'wrench', label: 'Pedidos', match: ['/maintenance'] };
   const notices = { path: '/notifications', icon: 'bell', label: 'Avisos', badge: true, match: ['/notifications', '/message/'] };
   // Reportar is the big button on Inicio.
-  const home = { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence', '/report'] };
+  const home = { path: '/home', icon: 'home', label: 'Inicio', match: ['/home', '/absence', '/report', '/rooms'] };
   if (!anyManager(user)) {
     // Mantenimiento has its queue where the others have Turnos; the rest ask for maintenance from Alertas.
     const fixes = can(user, 'maintenance');
@@ -27,7 +27,7 @@ export function navItems(user) {
     : [{ ...home, match: ['/home', '/absence'] }, alerts, turns];
   const moreMatch = [
     '/more', '/employees', '/settings', '/roles', '/calendar', '/services', '/data', '/messages', '/profile', '/home', '/report',
-    '/turns', '/maintenance',
+    '/turns', '/maintenance', '/rooms',
   ].filter((p) => !items.some((i) => i.path === p));
   items.push(notices, { path: '/more', icon: 'menu', label: 'Más', match: moreMatch });
   return items;
