@@ -7,7 +7,7 @@ import { navItems } from './nav.js';
 import { showAlarm, unlockAudio } from './alarm.js';
 import { adoptSchoolFromUrl, changePasswordView, loginView, rememberSchool } from './views/auth.js';
 import { appIcon, applyBranding, restoreBranding } from './branding.js';
-import { absenceView, editAbsenceView, homeView, reportView } from './views/absences.js';
+import { absenceView, coverView, editAbsenceView, homeView, reportView } from './views/absences.js';
 import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
 import { accessCardsView } from './views/access.js';
@@ -44,6 +44,7 @@ const ROUTES = [
   { re: /^\/report$/, view: reportView, title: 'Reportar ausencia', back: true },
   { re: /^\/absence\/(\d+)$/, view: absenceView, title: 'Ausencia', back: true },
   { re: /^\/absence\/(\d+)\/edit$/, view: editAbsenceView, title: 'Modificar ausencia', back: true },
+  { re: /^\/cover\/(\d+)$/, view: coverView, title: 'Cobertura', back: true },
   { re: /^\/dashboard$/, view: dashboardView, title: 'Ausencias', allow: STAFF },
   { re: /^\/absences$/, view: absencesListView, title: 'Todas las ausencias', allow: STAFF, back: true },
   { re: /^\/employees$/, view: employeesView, title: 'Personal', allow: may('staff') },

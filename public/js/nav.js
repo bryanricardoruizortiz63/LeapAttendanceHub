@@ -10,8 +10,8 @@ export const fixesOnly = (u) => can(u, 'maintenance') && !anyManager(u);
 export function navItems(user) {
   // Their own absences, or everyone's for whoever confirms them (with theirs one tap away).
   const absences = isStaff(user)
-    ? { path: '/dashboard', icon: 'calendar', label: 'Ausencias', match: ['/dashboard', '/absences', '/absence', '/report'] }
-    : { path: '/home', icon: 'calendar', label: 'Ausencias', match: ['/home', '/absence', '/report'] };
+    ? { path: '/dashboard', icon: 'calendar', label: 'Ausencias', match: ['/dashboard', '/absences', '/absence', '/report', '/cover'] }
+    : { path: '/home', icon: 'calendar', label: 'Ausencias', match: ['/home', '/absence', '/report', '/cover'] };
   const fixes = fixesOnly(user);
   // The rest ask for maintenance from Alertas.
   const alerts = { path: '/alerts', icon: 'alert', label: 'Alertas', match: fixes ? ['/alerts'] : ['/alerts', '/maintenance'] };

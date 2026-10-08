@@ -1,9 +1,10 @@
-import { dashboard, exportAbsencesXlsx, listEmployees, pendingBookings, schoolAbsences } from '../backend.js';
+import { dashboard, exportAbsencesXlsx, listEmployees, myCoverages, pendingBookings, schoolAbsences } from '../backend.js';
 import { $, addDays, busy, can, fmtLongDate, html, todayStr } from '../lib.js';
 import { icon } from '../icons.js';
 import { state } from '../store.js';
 import { absenceList, empty, installHint } from './common.js';
 import { approvesBookings, waitingCard } from './rooms.js';
+import { coveringSection } from './absences.js';
 import { guideHint } from './guide.js';
 
 export async function dashboardView({ el, onLeave, isCurrent }) {
@@ -11,9 +12,10 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
   const firstName = me.role === 'admin' ? '' : `, ${me.full_name.replace(/^(dra?|sra?|lcda?)\.?\s+/i, '').split(' ')[0]}`;
 
   const load = async () => {
-    const [d, bookings] = await Promise.all([
+    const [d, bookings, covering] = await Promise.all([
       dashboard(todayStr()),
       approvesBookings(me) ? pendingBookings(todayStr()).catch(() => []) : [],
+      myCoverages(todayStr()).catch(() => []),
     ]);
     if (!isCurrent()) return;
     const c = d.counts;
@@ -31,6 +33,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
       <div data-guide-slot></div>
       <div data-install-slot></div>
       ${waitingCard(bookings)}
+      ${coveringSection(covering)}
 
       <section class="section" id="today">
         <h3 class="section-title">Ausentes hoy</h3>

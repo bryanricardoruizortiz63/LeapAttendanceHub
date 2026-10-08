@@ -321,7 +321,24 @@ export async function deleteAttachment(id) {
 }
 
 export const receiveAbsence = (id, comment) => rpc('receive_absence', { p_id: id, p_comment: comment || null });
-export const setCoverage = (id, substitute) => rpc('set_coverage', { p_id: id, p_substitute: substitute || null });
+/**
+ * Who covers: substituteId for someone of the staff (they get a notice with the groups, the room and the
+ * instructions), or only a name for someone from outside. Neither removes the coverage.
+ */
+export const setCoverage = (id, { substitute = '', substituteId = null, groups = [], room = '' } = {}) =>
+  rpc('set_coverage', {
+    p_id: id,
+    p_substitute: substitute || null,
+    p_substitute_id: substituteId || null,
+    p_groups: groups,
+    p_room: room || null,
+  });
+
+/** What I cover (Vas a cubrir): from a day on. No type or reason of the absence. */
+export const myCoverages = (from) => rpc('my_coverages', { p_from: from });
+
+/** One of my coverages, also a cancelled one; null if it's no longer mine. */
+export const getCoverage = async (id) => (await rpc('my_coverages', { p_id: id }))?.[0] || null;
 export const addComment = (id, body) => rpc('add_comment', { p_id: id, p_body: body });
 /** reason: 'no_absence' | 'error' | 'other' (note required for 'other'). */
 export const cancelAbsence = (id, reason, note) =>
