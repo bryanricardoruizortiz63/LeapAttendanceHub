@@ -174,8 +174,9 @@ public/                   La app (sin paso de compilación)
   js/backend.js           Todo el acceso a datos (Auth, base de datos, Storage, funciones)
   js/views/               Pantallas
   js/boot.js              Antes de la app: si no arranca, ofrece «Actualizar» en lugar de una pantalla en blanco
-  sw.js                   Service worker (offline + notificaciones push)
+  sw.js                   Service worker (la app instalada en el teléfono, offline y notificaciones push)
   vendor/supabase.js      Cliente oficial de Supabase (supabase-js, MIT)
+scripts/sw-version.mjs    Pone en sw.js la versión de la app (npm run sw-version)
 supabase/
   migrations/             Tablas, reglas de seguridad (RLS) y funciones SQL
   functions/notify/       Envía push y mensajes de Teams (lo llama la base de datos)
@@ -188,7 +189,7 @@ index.html                Redirige de la raíz del sitio a public/ (conservando 
 
 **Inicio de sesión:** Supabase Auth usa correo, así que cada cuenta recibe un correo interno calculado a partir de *código de escuela + usuario* (por ejemplo `u3f9…@users.leap-hub.local`). Nadie tiene que saberlo ni se envían correos. Al cambiar el código, la función `admin` recalcula ese correo interno para todas las cuentas de la escuela (todo o nada) y guarda el código anterior en `school_code_history`: si alguien entra con el código viejo, la app pregunta el actual (`current_school_code`) y vuelve a intentar.
 
-**Actualizaciones:** GitHub Pages deja que el navegador guarde cada archivo 10 minutos, y justo después de publicar la app instalada podía mezclar archivos de las dos versiones y quedarse en blanco. El service worker pide siempre cada archivo al servidor (`cache: 'no-cache'`: si no cambió, la respuesta es un rápido «sin cambios»), le quita a la respuesta el permiso de guardarse esos 10 minutos y, al instalarse, descarga la app completa sin usar copias viejas; sin conexión, abre la última versión guardada. Si aun así la app no arranca, `js/boot.js` muestra «No se pudo abrir Hallway» con **«Actualizar»**, que vuelve a descargar del servidor todo lo que pidió la página y la reabre.
+**Actualizaciones:** la app se abre desde la copia instalada en el teléfono, sin esperar a la red: antes pedía al servidor cada uno de sus archivos al abrir y, en un iPhone con la red lenta, tardaba hasta unos 20 segundos. El service worker descarga la app completa al instalarse (directo del servidor, sin copias viejas) y nunca mezcla archivos de dos versiones. Cada vez que se abre la app, el navegador compara `sw.js` con el del servidor: si hay versión nueva, se descarga en segundo plano y se usa desde la siguiente vez; si la app estaba abierta, se recarga al quedar fuera de la vista, salvo que haya algo a medio escribir. `VERSION` en `sw.js` es una huella de todos los archivos de la app: **después de cambiar cualquier archivo de `public/` ejecuta `npm run sw-version`** (las comprobaciones de GitHub fallan si se olvida; también avisan si falta en `SHELL` algún archivo que la app carga). Si aun así la app no arranca, `js/boot.js` muestra «No se pudo abrir Hallway» con **«Actualizar»**, que borra las copias, vuelve a descargar del servidor todo lo que pidió la página y la reabre. Para revisar cuánto tarda en abrir, la primera petición (`rpc/me`) lleva en `X-Client-Info` los milisegundos hasta que llegó la página (`page`) y hasta que cargó la app (`start`), si la sirvió el service worker (`sw`) y si se abrió como app instalada (`app`); se ve en los registros de Supabase.
 
 **Ícono por escuela:** se guarda en el bucket público `branding/{id de la escuela}/` y `schools.icon_version` indica cuál usar (vacío = el predeterminado). La app lo aplica a los logos, la pestaña del navegador, el ícono de iPhone y el manifiesto de instalación, y lo recuerda en el teléfono.
 

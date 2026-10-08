@@ -5,6 +5,7 @@
   "description": "Hallway: PWA para que el personal escolar reporte ausencias. Pantallas en GitHub Pages y datos en Supabase.",
   "scripts": {
     "dev": "npx --yes serve public -l 3000",
+    "sw-version": "node scripts/sw-version.mjs",
     "check:functions": "cd supabase/functions && npx --yes deno check */index.ts",
     "test:functions": "cd supabase/functions && npx --yes deno test"
   }

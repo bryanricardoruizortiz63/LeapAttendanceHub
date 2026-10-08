@@ -96,11 +96,26 @@ export async function authEmail(code, username) {
   return `u${hex}@users.leap-hub.local`;
 }
 
+// How long this device took to open the app, sent once with the first request (it shows in Supabase's request log):
+// milliseconds until the page arrived and until every file of the app loaded, whether the service worker served it,
+// and whether it was opened as an installed app.
+let startSent = false;
+function startInfo() {
+  if (startSent) return null;
+  startSent = true;
+  const nav = window.performance.getEntriesByType?.('navigation')?.[0];
+  const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const ms = (n) => Math.round(n || 0);
+  const sw = navigator.serviceWorker?.controller ? 1 : 0;
+  return `hallway-web page=${ms(nav?.responseEnd)} start=${ms(window.performance.now())} sw=${sw} app=${installed ? 1 : 0}`;
+}
+
 export async function getMe() {
+  const info = startInfo();
   const { data } = await sb.auth.getSession();
   if (!data.session) return null;
   try {
-    const me = await rpc('me');
+    const me = await run(info ? sb.rpc('me').setHeader('X-Client-Info', info) : sb.rpc('me'));
     setSchoolRoles(me?.roles);
     return me;
   } catch (err) {

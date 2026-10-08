@@ -14,12 +14,14 @@ export function initPwa() {
     deferredInstall = null;
   });
   if ('serviceWorker' in navigator) {
+    // sw.js always from the server: it says whether there is a new version of the app.
     navigator.serviceWorker
-      .register('./sw.js')
+      .register('./sw.js', { updateViaCache: 'none' })
       .then((reg) => {
         swRegistration = reg;
       })
       .catch((err) => console.warn('No se pudo registrar el service worker', err));
+    keepUpToDate();
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'navigate' && e.data.url) {
         const hash = new URL(e.data.url, location.href).hash;
@@ -30,6 +32,39 @@ export function initPwa() {
       }
     });
   }
+}
+
+// Something typed or chosen on screen that hasn't been saved.
+const editing = () =>
+  [...document.querySelectorAll('input, textarea, select')].some((el) => {
+    if (el.type === 'checkbox' || el.type === 'radio') return el.checked !== el.defaultChecked;
+    if (el.tagName === 'SELECT') {
+      const initial = [...el.options].findIndex((o) => o.defaultSelected);
+      return el.selectedIndex !== Math.max(initial, 0);
+    }
+    return el.value !== el.defaultValue;
+  });
+
+// The app opens from the copy installed on the phone (sw.js). An app left open (on an iPhone it usually just goes to
+// the background) also looks for a new version when it comes back; once installed, the app reloads while it's out of
+// sight, unless something is half written.
+function keepUpToDate() {
+  let updated = false;
+  let checked = Date.now();
+  // The first service worker ever doesn't bring a new version: the page already is the one it installed.
+  let controlled = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    updated = controlled;
+    controlled = true;
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (updated && !editing()) location.reload();
+    } else if (swRegistration && Date.now() - checked > 60000) {
+      checked = Date.now();
+      swRegistration.update().catch(() => {});
+    }
+  });
 }
 
 export const isIos = () =>
