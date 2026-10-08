@@ -33,3 +33,5 @@ jobs:
           node-version: 22
       - name: Verificar que todos los módulos cargan
         run: npx --yes esbuild@0.25 public/js/app.js --bundle --format=esm --outfile=/tmp/bundle.js
+      - name: Verificar la versión de la app en el service worker
+        run: node scripts/sw-version.mjs --check

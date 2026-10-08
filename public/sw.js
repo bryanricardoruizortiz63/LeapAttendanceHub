@@ -1,8 +1,9 @@
 // Hallway service worker: offline app shell + push notifications.
 // Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
-const VERSION = 'lah-v24';
+// VERSION is a fingerprint of every file in SHELL, written by `npm run sw-version` (CI checks it is up to date): any
+// change to the app changes this file, so phones download the new version.
+const VERSION = 'lah-f7feecf864ab';
 const SHELL = [
-  './',
   'index.html',
   'manifest.webmanifest',
   'css/app.css',
@@ -46,22 +47,42 @@ const SHELL = [
 ];
 const scoped = (path) => new URL(path, self.registration.scope).href;
 
+// The page keeps no file on its own (GitHub Pages lets it keep each one 10 minutes): it always asks this service
+// worker, so after an update it never mixes files of two versions.
+function noCopy(response, body) {
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'no-cache');
+  return new Response(body, { status: response.status, statusText: response.statusText, headers });
+}
+
+// Same fingerprint as scripts/sw-version.mjs: SHA-256 of each file's path and content, in path order.
+async function fingerprint(files) {
+  const parts = files
+    .sort((a, b) => (a.path < b.path ? -1 : 1))
+    .flatMap(({ path, body }) => [new TextEncoder().encode(`${path}\0`), body]);
+  const digest = await crypto.subtle.digest('SHA-256', await new Blob(parts).arrayBuffer());
+  return `lah-${[...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 12)}`;
+}
+
+// The whole app at once, straight from the server (the copies the browser keeps may be of the previous version). It
+// installs only if every file is exactly the one of this version: right after publishing, the server may still hand
+// out an old file for a moment. Until then the version already on the phone keeps working (it retries on the next
+// opening).
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(VERSION)
-      // Straight from the server: the copies the browser keeps may be of the previous version.
-      .then((cache) =>
-        Promise.all(
-          SHELL.map((path) =>
-            fetch(scoped(path), { cache: 'reload' }).then((response) => {
-              if (!response.ok) throw new Error(`${path}: ${response.status}`);
-              return cache.put(scoped(path), response);
-            }),
-          ),
-        ),
-      )
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const files = await Promise.all(
+        SHELL.map(async (path) => {
+          const response = await fetch(scoped(path), { cache: 'reload' });
+          if (!response.ok) throw new Error(`${path}: ${response.status}`);
+          return { path, response, body: await response.arrayBuffer() };
+        }),
+      );
+      if ((await fingerprint(files)) !== VERSION) throw new Error('Archivos de otra versión: se intentará más tarde');
+      const cache = await caches.open(VERSION);
+      await Promise.all(files.map(({ path, response, body }) => cache.put(scoped(path), noCopy(response, body))));
+      await self.skipWaiting();
+    })(),
   );
 });
 
@@ -74,40 +95,51 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Network first (so updates arrive right away), cache as fallback when offline.
-// Only the app's own files are handled; Supabase requests always go to the network.
-// Always asked to the server ("no-cache": a quick "not modified" when nothing changed). GitHub Pages lets the browser
-// keep each file 10 minutes; right after an update the app could mix files of both versions and not start.
+// The app opens from the copy installed on the phone, without waiting for the network: on an iPhone the first
+// connection after opening the app can take many seconds. Each time the app opens the browser compares sw.js with
+// the server; when the app changed, the new version downloads in the background and is used from then on (pwa.js).
+// Other files of the site: network first, the saved copy when offline. Supabase requests always go to the network.
+function shellKey(request) {
+  const url = new URL(request.url);
+  url.hash = '';
+  // The app's page, whatever its ?query (e.g. ?source=pwa from the home screen icon).
+  if (request.mode === 'navigate') {
+    url.search = '';
+    return url.href === self.registration.scope || url.href === scoped('index.html') ? scoped('index.html') : null;
+  }
+  return SHELL.some((path) => scoped(path) === url.href) ? url.href : null;
+}
+
+// Always asked to the server ("no-cache": a quick "not modified" when nothing changed).
 const fresh = (request) =>
   request.mode === 'navigate'
     ? fetch(request.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'manual' })
     : fetch(request, { cache: request.cache === 'reload' ? 'reload' : 'no-cache' });
 
-// Nor may the page keep a file on its own for those 10 minutes: the next time, it asks this service worker again.
-function askAgain(response) {
-  if (!response || !response.ok || response.type !== 'basic') return response;
-  const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'no-cache');
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+// A file of the app that wasn't on the phone (e.g. after «Actualizar» in boot.js) is saved for the next time.
+async function fromNetwork(request, key) {
+  try {
+    const response = await fresh(request);
+    if (!response.ok || response.type !== 'basic') return response;
+    const copy = noCopy(response, await response.blob());
+    const saved = copy.clone();
+    caches.open(VERSION).then((cache) => cache.put(key || request, saved));
+    return copy;
+  } catch {
+    const cached = await caches.match(request, { ignoreSearch: request.mode === 'navigate' });
+    if (cached) return cached;
+    return (request.mode === 'navigate' && (await caches.match(scoped('index.html')))) || Response.error();
+  }
 }
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || !request.url.startsWith(self.registration.scope)) return;
-  event.respondWith(
-    fresh(request)
-      .then((response) => {
-        if (response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(VERSION).then((cache) => cache.put(request, copy));
-        }
-        return askAgain(response);
-      })
-      .catch(async () => {
-        const cached = await caches.match(request, { ignoreSearch: request.mode === 'navigate' });
-        return askAgain(cached || (request.mode === 'navigate' ? await caches.match(scoped('index.html')) : Response.error()));
-      }),
-  );
+  const key = shellKey(request);
+  // «Actualizar» (boot.js) asks for every file again with cache: 'reload'.
+  const installed =
+    key && request.cache !== 'reload' ? caches.open(VERSION).then((cache) => cache.match(key)) : Promise.resolve(null);
+  event.respondWith(installed.then((response) => response || fromNetwork(request, key)));
 });
 
 self.addEventListener('push', (event) => {
