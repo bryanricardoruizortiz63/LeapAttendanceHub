@@ -321,7 +321,24 @@ export async function deleteAttachment(id) {
 }
 
 export const receiveAbsence = (id, comment) => rpc('receive_absence', { p_id: id, p_comment: comment || null });
-export const setCoverage = (id, substitute) => rpc('set_coverage', { p_id: id, p_substitute: substitute || null });
+/**
+ * Who covers: substituteId for someone of the staff (they get a notice with the groups, the room and the
+ * instructions), or only a name for someone from outside. Neither removes the coverage.
+ */
+export const setCoverage = (id, { substitute = '', substituteId = null, groups = [], room = '' } = {}) =>
+  rpc('set_coverage', {
+    p_id: id,
+    p_substitute: substitute || null,
+    p_substitute_id: substituteId || null,
+    p_groups: groups,
+    p_room: room || null,
+  });
+
+/** What I cover (Vas a cubrir): from a day on. No type or reason of the absence. */
+export const myCoverages = (from) => rpc('my_coverages', { p_from: from });
+
+/** One of my coverages, also a cancelled one; null if it's no longer mine. */
+export const getCoverage = async (id) => (await rpc('my_coverages', { p_id: id }))?.[0] || null;
 export const addComment = (id, body) => rpc('add_comment', { p_id: id, p_body: body });
 /** reason: 'no_absence' | 'error' | 'other' (note required for 'other'). */
 export const cancelAbsence = (id, reason, note) =>
@@ -723,11 +740,26 @@ export const myBookings = (userId, from) =>
 export const pendingBookings = (from) =>
   run(sb.from('room_bookings').select('*').eq('status', 'pending').gte('day', from).order('day').order('start_time').limit(200));
 
+/**
+ * History: reservations asked, approved, rejected, cancelled or replaced since a date (all of them without one),
+ * newest first. userId: only that person's (whoever doesn't approve sees only their own).
+ */
+export const bookingHistory = ({ since = null, userId = null } = {}) => {
+  let q = sb.from('room_bookings').select('*');
+  if (since) q = q.or(`created_at.gte.${since},approved_at.gte.${since},closed_at.gte.${since}`);
+  if (userId) q = q.eq('created_by', userId);
+  return run(q.order('id', { ascending: false }).limit(1000));
+};
+
 export const getBooking = (id) => one('room_bookings', id, 'No se encontró la reserva.');
 
-/** Secretaría and the dirección need replace: true to take a time someone else has. */
-export const createBooking = ({ day, start, end, purpose, replace = false }) =>
-  rpc('create_room_booking', { p_day: day, p_start: start, p_end: end, p_purpose: purpose, p_replace: replace });
+/** Secretaría and the dirección need replace: true to take a time someone else has. note: for whoever approves. */
+export const createBooking = ({ day, start, end, purpose, replace = false, note = '' }) =>
+  rpc('create_room_booking', { p_day: day, p_start: start, p_end: end, p_purpose: purpose, p_replace: replace, p_note: note || null });
+
+/** The reservation's notes (only whoever asked and Secretaría / the dirección see them). */
+export const bookingNotes = (id) => run(sb.from('room_booking_notes').select('*').eq('booking_id', id).order('id'));
+export const addBookingNote = (id, body) => rpc('add_room_booking_note', { p_id: id, p_body: body });
 
 export const decideBooking = (id, approve, note) => rpc('decide_room_booking', { p_id: id, p_approve: approve, p_note: note || null });
 export const cancelBooking = (id, note) => rpc('cancel_room_booking', { p_id: id, p_note: note || null });

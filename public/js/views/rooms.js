@@ -2,6 +2,9 @@
 // "calendar") approve. Their own reservations are approved at once and can replace someone else's (the app
 // asks first). Days marked in the school calendar can't be reserved.
 import {
+  addBookingNote,
+  bookingHistory,
+  bookingNotes,
   cancelBooking,
   createBooking,
   decideBooking,
@@ -27,6 +30,7 @@ import {
   fmtTime,
   html,
   isoWeekday,
+  roleLabel,
   schoolCalendar,
   timeAgo,
   toast,
@@ -34,6 +38,7 @@ import {
 } from '../lib.js';
 import { icon } from '../icons.js';
 import { go, state } from '../store.js';
+import { empty } from './common.js';
 import { fact, keepFresh } from './students.js';
 
 /** Secretaría and the dirección: they approve, and their reservations come first. */
@@ -301,6 +306,7 @@ export async function roomsView(ctx) {
         <p class="hint">${manager
           ? 'Tus reservas quedan aprobadas al momento. Si eliges una hora que ya tiene otra persona, la app te pregunta antes de reemplazarla.'
           : 'La secretaría o la dirección aprueban las reservas. Te avisamos cuando respondan.'}</p>
+        <a class="btn btn-ghost btn-block" href="#/rooms/history">${icon('list', 18)} Historial y canceladas</a>
         ${manager ? html`<a class="btn btn-ghost btn-block" href="#/rooms/panel">${icon('chart', 18)} Uso del salón y Excel</a>` : ''}
       </div>`);
 
@@ -397,6 +403,9 @@ export async function newBookingView({ el, query }) {
         </div>
         <p class="hint">Horario escolar: ${fmtTime(cal.day_start)} – ${fmtTime(cal.day_end)}, de ${daysText(cal.school_days)}.</p>
         <p class="status-note" data-clash hidden></p>
+        <label class="field"><span>${manager ? 'Nota' : 'Nota para la dirección'} <em class="optional">opcional</em></span>
+          <textarea name="note" rows="2" maxlength="1000" placeholder="Ej. Necesito el proyector y 30 sillas"></textarea></label>
+        <p class="hint">Solo la ven tú, la secretaría y la dirección. Luego pueden seguir conversando en la reserva.</p>
       </section>
       <section class="card stack" data-day-agenda></section>
       <p class="status-note muted">${icon('calendar', 16)} <span>Revisa que ese día no sea feriado ni día sin clases. Los días marcados en el
@@ -516,7 +525,7 @@ export async function newBookingView({ el, query }) {
           replace = true;
         }
       }
-      const b = await createBooking({ day: d, start: s, end: en, purpose, replace });
+      const b = await createBooking({ day: d, start: s, end: en, purpose, replace, note: field('note').value.trim() });
       toast(manager ? 'Salón reservado' : 'Reserva pedida. Te avisamos cuando respondan.', 'ok');
       go(`/rooms/${b.id}`, { replace: true });
     });
@@ -535,11 +544,17 @@ export async function bookingDetailView(ctx) {
 
   async function load() {
     const b = await getBooking(id);
-    // Secretaría sees what else is asked or reserved at that time before deciding.
-    const sameDay = manager && b.status === 'pending' ? await listBookings(b.day, b.day) : [];
-    if (!isCurrent()) return;
-    const s = statusTag(b);
     const mine = b.created_by === me.id;
+    const [sameDay, notes] = await Promise.all([
+      // Secretaría sees what else is asked or reserved at that time before deciding.
+      manager && b.status === 'pending' ? listBookings(b.day, b.day) : [],
+      // The conversation is only between whoever asked and Secretaría / the dirección.
+      mine || manager ? bookingNotes(id) : [],
+    ]);
+    if (!isCurrent()) return;
+    // What was being written survives a refresh.
+    const draft = $('[data-note-form] textarea', el)?.value || '';
+    const s = statusTag(b);
     const past = isPast(b);
     const active = isActive(b);
     const clashes = sameDay.filter((x) => x.id !== b.id && isActive(x) && overlaps(x, b.start_time, b.end_time));
@@ -555,6 +570,9 @@ export async function bookingDetailView(ctx) {
     if (!active && mine && b.day >= todayStr()) {
       buttons.push(html`<a class="btn btn-primary btn-block" href="#/rooms/new?day=${b.day}&purpose=${encodeURIComponent(b.purpose)}">${icon('plus')} Pedir otra hora</a>`);
     }
+    if (b.status === 'replaced' && b.replaced_by) {
+      buttons.push(html`<a class="btn btn-secondary btn-block" href="#/rooms/${b.replaced_by}">${icon('room', 18)} Ver la reserva que la reemplazó</a>`);
+    }
 
     el.innerHTML = String(html`
       <div class="stack">
@@ -566,9 +584,9 @@ export async function bookingDetailView(ctx) {
             ${fact('Hora', timeRange(b))}
             ${fact(b.priority ? 'Reservó' : 'Pidió', `${mine ? 'Tú' : b.created_by_name} · ${fmtDateTime(b.created_at)}`)}
             ${b.approved_at && !b.priority ? fact('Aprobó', `${b.approved_by_name} · ${fmtDateTime(b.approved_at)}`) : ''}
-            ${b.status === 'replaced' ? fact('La reemplazó', `${b.closed_by_name}, que necesitó el salón a esa hora`) : ''}
-            ${b.status === 'rejected' ? fact('No la aprobó', b.closed_by_name) : ''}
-            ${b.status === 'cancelled' ? fact('La canceló', b.closed_by_name) : ''}
+            ${b.status === 'replaced' ? fact('La reemplazó', `${b.closed_by_name}, que necesitó el salón a esa hora · ${fmtDateTime(b.closed_at)}`) : ''}
+            ${b.status === 'rejected' ? fact('No la aprobó', `${b.closed_by_name} · ${fmtDateTime(b.closed_at)}`) : ''}
+            ${b.status === 'cancelled' ? fact('La canceló', `${b.closed_by_name} · ${fmtDateTime(b.closed_at)}`) : ''}
             ${fact('Motivo', b.close_note)}
           </div>
           <ol class="timeline steps">
@@ -590,8 +608,25 @@ export async function bookingDetailView(ctx) {
           : ''}
         ${buttons}
         ${b.status === 'pending' && mine && !past ? html`<p class="hint">Te avisamos cuando la secretaría o la dirección respondan.</p>` : ''}
+        ${mine || manager ? notesSection(b, notes, me, mine) : ''}
         <a class="btn btn-ghost btn-block" href="#/rooms?day=${b.day}">${icon('calendar', 18)} Ver ese día</a>
       </div>`);
+
+    const noteForm = $('[data-note-form]', el);
+    if (noteForm) {
+      noteForm.body.value = draft;
+      noteForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const body = noteForm.body.value.trim();
+        if (!body) return;
+        busy(noteForm.querySelector('button'), async () => {
+          await addBookingNote(id, body);
+          noteForm.body.value = '';
+          await load();
+          $('[data-notes] .bubble:last-child', el)?.scrollIntoView({ block: 'center' });
+        });
+      });
+    }
 
     for (const btn of el.querySelectorAll('[data-step]')) {
       btn.addEventListener('click', () =>
@@ -624,6 +659,184 @@ export async function bookingDetailView(ctx) {
 
   await load();
   markAlertsRead(`#/rooms/${id}`).catch(() => {});
+  // Not while someone is writing a note.
+  const writing = () => {
+    const box = $('[data-note-form] textarea', el);
+    return !!box && (document.activeElement === box || !!box.value.trim());
+  };
+  keepFresh(ctx, () => (writing() ? Promise.resolve() : load()));
+}
+
+/** The notes between whoever asked and Secretaría / the dirección about that day. */
+function notesSection(b, notes, me, mine) {
+  const who = mine ? 'tú, la secretaría y la dirección' : `${b.created_by_name}, la secretaría y la dirección`;
+  return html`<section class="card stack" data-notes>
+    <h3 class="card-title">${icon('chat')} Notas ${notes.length ? html`<span class="count">${notes.length}</span>` : ''}</h3>
+    ${notes.length
+      ? html`<div class="thread">${notes.map(
+          (n) => html`<div class="bubble ${n.user_id === me.id ? 'mine' : ''}">
+            <div class="bubble-head"><strong>${n.author_name}</strong><span>${roleLabel(n.author_role)} · ${timeAgo(n.created_at)}</span></div>
+            <p class="pre">${n.body}</p>
+          </div>`,
+        )}</div>`
+      : html`<p class="muted">${mine ? 'Escríbele a la secretaría o a la dirección sobre este día.' : `Escríbele a ${b.created_by_name} sobre este día.`}</p>`}
+    <form class="comment-form" data-note-form>
+      <textarea name="body" rows="2" maxlength="1000" required
+        placeholder="${mine ? 'Escribe una nota para la dirección…' : 'Escribe una nota…'}"></textarea>
+      <button class="btn btn-primary" type="submit" aria-label="Enviar nota">${icon('send', 18)}</button>
+    </form>
+    <p class="hint">Solo la ven ${who}.</p>
+  </section>`;
+}
+
+// ---- History -------------------------------------------------------------------------------
+
+const HISTORY_FILTERS = [
+  ['all', 'Todas', 'No hay reservas en este período.'],
+  ['cancelled', 'Canceladas', 'No hay reservas canceladas en este período.'],
+  ['rejected', 'No aprobadas', 'No hay reservas sin aprobar en este período.'],
+  ['replaced', 'Reemplazadas', 'No hay reservas reemplazadas en este período.'],
+  ['approved', 'Aprobadas', 'No hay reservas aprobadas en este período.'],
+  ['pending', 'Por aprobar', 'No hay reservas esperando aprobación en este período.'],
+];
+// [key, label, days back]: the reservations are kept a year.
+const HISTORY_PERIODS = [['30', '30 días', 30], ['90', '3 meses', 90], ['year', 'Un año', null]];
+const CLOSED_BY = { cancelled: 'La canceló', rejected: 'No la aprobó', replaced: 'La reemplazó' };
+
+const localDay = (iso) => new Date(iso).toLocaleDateString('en-CA');
+const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+
+/** The last thing that happened to a reservation, and when. */
+function lastStep(b, me) {
+  if (b.closed_at) return { at: b.closed_at, text: `${CLOSED_BY[b.status] || 'La cerró'} ${b.closed_by_name}` };
+  if (b.approved_at && !b.priority) return { at: b.approved_at, text: `La aprobó ${b.approved_by_name}` };
+  if (b.created_by === me.id) return { at: b.created_at, text: b.priority ? 'La reservaste' : 'La pediste' };
+  return { at: b.created_at, text: `${b.priority ? 'La reservó' : 'La pidió'} ${b.created_by_name}` };
+}
+
+function historyItem(b, me) {
+  const s = statusTag(b);
+  const step = lastStep(b, me);
+  // Who asked, unless it's me or the last step already says it.
+  const asked = b.created_by !== me.id && step.at !== b.created_at;
+  return html`<a class="item booking-item" href="#/rooms/${b.id}">
+    <span class="item-icon ${b.status === 'approved' && !isPast(b) ? 'is-ok' : ''}">${icon('room')}</span>
+    <span class="item-main">
+      <strong>${b.purpose}</strong>
+      <span class="item-sub">${dayLabel(b.day)} · ${timeRange(b)}</span>
+      ${asked ? html`<span class="item-sub">${b.priority ? 'Reservó' : 'Pidió'} ${b.created_by_name}</span>` : ''}
+      <span class="item-sub">${step.text} · ${fmtTime(new Date(step.at))}</span>
+      ${b.close_note ? html`<span class="item-sub">«${b.close_note}»</span>` : ''}
+      <span class="item-tags"><span class="tag ${s.cls}">${s.label}</span></span>
+    </span>
+  </a>`;
+}
+
+/**
+ * Historial y canceladas: what happened to each reservation, newest first, with who cancelled, rejected or replaced
+ * it and why. Secretaría and the dirección see the whole school's; everyone else, their own.
+ */
+export async function bookingHistoryView(ctx) {
+  const { el, query, isCurrent } = ctx;
+  const me = state.me.user;
+  const manager = approvesBookings(me);
+  const pick = (list, v, fallback) => (list.some(([k]) => k === v) ? v : fallback);
+  let filter = pick(HISTORY_FILTERS, query.get('ver'), 'all');
+  let period = pick(HISTORY_PERIODS, query.get('periodo'), '30');
+  let rows = null;
+  let q = '';
+  let loads = 0;
+
+  el.innerHTML = String(html`
+    <div class="stack">
+      <section class="card stack">
+        <div class="segmented" role="group" aria-label="Período">${HISTORY_PERIODS.map(
+          ([k, label]) => html`<button type="button" class="seg ${k === period ? 'active' : ''}" data-period="${k}" aria-pressed="${k === period}">${label}</button>`,
+        )}</div>
+        <div class="quick" data-filters></div>
+        <label class="search">${icon('search', 18)}<input type="search" placeholder="Buscar por para qué o por persona…" data-q></label>
+      </section>
+      <div class="stack" data-list><div class="loading"><span class="spinner"></span></div></div>
+      <p class="hint">${manager
+        ? 'Todas las reservas de la escuela, por la fecha de lo último que pasó con cada una. Toca una para ver su historial y sus notas. Se guardan un año.'
+        : 'Tus reservas, también las canceladas, las no aprobadas y las reemplazadas, por la fecha de lo último que pasó. Toca una para ver su historial. Se guardan un año.'}</p>
+    </div>`);
+
+  const remember = () => {
+    const p = new URLSearchParams();
+    if (filter !== 'all') p.set('ver', filter);
+    if (period !== '30') p.set('periodo', period);
+    const hash = `#/rooms/history${String(p) ? `?${p}` : ''}`;
+    if (location.hash !== hash) history.replaceState(null, '', hash);
+  };
+  const matches = (b) => !q || fold([b.purpose, b.created_by_name, b.approved_by_name, b.closed_by_name, b.close_note].join(' ')).includes(q);
+  const inFilter = (b, f) => f === 'all' || b.status === f;
+
+  function renderList() {
+    if (!rows) return;
+    const found = rows.filter(matches);
+    const count = (f) => found.filter((b) => inFilter(b, f)).length;
+    // The empty kinds stay out of the way, except "Canceladas" and the one chosen.
+    $('[data-filters]', el).innerHTML = String(html`${HISTORY_FILTERS.filter(([k]) => k === 'all' || k === 'cancelled' || k === filter || count(k)).map(
+      ([k, label]) => html`<button type="button" class="chip-btn ${k === filter ? 'active' : ''}" data-filter="${k}" aria-pressed="${k === filter}">${label} · ${count(k)}</button>`,
+    )}`);
+    const shown = found.filter((b) => inFilter(b, filter));
+    const list = $('[data-list]', el);
+    if (!shown.length) {
+      const why = q ? 'Prueba con otra búsqueda.' : period === 'year' ? 'Las reservas se guardan un año.' : 'Elige un período más largo.';
+      list.innerHTML = String(html`<div class="card">${empty('room', HISTORY_FILTERS.find(([k]) => k === filter)[2], why)}</div>`);
+      return;
+    }
+    // By the day of the last change: today, yesterday, then the date.
+    const days = new Map();
+    for (const b of shown) {
+      const d = localDay(lastStep(b, me).at);
+      if (!days.has(d)) days.set(d, []);
+      days.get(d).push(b);
+    }
+    list.innerHTML = String(html`${[...days].map(
+      ([d, items]) => html`<section class="section">
+        <h3 class="section-title">${dayLabel(d)} <span class="count">${items.length}</span></h3>
+        <div class="list">${items.map((b) => historyItem(b, me))}</div>
+      </section>`,
+    )}`);
+  }
+
+  async function load() {
+    const n = ++loads;
+    const days = HISTORY_PERIODS.find(([k]) => k === period)[2];
+    const list = await bookingHistory({ since: days ? addDays(todayStr(), -days) : null, userId: manager ? null : me.id });
+    if (!isCurrent() || n !== loads) return;
+    const at = (b) => new Date(lastStep(b, me).at).getTime();
+    rows = list.sort((a, b) => at(b) - at(a));
+    renderList();
+  }
+
+  $('[data-filters]', el).addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn || btn.dataset.filter === filter) return;
+    filter = btn.dataset.filter;
+    remember();
+    renderList();
+  });
+  $('[data-q]', el).addEventListener('input', (e) => {
+    q = fold(e.target.value.trim());
+    renderList();
+  });
+  for (const btn of el.querySelectorAll('[data-period]')) {
+    btn.addEventListener('click', () => {
+      if (period === btn.dataset.period) return;
+      period = btn.dataset.period;
+      for (const x of el.querySelectorAll('[data-period]')) {
+        x.classList.toggle('active', x === btn);
+        x.setAttribute('aria-pressed', String(x === btn));
+      }
+      remember();
+      load();
+    });
+  }
+
+  await load();
   keepFresh(ctx, load);
 }
 

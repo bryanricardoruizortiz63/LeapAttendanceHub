@@ -7,6 +7,7 @@ import {
   fileSize,
   fmtDateTime,
   fmtLongDate,
+  fmtRange,
   formValues,
   html,
   can,
@@ -14,6 +15,7 @@ import {
   roleLabel,
   roleNeedsCoverage,
   scheduleText,
+  schoolCalendar,
   timeAgo,
   toast,
   todayStr,
@@ -27,9 +29,12 @@ import {
   createAbsence,
   deleteAttachment,
   getAbsence,
+  getCoverage,
   listClosures,
   listEmployees,
+  markAlertsRead,
   myAbsences,
+  myCoverages,
   receiveAbsence,
   setCoverage,
   updateAbsence,
@@ -47,7 +52,7 @@ const ACCEPT = 'image/*,application/pdf,.pdf,.heic,.heif,.doc,.docx';
 
 export async function homeView({ el }) {
   const today = todayStr();
-  const absences = await myAbsences(state.me.user.id);
+  const [absences, covering] = await Promise.all([myAbsences(state.me.user.id), myCoverages(today).catch(() => [])]);
   const current = absences
     .filter((a) => a.status !== 'cancelled' && a.end_date >= today)
     .sort((a, b) => a.start_date.localeCompare(b.start_date));
@@ -63,6 +68,7 @@ export async function homeView({ el }) {
       </div>
       <a href="#/report" class="btn btn-light btn-lg btn-block">${icon('plus')} Reportar ausencia</a>
     </section>
+    ${coveringSection(covering)}
     <div data-guide-slot></div>
     <div data-install-slot></div>
     <section class="section">
@@ -350,6 +356,181 @@ function historySection(a, history) {
   </section>`;
 }
 
+// ---- Cobertura ------------------------------------------------------------
+
+/** "Grupos 7-A, 7-B · Salón 204", or ''. */
+export const coverWhere = (groups = [], room = '') =>
+  [groups.length ? `${groups.length === 1 ? 'Grupo' : 'Grupos'} ${groups.join(', ')}` : '', room ? `Salón ${room}` : '']
+    .filter(Boolean)
+    .join(' · ');
+
+/**
+ * Who covers. Secretaría and the dirección choose someone of the staff (they get a notice with the groups, the
+ * room and the instructions) or write the name of someone from outside; the rest only see it.
+ */
+function coverageCard(a, { form, employees }) {
+  const where = coverWhere(a.cover_groups || [], a.cover_room);
+  if (!form) {
+    return html`<section class="card stack">
+      <h3 class="card-title">${icon('users')} Cobertura / arreglos</h3>
+      ${a.substitute
+        ? html`<p><strong>${a.substitute}</strong>${where ? html`<br><span class="muted">${where}</span>` : ''}</p>`
+        : html`<p class="muted">Aún no se han registrado arreglos.</p>`}
+    </section>`;
+  }
+  const { groups: schoolGroups } = schoolCalendar(state.me.school);
+  // The absent person's groups first; the first time, already chosen, with their room.
+  const theirs = (a.employee_groups || []).filter((g) => schoolGroups.includes(g));
+  const others = schoolGroups.filter((g) => !theirs.includes(g));
+  const chosen = new Set(a.substitute ? a.cover_groups || [] : theirs);
+  const room = a.substitute ? a.cover_room || '' : a.employee_room || '';
+  const people = employees.filter((e) => e.active && e.id !== a.user_id && e.role !== 'admin');
+  const external = !!a.substitute && !a.substitute_id;
+  const chip = (g) => html`<label class="chip"><input type="checkbox" name="groups" value="${g}" ${chosen.has(g) ? 'checked' : ''}><span>${g}</span></label>`;
+  return html`<section class="card stack">
+    <h3 class="card-title">${icon('users')} Cobertura / arreglos</h3>
+    ${a.substitute_id
+      ? html`<p class="status-note ok">${icon('check', 16)} Se le avisó a ${a.substitute}${a.cover_set_by_name ? ` · ${a.cover_set_by_name}, ${fmtDateTime(a.cover_set_at)}` : ''}</p>`
+      : ''}
+    <form class="stack" data-coverage novalidate>
+      <label class="field"><span>¿Quién cubre?</span>
+        <select name="who">
+          <option value="">Nadie todavía</option>
+          ${people.map((e) => html`<option value="${e.id}" ${a.substitute_id === e.id ? 'selected' : ''}>${e.full_name}${e.position ? ` · ${e.position}` : ''}</option>`)}
+          <option value="other" ${external ? 'selected' : ''}>Otra persona (no usa la app)</option>
+        </select>
+      </label>
+      <label class="field" data-external ${external ? '' : 'hidden'}><span>Nombre de quien cubre</span>
+        <input name="substitute" maxlength="300" autocomplete="off" value="${external ? a.substitute : ''}" placeholder="Ej. Sra. Díaz (sustituta)"></label>
+      <div class="stack" data-cover-where>
+        ${schoolGroups.length
+          ? html`<div class="field"><span>Grado y grupo</span>
+              ${theirs.length ? html`<div class="chips">${theirs.map(chip)}</div>` : ''}
+              ${others.length
+                ? html`<details class="help" ${!theirs.length || others.some((g) => chosen.has(g)) ? 'open' : ''}>
+                    <summary>${theirs.length ? 'Otros grupos' : 'Grupos de la escuela'}</summary>
+                    <div class="chips">${others.map(chip)}</div>
+                  </details>`
+                : ''}
+            </div>`
+          : ''}
+        <label class="field"><span>Salón <em class="optional">opcional</em></span>
+          <input name="room" maxlength="40" autocomplete="off" value="${room}" placeholder="Ej. 204"></label>
+      </div>
+      <p class="hint" data-cover-hint></p>
+      <button class="btn btn-primary btn-block" type="submit">Guardar</button>
+    </form>
+  </section>`;
+}
+
+function bindCoverage(form, a, reload) {
+  const first = a.employee_name.split(' ')[0];
+  const staffMember = () => !!form.who.value && form.who.value !== 'other';
+  const update = () => {
+    const who = form.who.value;
+    $('[data-external]', form).hidden = who !== 'other';
+    $('[data-cover-where]', form).hidden = !who;
+    form.querySelector('[type=submit]').textContent = staffMember() ? 'Guardar y avisar' : 'Guardar';
+    $('[data-cover-hint]', form).textContent = staffMember()
+      ? `Le llega un aviso con los días, el horario, el grupo, el salón y ${a.coverage_notes ? `las instrucciones que dejó ${first}` : `que ${first} no dejó instrucciones`}. No ve la causa de la ausencia.`
+      : who === 'other'
+        ? 'No le llega aviso porque no usa la app: avísale tú.'
+        : a.substitute
+          ? `Se quita la cobertura${a.substitute_id ? ` y le avisamos a ${a.substitute}` : ''}.`
+          : '';
+  };
+  form.who.addEventListener('change', update);
+  update();
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const who = form.who.value;
+    const name = form.substitute.value.trim();
+    if (who === 'other' && !name) {
+      form.substitute.focus();
+      toast('Escribe el nombre de quien cubre.', 'error');
+      return;
+    }
+    const chosenName = staffMember() ? form.who.selectedOptions[0].textContent.split(' · ')[0] : '';
+    busy(form.querySelector('[type=submit]'), async () => {
+      await setCoverage(a.id, {
+        substituteId: staffMember() ? who : null,
+        substitute: who === 'other' ? name : '',
+        groups: who ? [...form.querySelectorAll('[name=groups]:checked')].map((c) => c.value) : [],
+        room: who ? form.room.value.trim() : '',
+      });
+      toast(chosenName ? `Cobertura guardada. Le avisamos a ${chosenName}.` : who ? 'Cobertura guardada' : 'Cobertura quitada', 'ok');
+      await reload();
+    });
+  });
+}
+
+/** On Ausencias: whom I'm going to cover, from today on. */
+export function coveringSection(list) {
+  if (!list?.length) return '';
+  const today = todayStr();
+  return html`<section class="section" data-covering>
+    <h3 class="section-title">Vas a cubrir <span class="count">${list.length}</span></h3>
+    <div class="list">${list.map((c) => {
+      const where = coverWhere(c.cover_groups, c.cover_room);
+      return html`<a class="item" href="#/cover/${c.id}">
+        ${avatar(c.employee_name)}
+        <span class="item-main">
+          <strong>${c.employee_name}</strong>
+          <span class="item-sub">${fmtRange(c.start_date, c.end_date)} · ${scheduleText(c)}</span>
+          ${where ? html`<span class="item-sub">${where}</span>` : ''}
+        </span>
+        ${c.start_date <= today ? html`<span class="tag tag-warn">Hoy</span>` : ''}
+      </a>`;
+    })}</div>
+  </section>`;
+}
+
+/** What the substitute needs: who, when, groups, room and the instructions; not the type or the reason. */
+export async function coverView({ el, params }) {
+  const id = Number(params[0]);
+  const c = await getCoverage(id);
+  markAlertsRead(`#/cover/${id}`).catch(() => {});
+  if (!c) {
+    el.innerHTML = String(html`<div class="card">${empty('users', 'Ya no tienes esta cobertura',
+      'Se le asignó a otra persona o se quitó. Si tienes dudas, pregúntale a la secretaría o a la dirección.')}</div>`);
+    return;
+  }
+  const today = todayStr();
+  const first = c.employee_name.split(' ')[0];
+  const range = c.start_date === c.end_date ? fmtLongDate(c.start_date) : `${fmtLongDate(c.start_date)} → ${fmtLongDate(c.end_date)}`;
+  const none = html`<span class="muted">No se indicó</span>`;
+  el.innerHTML = String(html`
+    <div class="stack">
+      <section class="card absence-head">
+        <div class="row">
+          ${avatar(c.employee_name, 'lg')}
+          <div class="grow">
+            <p class="muted">Cubres a</p>
+            <h2>${c.employee_name}</h2>
+            <p class="muted">${c.employee_position || roleLabel(c.employee_role)}</p>
+          </div>
+          ${c.status !== 'cancelled' && c.start_date <= today && c.end_date >= today ? html`<span class="tag tag-warn">Hoy</span>` : ''}
+        </div>
+        <div class="when">
+          ${icon('calendar')}
+          <div><strong class="capitalize">${range}</strong><span>${scheduleText(c)}</span></div>
+        </div>
+        ${c.status === 'cancelled'
+          ? html`<p class="status-note muted">${icon('x', 16)} Se canceló la ausencia: ya no tienes que cubrir.</p>`
+          : c.end_date < today ? html`<p class="status-note muted">${icon('check', 16)} Ya pasó.</p>` : ''}
+      </section>
+      <section class="card">
+        <dl class="details">
+          <div><dt>Grado y grupo</dt><dd>${c.cover_groups.length ? html`<span class="chips">${c.cover_groups.map((g) => html`<span class="tag">${g}</span>`)}</span>` : none}</dd></div>
+          <div><dt>Salón</dt><dd>${c.cover_room || none}</dd></div>
+          <div><dt>Instrucciones de ${first}</dt><dd class="pre">${c.coverage_notes || html`<span class="muted">No dejó instrucciones.</span>`}</dd></div>
+          ${c.cover_set_by_name ? html`<div><dt>Te la asignó</dt><dd>${c.cover_set_by_name} · ${fmtDateTime(c.cover_set_at)}</dd></div>` : ''}
+        </dl>
+      </section>
+      <p class="hint">Si tienes dudas, pregúntale a la secretaría o a la dirección.</p>
+    </div>`);
+}
+
 export async function absenceView({ el, params }) {
   const id = params[0];
   const me = state.me.user;
@@ -411,19 +592,7 @@ export async function absenceView({ el, params }) {
           </dl>
         </section>
 
-        ${roleNeedsCoverage(a.employee_role) || a.substitute
-          ? html`<section class="card stack">
-          <h3 class="card-title">${icon('users')} Cobertura / arreglos</h3>
-          ${staff && !cancelled
-            ? html`<form class="inline-form" data-coverage>
-                <input name="substitute" value="${a.substitute || ''}" maxlength="300" list="emp-names"
-                  placeholder="¿Quién cubre? Ej. Sra. Díaz (sustituta)" aria-label="Quién cubre">
-                <datalist id="emp-names">${employees.filter((e) => e.id !== a.user_id).map((e) => html`<option value="${e.full_name}">`)}</datalist>
-                <button class="btn btn-secondary" type="submit">Guardar</button>
-              </form>`
-            : html`<p>${a.substitute || html`<span class="muted">Aún no se han registrado arreglos.</span>`}</p>`}
-        </section>`
-          : ''}
+        ${roleNeedsCoverage(a.employee_role) || a.substitute ? coverageCard(a, { form: staff && !cancelled, employees }) : ''}
 
         <section class="card stack">
           <h3 class="card-title">${icon('clip')} Documentos ${attachments.length ? html`<span class="count">${attachments.length}</span>` : ''}</h3>
@@ -506,14 +675,7 @@ export async function absenceView({ el, params }) {
     });
 
     const coverage = $('[data-coverage]', el);
-    coverage?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      busy(coverage.querySelector('button'), async () => {
-        await setCoverage(id, coverage.substitute.value);
-        toast('Cobertura guardada', 'ok');
-        await reload();
-      });
-    });
+    if (coverage) bindCoverage(coverage, data.absence, reload);
 
     const comment = $('[data-comment]', el);
     comment.addEventListener('submit', (e) => {

@@ -214,6 +214,10 @@ los Turnos.
 - Dos reservas aprobadas nunca chocan: lo impide la propia base de datos.
 - Todo el personal ve para qué es cada reserva. Las reservas se borran al año.
 - **Hecho en la etapa de Paneles**: uso del salón (horas, parte del horario de clases, por persona y por día) y Excel.
+- **Notas**: al pedir se puede dejar una nota para la dirección, y en la reserva quien la pidió, la secretaría y la
+  dirección conversan sobre ese día (cada nota les avisa a los demás). Solo ellos las ven.
+- **Historial y canceladas**: las reservas por lo último que pasó (canceladas, no aprobadas, reemplazadas, aprobadas
+  y por aprobar), con quién, cuándo y por qué; la secretaría y la dirección ven las de la escuela y los demás, las suyas.
 
 ---
 

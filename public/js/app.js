@@ -7,7 +7,7 @@ import { navItems } from './nav.js';
 import { showAlarm, unlockAudio } from './alarm.js';
 import { adoptSchoolFromUrl, changePasswordView, loginView, rememberSchool } from './views/auth.js';
 import { appIcon, applyBranding, restoreBranding } from './branding.js';
-import { absenceView, editAbsenceView, homeView, reportView } from './views/absences.js';
+import { absenceView, coverView, editAbsenceView, homeView, reportView } from './views/absences.js';
 import { absencesListView, dashboardView } from './views/staff.js';
 import { dataView, employeeFormView, employeesView, settingsView } from './views/admin.js';
 import { accessCardsView } from './views/access.js';
@@ -23,7 +23,7 @@ import {
 } from './views/alerts.js';
 import { newTurnView, serviceFormView, servicesView, turnDetailView, turnsView } from './views/turns.js';
 import { maintenanceDetailView, maintenanceView, newMaintenanceView } from './views/maintenance.js';
-import { bookingDetailView, newBookingView, roomsView } from './views/rooms.js';
+import { bookingDetailView, bookingHistoryView, newBookingView, roomsView } from './views/rooms.js';
 import { liveView, maintenancePanelView, roomsPanelView, servicePanelView } from './views/panels.js';
 import { moreView, notificationsView, profileView } from './views/account.js';
 import { guideView } from './views/guide.js';
@@ -44,6 +44,7 @@ const ROUTES = [
   { re: /^\/report$/, view: reportView, title: 'Reportar ausencia', back: true },
   { re: /^\/absence\/(\d+)$/, view: absenceView, title: 'Ausencia', back: true },
   { re: /^\/absence\/(\d+)\/edit$/, view: editAbsenceView, title: 'Modificar ausencia', back: true },
+  { re: /^\/cover\/(\d+)$/, view: coverView, title: 'Cobertura', back: true },
   { re: /^\/dashboard$/, view: dashboardView, title: 'Ausencias', allow: STAFF },
   { re: /^\/absences$/, view: absencesListView, title: 'Todas las ausencias', allow: STAFF, back: true },
   { re: /^\/employees$/, view: employeesView, title: 'Personal', allow: may('staff') },
@@ -72,6 +73,7 @@ const ROUTES = [
   { re: /^\/maintenance\/panel$/, view: maintenancePanelView, title: 'Panel de mantenimiento', allow: (u) => can(u, 'maintenance') || isStaff(u), back: true },
   { re: /^\/rooms$/, view: roomsView, title: 'Salón de conferencias' },
   { re: /^\/rooms\/new$/, view: newBookingView, title: 'Reservar el salón', back: true },
+  { re: /^\/rooms\/history$/, view: bookingHistoryView, title: 'Historial de reservas', back: true },
   { re: /^\/rooms\/(\d+)$/, view: bookingDetailView, title: 'Reserva del salón', back: true },
   { re: /^\/rooms\/panel$/, view: roomsPanelView, title: 'Uso del salón', allow: may('calendar'), back: true },
   { re: /^\/live$/, view: liveView, title: 'En vivo', allow: may('reports') },
