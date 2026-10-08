@@ -100,6 +100,9 @@ mismo grupo.
 - Después: el regreso al salón tiene el mismo tiempo para llegar; si nadie toca «Llegó al salón», alarma al maestro que
   lo envió, a los del grupo y al servicio, y alerta «No ha llegado» a Seguridad. Al maestro que lo envió le llega
   cuando otro lo recibe. Un regreso que nadie confirmó queda como «Regreso sin confirmar».
+- Después: «Llamar» ya no empieza el tiempo para llegar (el estudiante todavía no ha salido); empieza con «Ya salió».
+  Al llamar, el aviso les llega al maestro y a todos los maestros del grupo, y se les recuerda cada 3 minutos (cuatro
+  veces) hasta que alguien toque «Ya salió» o «Está conmigo»; si nadie lo hace, se le avisa al servicio.
 - El motivo y la nota solo los ven quien pidió el turno y el servicio. Los maestros ven los turnos de sus grupos
   24 horas; el servicio conserva su historial con nombre (como máximo un año) y ve las visitas anteriores de cada
   estudiante.
