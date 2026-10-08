@@ -322,19 +322,24 @@ export async function deleteAttachment(id) {
 
 export const receiveAbsence = (id, comment) => rpc('receive_absence', { p_id: id, p_comment: comment || null });
 /**
- * Who covers: substituteId for someone of the staff (they get a notice with the groups, the room and the
- * instructions), or only a name for someone from outside. Neither removes the coverage.
+ * Who covers: the whole list, in order. Each: substituteId for someone of the staff (they get a notice with their
+ * groups, hours, room and the instructions) or name for someone from outside; groups, room, and start / end
+ * (optional, "HH:MM"; by default the absence's hours). An empty list removes the coverage.
  */
-export const setCoverage = (id, { substitute = '', substituteId = null, groups = [], room = '' } = {}) =>
-  rpc('set_coverage', {
+export const setCovers = (id, covers) =>
+  rpc('set_absence_covers', {
     p_id: id,
-    p_substitute: substitute || null,
-    p_substitute_id: substituteId || null,
-    p_groups: groups,
-    p_room: room || null,
+    p_covers: covers.map((c) => ({
+      substitute_id: c.substituteId || null,
+      name: c.name || null,
+      groups: c.groups || [],
+      room: c.room || null,
+      start_time: c.start || null,
+      end_time: c.end || null,
+    })),
   });
 
-/** What I cover (Vas a cubrir): from a day on. No type or reason of the absence. */
+/** What I cover (Vas a cubrir): from a day on, with my hours and who else covers. No type or reason of the absence. */
 export const myCoverages = (from) => rpc('my_coverages', { p_from: from });
 
 /** One of my coverages, also a cancelled one; null if it's no longer mine. */
