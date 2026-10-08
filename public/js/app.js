@@ -259,4 +259,6 @@ async function boot() {
   else router();
 }
 
+// Every module loaded: boot.js doesn't need to offer «Actualizar».
+window.hallwayStarted?.();
 boot();
