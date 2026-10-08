@@ -813,6 +813,23 @@ select {
   display: block;
 }
 
+/* Cobertura: one block per person who covers. */
+.cover-row {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.cover-row-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cover-list .item-sub {
+  white-space: normal;
+}
+
 .chip-btn.active {
   background: var(--primary);
   border-color: var(--primary);
