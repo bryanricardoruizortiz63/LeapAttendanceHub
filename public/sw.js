@@ -80,7 +80,7 @@ self.addEventListener('activate', (event) => {
 // keep each file 10 minutes; right after an update the app could mix files of both versions and not start.
 const fresh = (request) =>
   request.mode === 'navigate'
-    ? fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
+    ? fetch(request.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'manual' })
     : fetch(request, { cache: request.cache === 'reload' ? 'reload' : 'no-cache' });
 
 // Nor may the page keep a file on its own for those 10 minutes: the next time, it asks this service worker again.
