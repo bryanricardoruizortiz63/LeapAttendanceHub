@@ -45,8 +45,8 @@ const whoHtml = (t) => html`${t.student_name} <span class="nowrap">(${t.group_na
 const timeOf = (iso) => fmtTime(new Date(iso));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-// With a time to get there: to the service, or back to class.
-const TIMED = ['called', 'sent', 'returning'];
+// With a time to get there: to the service (it starts with «Ya salió»), or back to class.
+const TIMED = ['sent', 'returning'];
 const pastDue = (t) => !!t.due_at && Date.now() > new Date(t.due_at);
 
 /** Past the time to get to the service, or back to class. */
@@ -253,6 +253,7 @@ function queueItem(t, me, service) {
             ? html`<span class="tag">${icon('clock', 14)} ${timeAgo(t.created_at)}</span>
                 ${t.level > t.severity ? html`<span class="tag">Sube por la espera</span>` : ''}`
             : html`<span class="tag ${s.cls}">${s.label}</span>`}
+          ${t.status === 'called' && t.called_at ? html`<span class="tag">${icon('clock', 14)} ${timeAgo(t.called_at)}</span>` : ''}
           ${TIMED.includes(t.status) && t.due_at ? html`<span class="tag" data-due="${t.due_at}">${countdown(t.due_at)}</span>` : ''}
         </span>
       </span>
@@ -275,6 +276,7 @@ function studentTurnItem(t, me) {
           .filter(Boolean)
           .join(' · ')}</span>
         <span class="item-tags"><span class="tag ${s.cls}">${s.label}</span>
+          ${t.status === 'called' && t.called_at ? html`<span class="tag">${icon('clock', 14)} ${timeAgo(t.called_at)}</span>` : ''}
           ${TIMED.includes(t.status) && t.due_at ? html`<span class="tag" data-due="${t.due_at}">${countdown(t.due_at)}</span>` : ''}</span>
       </span>
     </a>
@@ -554,8 +556,18 @@ function steps(t) {
 
 function teacherHint(t) {
   if (t.status === 'waiting') return 'Te avisamos cuando lo llamen. Si cambia de salón, a los otros maestros de su grupo también les llega el aviso.';
-  if (t.status === 'called') return 'Envíalo y toca «Ya salió». Si no llega a tiempo, se avisa a Seguridad.';
+  if (t.status === 'called') {
+    return 'Le toca ahora: envíalo y toca «Ya salió». El tiempo para llegar empieza entonces. Hasta que alguien lo toque, te lo recordamos cada 3 minutos, a ti y a los maestros de su grupo.';
+  }
   if (t.status === 'returning') return 'Toca «Llegó al salón» cuando llegue. Si no llega a tiempo, se avisa a Seguridad.';
+  return '';
+}
+
+/** For the service: what happens while the teacher hasn't sent the student. */
+function serviceHint(t) {
+  if (t.status === 'called') {
+    return 'Esperando que el maestro lo envíe. El aviso les llegó también a los maestros de su grupo y se les recuerda cada 3 minutos; el tiempo para llegar empieza con «Ya salió». Si llega antes, toca «Llegó».';
+  }
   return '';
 }
 
@@ -575,7 +587,7 @@ export async function turnDetailView(ctx) {
     const s = statusTag(t);
     const actions = turnActions(t, service, me);
     const timed = TIMED.includes(t.status) && t.due_at;
-    const hint = service.serves ? '' : teacherHint(t);
+    const hint = service.serves ? serviceHint(t) : teacherHint(t);
     el.innerHTML = String(html`
       <div class="stack" data-turn="${t.id}">
         <section class="card stack alert-head ${late || (isOpen(t) && t.severity === 4) ? 'is-urgent' : ''} ${t.status === 'done' ? 'is-ok' : ''}">
@@ -680,7 +692,7 @@ export async function serviceFormView(ctx) {
         </div>
         <label class="field" data-minutes ${s.mode === 'visit' ? '' : 'hidden'}><span>Minutos para llegar</span>
           <input type="number" name="minutes" min="1" max="30" value="${s.arrive_minutes}" inputmode="numeric"></label>
-        <p class="hint" data-minutes ${s.mode === 'visit' ? '' : 'hidden'}>Si no llega en ese tiempo, se avisa al servicio, al maestro y a Seguridad.</p>
+        <p class="hint" data-minutes ${s.mode === 'visit' ? '' : 'hidden'}>El tiempo empieza cuando el maestro toca «Ya salió». Si no llega en ese tiempo, se avisa al servicio, al maestro y a Seguridad.</p>
       </section>
       <section class="card stack">
         <h2 class="card-title">${icon('users')} ¿Quién lo atiende?</h2>
