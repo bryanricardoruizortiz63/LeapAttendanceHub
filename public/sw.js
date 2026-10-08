@@ -1,6 +1,6 @@
 // Hallway service worker: offline app shell + push notifications.
 // Paths are relative to this file so the app works under a sub-path (e.g. GitHub Pages).
-const VERSION = 'lah-v23';
+const VERSION = 'lah-v24';
 const SHELL = [
   './',
   'index.html',
@@ -8,6 +8,7 @@ const SHELL = [
   'css/app.css',
   'vendor/supabase.js',
   'vendor/qrcode.js',
+  'js/boot.js',
   'js/app.js',
   'js/backend.js',
   'js/config.js',
@@ -49,7 +50,17 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(VERSION)
-      .then((cache) => cache.addAll(SHELL.map(scoped)))
+      // Straight from the server: the copies the browser keeps may be of the previous version.
+      .then((cache) =>
+        Promise.all(
+          SHELL.map((path) =>
+            fetch(scoped(path), { cache: 'reload' }).then((response) => {
+              if (!response.ok) throw new Error(`${path}: ${response.status}`);
+              return cache.put(scoped(path), response);
+            }),
+          ),
+        ),
+      )
       .then(() => self.skipWaiting()),
   );
 });
@@ -65,21 +76,36 @@ self.addEventListener('activate', (event) => {
 
 // Network first (so updates arrive right away), cache as fallback when offline.
 // Only the app's own files are handled; Supabase requests always go to the network.
+// Always asked to the server ("no-cache": a quick "not modified" when nothing changed). GitHub Pages lets the browser
+// keep each file 10 minutes; right after an update the app could mix files of both versions and not start.
+const fresh = (request) =>
+  request.mode === 'navigate'
+    ? fetch(request.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'manual' })
+    : fetch(request, { cache: request.cache === 'reload' ? 'reload' : 'no-cache' });
+
+// Nor may the page keep a file on its own for those 10 minutes: the next time, it asks this service worker again.
+function askAgain(response) {
+  if (!response || !response.ok || response.type !== 'basic') return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'no-cache');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || !request.url.startsWith(self.registration.scope)) return;
   event.respondWith(
-    fetch(request)
+    fresh(request)
       .then((response) => {
         if (response.ok && response.type === 'basic') {
           const copy = response.clone();
           caches.open(VERSION).then((cache) => cache.put(request, copy));
         }
-        return response;
+        return askAgain(response);
       })
       .catch(async () => {
         const cached = await caches.match(request, { ignoreSearch: request.mode === 'navigate' });
-        return cached || (request.mode === 'navigate' ? caches.match(scoped('index.html')) : Response.error());
+        return askAgain(cached || (request.mode === 'navigate' ? await caches.match(scoped('index.html')) : Response.error()));
       }),
   );
 });
