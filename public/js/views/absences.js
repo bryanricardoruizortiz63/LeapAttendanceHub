@@ -5,6 +5,7 @@ import {
   busy,
   dialog,
   fileSize,
+  fmtDate,
   fmtDateTime,
   fmtLongDate,
   fmtRange,
@@ -13,6 +14,7 @@ import {
   html,
   can,
   isStaff,
+  isoWeekday,
   roleLabel,
   roleNeedsCoverage,
   scheduleText,
@@ -368,25 +370,49 @@ export const coverWhere = (groups = [], room = '') =>
 /** "8:00 a. m. – 9:00 a. m.", or '' when it's the absence's hours. */
 const coverHours = (start, end) => (start ? `${fmtTime(start)} – ${fmtTime(end)}` : '');
 
-/** One person's part: "Grupo 7-A · 8:00 a. m. – 9:00 a. m. · Salón 204". */
+/** "lun 12 oct". */
+const dayName = (d) => fmtDate(d).replace(/[,.]/g, '');
+
+/** "lun 12 oct, mar 13 oct": the days of one row, or '' when it's every day of the absence. */
+const coverDays = (days) => (days?.length ? days.map(dayName).join(', ') : '');
+
+/** One row: "lun 12 oct · Grupo 7-A · 8:00 a. m. – 9:00 a. m. · Salón 204". */
 const coverLine = (c) =>
-  [coverWhere(c.groups || []), coverHours(c.start_time, c.end_time), c.room ? `Salón ${c.room}` : ''].filter(Boolean).join(' · ');
+  [coverDays(c.days), coverWhere(c.groups || []), coverHours(c.start_time, c.end_time), c.room ? `Salón ${c.room}` : '']
+    .filter(Boolean)
+    .join(' · ');
 
 /** Who covers an absence, in order (an absence covered before the list existed has only the name). */
 const coversOf = (a) =>
   a.covers?.length
     ? a.covers
     : a.substitute
-      ? [{ substitute_id: a.substitute_id, name: a.substitute, groups: a.cover_groups || [], room: a.cover_room }]
+      ? [{ substitute_id: a.substitute_id, name: a.substitute, groups: a.cover_groups || [], room: a.cover_room, days: [] }]
       : [];
 
-/** One person who covers: who, their groups, their hours (optional) and the room (optional). */
+/** The school days of an absence of more than one day, to choose who covers which ([] for a single day). */
+function absenceDays(a) {
+  if (a.partial || a.start_date === a.end_date) return [];
+  const { school_days: schoolDays } = schoolCalendar(state.me.school);
+  const days = [];
+  for (let d = a.start_date; d <= a.end_date && days.length < 60; d = addDays(d, 1)) {
+    if (schoolDays.includes(isoWeekday(d))) days.push(d);
+  }
+  return days;
+}
+
+/** The days of the absence nobody covers yet. */
+const uncovered = (days, covers) => days.filter((d) => !covers.some((c) => !c.days?.length || c.days.includes(d)));
+
+/** One row of who covers: who, which days (several days), their groups, their hours (optional) and the room (optional). */
 function coverRow(c, ctx, preset = {}) {
-  const { people, schoolGroups, theirs } = ctx;
+  const { people, schoolGroups, theirs, days } = ctx;
   const others = schoolGroups.filter((g) => !theirs.includes(g));
   const external = !!c && !c.substitute_id;
   const chosen = new Set(c ? c.groups || [] : preset.groups || []);
+  const on = new Set(c?.days?.length ? c.days : c ? days : preset.days || days);
   const chip = (g) => html`<label class="chip"><input type="checkbox" name="groups" value="${g}" ${chosen.has(g) ? 'checked' : ''}><span>${g}</span></label>`;
+  const dayChip = (d) => html`<label class="chip"><input type="checkbox" name="days" value="${d}" ${on.has(d) ? 'checked' : ''}><span>${dayName(d)}</span></label>`;
   return html`<div class="cover-row stack" data-cover-row>
     <div class="cover-row-head">
       <label class="field grow"><span>¿Quién cubre?</span>
@@ -401,6 +427,7 @@ function coverRow(c, ctx, preset = {}) {
     <label class="field" data-external ${external ? '' : 'hidden'}><span>Nombre de quien cubre</span>
       <input name="name" maxlength="300" autocomplete="off" value="${external ? c.name : ''}" placeholder="Ej. Sra. Díaz (sustituta)"></label>
     <div class="stack" data-cover-where>
+      ${days.length ? html`<div class="field"><span>Días que cubre</span><div class="chips">${days.map(dayChip)}</div></div>` : ''}
       ${schoolGroups.length
         ? html`<div class="field"><span>Grado y grupo</span>
             ${theirs.length ? html`<div class="chips">${theirs.map(chip)}</div>` : ''}
@@ -423,12 +450,14 @@ function coverRow(c, ctx, preset = {}) {
 }
 
 /**
- * Who covers: one or more people. Secretaría and the dirección choose each one from the staff (they get a notice
- * with their groups, hours, room and the instructions) or write the name of someone from outside; the rest
- * only see it.
+ * Who covers: one or more people, each on every day of the absence or only some, with their hours. Secretaría
+ * and the dirección choose each one from the staff (they get a notice with their days, groups, hours, room and
+ * the instructions) or write the name of someone from outside; the rest, the absent person included, only see it.
  */
 function coverageCard(a, { form, employees }) {
   const covers = coversOf(a);
+  const missing = covers.length ? uncovered(absenceDays(a), covers) : [];
+  const missingNote = (list) => html`<p class="status-note warn" data-cover-missing ${list.length ? '' : 'hidden'}>${icon('alert', 16)} <span>Sin cubrir: ${list.map(dayName).join(', ')}</span></p>`;
   if (!form) {
     return html`<section class="card stack">
       <h3 class="card-title">${icon('users')} Cobertura / arreglos</h3>
@@ -438,10 +467,11 @@ function coverageCard(a, { form, employees }) {
             <span class="item-main"><strong>${c.name}</strong>${coverLine(c) ? html`<span class="item-sub">${coverLine(c)}</span>` : ''}</span>
           </div>`)}</div>`
         : html`<p class="muted">Aún no se han registrado arreglos.</p>`}
+      ${missing.length ? missingNote(missing) : ''}
     </section>`;
   }
   const ctx = coverContext(a, employees);
-  const told = covers.filter((c) => c.substitute_id).map((c) => c.name);
+  const told = [...new Set(covers.filter((c) => c.substitute_id).map((c) => c.name))];
   return html`<section class="card stack">
     <h3 class="card-title">${icon('users')} Cobertura / arreglos</h3>
     ${told.length
@@ -449,8 +479,9 @@ function coverageCard(a, { form, employees }) {
       : ''}
     <form class="stack" data-coverage novalidate>
       <div class="stack" data-covers>${covers.length ? covers.map((c) => coverRow(c, ctx)) : coverRow(null, ctx, ctx.first)}</div>
+      ${missingNote(missing)}
       <button type="button" class="btn btn-secondary btn-block" data-add-cover>${icon('plus', 18)} Añadir otra persona</button>
-      <p class="hint">Si dejas el horario vacío, cubre todo el horario de la ausencia.</p>
+      <p class="hint">${ctx.days.length ? 'Para otro día u otro horario, añade otra persona (o la misma con otros días). ' : ''}Si dejas el horario vacío, cubre todo el horario de la ausencia.</p>
       <p class="hint" data-cover-hint></p>
       <button class="btn btn-primary btn-block" type="submit">Guardar</button>
     </form>
@@ -464,6 +495,7 @@ function coverContext(a, employees) {
   return {
     schoolGroups,
     theirs,
+    days: absenceDays(a),
     people: employees.filter((e) => e.active && e.id !== a.user_id && e.role !== 'admin'),
     first: { groups: theirs, room: a.employee_room || '' },
   };
@@ -477,38 +509,47 @@ function bindCoverage(form, a, employees, reload) {
   const rows = () => [...list.querySelectorAll('[data-cover-row]')];
   const who = (row) => row.querySelector('[name=who]').value;
   const isStaffRow = (row) => !!who(row) && who(row) !== 'other';
+  // The days checked in a row ([] when the absence is a single day: every day).
+  const daysOf = (row) => [...row.querySelectorAll('[name=days]:checked')].map((c) => c.value);
+  const covered = () => rows().filter(who).map((row) => ({ days: ctx.days.length ? daysOf(row) : [] }));
 
   const update = () => {
-    for (const row of rows()) {
-      row.querySelector('[data-external]').hidden = who(row) !== 'other';
-      row.querySelector('[data-cover-where]').hidden = !who(row);
-    }
-    const staffRows = rows().filter(isStaffRow).length;
+    for (const row of rows()) row.querySelector('[data-external]').hidden = who(row) !== 'other';
+    const staffRows = new Set(rows().filter(isStaffRow).map(who)).size;
     const outside = rows().some((r) => who(r) === 'other');
     $('[data-add-cover]', form).lastChild.textContent = rows().length ? ' Añadir otra persona' : ' Añadir quien cubre';
     form.querySelector('[type=submit]').textContent = staffRows ? 'Guardar y avisar' : 'Guardar';
+    // The days nobody has yet (once someone was chosen).
+    const missing = covered().length ? ctx.days.filter((d) => !covered().some((c) => c.days.includes(d))) : [];
+    const note = $('[data-cover-missing]', form);
+    note.hidden = !missing.length;
+    note.lastElementChild.textContent = `Sin cubrir: ${missing.map(dayName).join(', ')}`;
     const told = before.filter((c) => c.substitute_id).length;
     $('[data-cover-hint]', form).textContent = [
       staffRows
-        ? `${staffRows === 1 ? 'Le llega un aviso' : 'A cada uno le llega un aviso'} con los días, su horario, su grupo, el salón y ${a.coverage_notes ? `las instrucciones que dejó ${first}` : `que ${first} no dejó instrucciones`}. No ven la causa de la ausencia.`
+        ? `${staffRows === 1 ? 'Le llega un aviso' : 'A cada uno le llega un aviso'} con sus días, su horario, su grupo, el salón y ${a.coverage_notes ? `las instrucciones que dejó ${first}` : `que ${first} no dejó instrucciones`}. No ven la causa de la ausencia.`
         : '',
       outside ? 'A quien no usa la app no le llega aviso: avísale tú.' : '',
+      rows().some(who) ? `A ${first} no le llega aviso: lo ve en su ausencia.` : '',
       !rows().some(who) && before.length ? `Se quita la cobertura${told ? ' y les avisamos' : ''}.` : '',
     ].filter(Boolean).join(' ');
   };
 
   form.addEventListener('change', (e) => {
-    if (e.target.name === 'who') update();
+    if (e.target.name === 'who' || e.target.name === 'days') update();
   });
   form.addEventListener('click', (e) => {
     if (e.target.closest('[data-remove-cover]')) {
       e.target.closest('[data-cover-row]').remove();
       update();
     } else if (e.target.closest('[data-add-cover]')) {
-      // The absent person's groups nobody has yet, and their room.
+      // The days nobody has yet with the absent person's groups; or, every day covered, their groups nobody has.
+      const open = ctx.days.filter((d) => !covered().some((c) => c.days.includes(d)));
       const taken = new Set([...form.querySelectorAll('[name=groups]:checked')].map((c) => c.value));
-      const groups = rows().length ? ctx.theirs.filter((g) => !taken.has(g)) : ctx.theirs;
-      list.insertAdjacentHTML('beforeend', String(coverRow(null, ctx, { groups, room: ctx.first.room })));
+      const preset = open.length && rows().some(who)
+        ? { days: open, groups: ctx.theirs, room: ctx.first.room }
+        : { days: ctx.days, groups: rows().length ? ctx.theirs.filter((g) => !taken.has(g)) : ctx.theirs, room: ctx.first.room };
+      list.insertAdjacentHTML('beforeend', String(coverRow(null, ctx, preset)));
       update();
       list.lastElementChild.querySelector('[name=who]').focus();
     }
@@ -518,15 +559,21 @@ function bindCoverage(form, a, employees, reload) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const covers = [];
-    const seen = new Set();
+    const seen = new Map();
     for (const row of rows().filter(who)) {
       const id = who(row);
       const name = id === 'other' ? row.querySelector('[name=name]').value.trim() : row.querySelector('[name=who]').selectedOptions[0].textContent.split(' · ')[0];
       const start = row.querySelector('[name=start]').value;
       const end = row.querySelector('[name=end]').value;
+      const picked = daysOf(row);
+      // Every day checked: every day of the absence (so it stays covered if the absence gets longer).
+      const days = picked.length === ctx.days.length ? [] : picked;
+      const key = id === 'other' ? `name:${name.toLowerCase()}` : id;
+      const earlier = seen.get(key) || [];
       let problem = '';
       if (id === 'other' && !name) problem = 'Escribe el nombre de quien cubre.';
-      else if (id !== 'other' && seen.has(id)) problem = `${name} está dos veces.`;
+      else if (ctx.days.length && !picked.length) problem = `Elige qué días cubre ${name}.`;
+      else if (earlier.some((d) => !d.length || !days.length || d.some((x) => days.includes(x)))) problem = `${name} está dos veces el mismo día.`;
       else if (!start !== !end) problem = `Indica de qué hora a qué hora cubre ${name}.`;
       else if (start && end <= start) problem = `La hora final debe ser después de la inicial (${name}).`;
       if (problem) {
@@ -534,10 +581,11 @@ function bindCoverage(form, a, employees, reload) {
         toast(problem, 'error');
         return;
       }
-      seen.add(id);
+      seen.set(key, [...earlier, days]);
       covers.push({
         substituteId: id === 'other' ? null : id,
         name: id === 'other' ? name : '',
+        days,
         groups: [...row.querySelectorAll('[name=groups]:checked')].map((c) => c.value),
         room: row.querySelector('[name=room]').value.trim(),
         start,
@@ -549,7 +597,7 @@ function bindCoverage(form, a, employees, reload) {
       toast('Elige quién cubre.', 'error');
       return;
     }
-    const told = covers.filter((c) => c.substituteId).map((c) => c.label);
+    const told = [...new Set(covers.filter((c) => c.substituteId).map((c) => c.label))];
     busy(form.querySelector('[type=submit]'), async () => {
       await setCovers(a.id, covers);
       toast(
@@ -565,43 +613,64 @@ function bindCoverage(form, a, employees, reload) {
   });
 }
 
+/** My rows of one coverage: their days ("lun 12 oct, mar 13 oct" or the absence's dates) and hours. */
+const partWhen = (p) => coverDays(p.cover_days) || fmtRange(p.start_date, p.end_date);
+const partHours = (p) => coverHours(p.cover_start_time, p.cover_end_time) || scheduleText(p);
+/** Whether one of my rows has me covering that day. */
+const coversDay = (p, day) => (p.cover_days?.length ? p.cover_days.includes(day) : p.start_date <= day && p.end_date >= day);
+
+/** My coverages grouped by absence (I can have more than one row in the same absence). */
+function byAbsence(list) {
+  const groups = new Map();
+  for (const p of list) groups.set(p.id, [...(groups.get(p.id) || []), p]);
+  return [...groups.values()];
+}
+
 /** On Ausencias: whom I'm going to cover, from today on. */
 export function coveringSection(list) {
   if (!list?.length) return '';
   const today = todayStr();
+  const absences = byAbsence(list);
   return html`<section class="section" data-covering>
-    <h3 class="section-title">Vas a cubrir <span class="count">${list.length}</span></h3>
-    <div class="list">${list.map((c) => {
-      const where = coverWhere(c.cover_groups, c.cover_room);
+    <h3 class="section-title">Vas a cubrir <span class="count">${absences.length}</span></h3>
+    <div class="list">${absences.map((parts) => {
+      const c = parts[0];
       return html`<a class="item" href="#/cover/${c.id}">
         ${avatar(c.employee_name)}
         <span class="item-main">
           <strong>${c.employee_name}</strong>
-          <span class="item-sub">${fmtRange(c.start_date, c.end_date)} · ${coverHours(c.cover_start_time, c.cover_end_time) || scheduleText(c)}</span>
-          ${where ? html`<span class="item-sub">${where}</span>` : ''}
+          ${parts.map((p) => {
+            const where = coverWhere(p.cover_groups, p.cover_room);
+            return html`<span class="item-sub">${partWhen(p)} · ${partHours(p)}</span>${where ? html`<span class="item-sub">${where}</span>` : ''}`;
+          })}
         </span>
-        ${c.start_date <= today ? html`<span class="tag tag-warn">Hoy</span>` : ''}
+        ${parts.some((p) => coversDay(p, today)) ? html`<span class="tag tag-warn">Hoy</span>` : ''}
       </a>`;
     })}</div>
   </section>`;
 }
 
-/** What the substitute needs: who, when, their groups, hours and room, the instructions and who else covers. */
+/** What the substitute needs: who, when, their days, groups, hours and room, the instructions and who else covers. */
 export async function coverView({ el, params }) {
   const id = Number(params[0]);
-  const c = await getCoverage(id);
+  const parts = await getCoverage(id);
   markAlertsRead(`#/cover/${id}`).catch(() => {});
-  if (!c) {
+  if (!parts.length) {
     el.innerHTML = String(html`<div class="card">${empty('users', 'Ya no tienes esta cobertura',
       'Se le asignó a otra persona o se quitó. Si tienes dudas, pregúntale a la secretaría o a la dirección.')}</div>`);
     return;
   }
+  const c = parts[0];
   const today = todayStr();
   const first = c.employee_name.split(' ')[0];
   const range = c.start_date === c.end_date ? fmtLongDate(c.start_date) : `${fmtLongDate(c.start_date)} → ${fmtLongDate(c.end_date)}`;
+  // A single row for every day of the absence: as always; otherwise each of my rows with its days.
+  const simple = parts.length === 1 && !c.cover_days?.length;
   const hours = coverHours(c.cover_start_time, c.cover_end_time);
   const none = html`<span class="muted">No se indicó</span>`;
   const others = c.others || [];
+  const lastDay = parts.map((p) => (p.cover_days?.length ? p.cover_days[p.cover_days.length - 1] : p.end_date)).sort().pop();
+  const assigned = [...parts].sort((x, y) => String(y.cover_set_at).localeCompare(String(x.cover_set_at)))[0];
   el.innerHTML = String(html`
     <div class="stack">
       <section class="card absence-head">
@@ -612,25 +681,28 @@ export async function coverView({ el, params }) {
             <h2>${c.employee_name}</h2>
             <p class="muted">${c.employee_position || roleLabel(c.employee_role)}</p>
           </div>
-          ${c.status !== 'cancelled' && c.start_date <= today && c.end_date >= today ? html`<span class="tag tag-warn">Hoy</span>` : ''}
+          ${c.status !== 'cancelled' && parts.some((p) => coversDay(p, today)) ? html`<span class="tag tag-warn">Hoy</span>` : ''}
         </div>
         <div class="when">
           ${icon('calendar')}
-          <div><strong class="capitalize">${range}</strong><span>${hours ? `Tu horario: ${hours}` : scheduleText(c)}</span></div>
+          <div><strong class="capitalize">${simple ? range : partWhen({ ...c, cover_days: parts.flatMap((p) => p.cover_days || []).sort() }) || range}</strong>
+            <span>${simple ? (hours ? `Tu horario: ${hours}` : scheduleText(c)) : `Ausencia: ${fmtRange(c.start_date, c.end_date)}`}</span></div>
         </div>
         ${c.status === 'cancelled'
           ? html`<p class="status-note muted">${icon('x', 16)} Se canceló la ausencia: ya no tienes que cubrir.</p>`
-          : c.end_date < today ? html`<p class="status-note muted">${icon('check', 16)} Ya pasó.</p>` : ''}
+          : lastDay < today ? html`<p class="status-note muted">${icon('check', 16)} Ya pasó.</p>` : ''}
       </section>
       <section class="card">
         <dl class="details">
-          <div><dt>Grado y grupo</dt><dd>${c.cover_groups.length ? html`<span class="chips">${c.cover_groups.map((g) => html`<span class="tag">${g}</span>`)}</span>` : none}</dd></div>
-          <div><dt>Salón</dt><dd>${c.cover_room || none}</dd></div>
+          ${simple
+            ? html`<div><dt>Grado y grupo</dt><dd>${c.cover_groups.length ? html`<span class="chips">${c.cover_groups.map((g) => html`<span class="tag">${g}</span>`)}</span>` : none}</dd></div>
+                <div><dt>Salón</dt><dd>${c.cover_room || none}</dd></div>`
+            : html`<div><dt>Tus días</dt><dd data-parts>${parts.map((p) => html`<div>${partWhen(p)} · ${partHours(p)}${coverWhere(p.cover_groups, p.cover_room) ? html` <span class="muted">· ${coverWhere(p.cover_groups, p.cover_room)}</span>` : ''}</div>`)}</dd></div>`}
           <div><dt>Instrucciones de ${first}</dt><dd class="pre">${c.coverage_notes || html`<span class="muted">No dejó instrucciones.</span>`}</dd></div>
           ${others.length
             ? html`<div><dt>También cubren</dt><dd data-others>${others.map((o) => html`<div>${o.name}${coverLine(o) ? html` <span class="muted">· ${coverLine(o)}</span>` : ''}</div>`)}</dd></div>`
             : ''}
-          ${c.cover_set_by_name ? html`<div><dt>Te la asignó</dt><dd>${c.cover_set_by_name} · ${fmtDateTime(c.cover_set_at)}</dd></div>` : ''}
+          ${assigned.cover_set_by_name ? html`<div><dt>Te la asignó</dt><dd>${assigned.cover_set_by_name} · ${fmtDateTime(assigned.cover_set_at)}</dd></div>` : ''}
         </dl>
       </section>
       <p class="hint">Si tienes dudas, pregúntale a la secretaría o a la dirección.</p>
