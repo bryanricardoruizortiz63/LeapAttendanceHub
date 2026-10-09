@@ -660,6 +660,32 @@ export const requestService = ({ serviceId, student, room, severity, reason, not
 /** step: call · go · sent · arrived · return · back · finish (value: the outcome) · cancel · take (value: the room). */
 export const advanceTurn = (id, step, value) => rpc('advance_turn', { p_id: id, p_step: step, p_value: value || null });
 
+// ---- Visitas (llega un padre y busca a alguien) ------------------------------------------
+
+/** For the form: { services: [{ id, name, staff: [{ name, status, until }] }], people: [{ id, name, position, room, role }] }. */
+export const visitTargets = () => rpc('visit_targets');
+
+/** Today's visits (each person only gets the ones they may see). */
+export const listVisits = () => run(sb.from('visits').select('*').gte('created_at', startOfToday()).order('created_at').limit(200));
+export const getVisit = (id) => one('visits', id, 'No se encontró la visita.');
+
+/** to: { serviceId } (everyone who attends it) or { personId }. appointment: whether they're citado. */
+export const createVisit = ({ visitor, student, to, appointment, place, note }) =>
+  rpc('create_visit', {
+    p_visitor: visitor,
+    p_student: student || null,
+    p_service_id: to.serviceId || null,
+    p_target_id: to.personId || null,
+    p_appointment: appointment,
+    p_place: place,
+    p_note: note || null,
+  });
+/** answer: 'on_the_way' · 'come' (place: where they go) · 'wait' (note: how long) · 'other' (note: what). */
+export const answerVisit = (id, answer, { place, note } = {}) =>
+  rpc('answer_visit', { p_id: id, p_answer: answer, p_place: place || null, p_note: note || null });
+/** status: 'done' (atendida) · 'cancelled' (se fue). */
+export const closeVisit = (id, status) => rpc('close_visit', { p_id: id, p_status: status });
+
 // ---- Mantenimiento ------------------------------------------------------------------------
 
 const MAINTENANCE_BUCKET = 'maintenance';

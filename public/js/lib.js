@@ -66,6 +66,7 @@ export const PERMISSIONS = [
   { key: 'staff', label: 'Administrar el personal', hint: 'Crear y editar empleados, contraseñas y enviar accesos por correo.' },
   { key: 'calendar', label: 'Calendario escolar', hint: 'Horario de clases, días sin clases y los grados y grupos de la escuela.' },
   { key: 'security', label: 'Seguridad', hint: 'Recibe las alertas de «No ha llegado» enviadas a Seguridad y se encarga de las salidas de estudiantes.' },
+  { key: 'visitors', label: 'Visitas', hint: 'En Turnos, avisa cuando llega un padre: a quién busca, si está citado y dónde espera. Ve las visitas del día y cada respuesta.' },
   { key: 'maintenance', label: 'Mantenimiento', hint: 'Recibe las solicitudes de limpieza (derrames, baños, basura) y las atiende.' },
   { key: 'messages', label: 'Enviar mensajes', hint: 'Escribir a todo el personal o a grupos.' },
   { key: 'live', label: 'En vivo', hint: 'Lo que pasa ahora en la escuela: los turnos de Enfermería y Trabajo Social con su motivo, alertas, mantenimiento y salón.' },

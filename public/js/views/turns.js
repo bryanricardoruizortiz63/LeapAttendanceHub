@@ -5,6 +5,7 @@ import {
   advanceTurn,
   getTurn,
   listTurns,
+  listVisits,
   markAlertsRead,
   requestService,
   saveService,
@@ -17,6 +18,7 @@ import { icon } from '../icons.js';
 import { go, state } from '../store.js';
 import { empty } from './common.js';
 import { confirmStudent, fact, keepFresh, studentFields, studentFrom } from './students.js';
+import { bindVisits, visitsSection } from './visits.js';
 
 export const SEVERITY = {
   1: { label: 'Baja', cls: '' },
@@ -322,7 +324,7 @@ export async function turnsView(ctx) {
   let showDone = false;
 
   const render = () => {
-    const { services, turns } = data;
+    const { services, turns, visits } = data;
     const myServices = services.filter((s) => s.serves);
     const myIds = new Set(myServices.map((s) => s.id));
     const toRequest = services.filter((s) => s.active && !s.serves);
@@ -336,6 +338,8 @@ export async function turnsView(ctx) {
     el.innerHTML = String(html`
       <div class="stack">
         ${myServices.length ? statusCard(me, myServices) : ''}
+
+        ${visitsSection(visits, me)}
 
         ${myServices.map((service) => {
           const own = turns.filter((t) => t.service_id === service.id);
@@ -407,12 +411,13 @@ export async function turnsView(ctx) {
       render();
     });
     bindSteps(el, turns, load);
+    bindVisits(el, visits, load);
   };
 
   async function load() {
-    const [services, turns] = await Promise.all([servicesOverview(), listTurns()]);
+    const [services, turns, visits] = await Promise.all([servicesOverview(), listTurns(), listVisits()]);
     if (!isCurrent()) return;
-    data = { services, turns };
+    data = { services, turns, visits };
     render();
   }
 
