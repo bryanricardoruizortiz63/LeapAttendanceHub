@@ -643,7 +643,10 @@ export const turnHistory = (t) =>
       .limit(10),
   );
 
-/** student: { id } of one noted today, or { name, group }. here: the professional notes a student already in the office. */
+/**
+ * student: { id } of one noted today, or { name, group } ({} for support services such as Soporte IT, where the room
+ * is where the help is needed). here: the professional notes a student already in the office.
+ */
 export const requestService = ({ serviceId, student, room, severity, reason, note, here }) =>
   rpc('request_service', {
     p_service_id: serviceId,
@@ -659,6 +662,8 @@ export const requestService = ({ serviceId, student, room, severity, reason, not
 
 /** step: call · go · sent · arrived · return · back · finish (value: the outcome) · cancel · take (value: the room). */
 export const advanceTurn = (id, step, value) => rpc('advance_turn', { p_id: id, p_step: step, p_value: value || null });
+/** What the service did (Soporte IT), for the panel and the Excel. */
+export const noteTurnResolution = (id, text) => rpc('note_turn_resolution', { p_id: id, p_text: text || null });
 
 // ---- Visitas (llega un padre y busca a alguien) ------------------------------------------
 
