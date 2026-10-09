@@ -38,7 +38,7 @@ export async function dashboardView({ el, onLeave, isCurrent }) {
       <section class="section" id="today">
         <h3 class="section-title">Ausentes hoy</h3>
         ${d.today_list.length
-          ? absenceList(d.today_list)
+          ? absenceList(d.today_list, { on: d.today })
           : empty('check', '¡Todo el personal está presente hoy!', 'No hay ausencias reportadas para hoy.')}
       </section>
 

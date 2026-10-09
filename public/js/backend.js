@@ -1,6 +1,6 @@
 // All data access for the app: Supabase Auth, database (RLS + RPC functions), Storage and Edge Functions.
 import { MAX_UPLOAD_MB, SUPABASE_KEY, SUPABASE_URL } from './config.js';
-import { CATEGORIES, STATUS, addDays, roleLabel, roleNeedsCoverage, scheduleText, setSchoolRoles, todayStr, weekdays } from './lib.js';
+import { CATEGORIES, STATUS, addDays, coversOn, fmtDate, roleLabel, roleNeedsCoverage, scheduleText, setSchoolRoles, todayStr, weekdays } from './lib.js';
 import { buildXlsx, xDate, xDateTime } from './xlsx.js';
 import { zip } from './zip.js';
 
@@ -222,7 +222,7 @@ export async function dashboard(today = todayStr()) {
     pending,
     counts: {
       today: todayList.length,
-      uncovered_today: todayList.filter((a) => !a.substitute && roleNeedsCoverage(a.employee_role)).length,
+      uncovered_today: todayList.filter((a) => !coversOn(a, today).length && roleNeedsCoverage(a.employee_role)).length,
       pending: pending.length,
       upcoming: upcoming.length,
     },
@@ -338,8 +338,10 @@ export async function deleteAttachment(id) {
 export const receiveAbsence = (id, comment) => rpc('receive_absence', { p_id: id, p_comment: comment || null });
 /**
  * Who covers: the whole list, in order. Each: substituteId for someone of the staff (they get a notice with their
- * groups, hours, room and the instructions) or name for someone from outside; groups, room, and start / end
- * (optional, "HH:MM"; by default the absence's hours). An empty list removes the coverage.
+ * days, groups, hours, room and the instructions) or name for someone from outside; days (dates of the absence,
+ * [] = every day), groups, room, and start / end (optional, "HH:MM"; by default the absence's hours). The same
+ * person can be in more than one row on different days. An empty list removes the coverage. The absent person
+ * gets no notice: they see it in their absence.
  */
 export const setCovers = (id, covers) =>
   rpc('set_absence_covers', {
@@ -347,6 +349,7 @@ export const setCovers = (id, covers) =>
     p_covers: covers.map((c) => ({
       substitute_id: c.substituteId || null,
       name: c.name || null,
+      days: c.days || [],
       groups: c.groups || [],
       room: c.room || null,
       start_time: c.start || null,
@@ -354,11 +357,14 @@ export const setCovers = (id, covers) =>
     })),
   });
 
-/** What I cover (Vas a cubrir): from a day on, with my hours and who else covers. No type or reason of the absence. */
+/**
+ * What I cover (Vas a cubrir): from a day on, one row per row of the list (cover_days: my days, null = every day),
+ * with my hours and who else covers. No type or reason of the absence.
+ */
 export const myCoverages = (from) => rpc('my_coverages', { p_from: from });
 
-/** One of my coverages, also a cancelled one; null if it's no longer mine. */
-export const getCoverage = async (id) => (await rpc('my_coverages', { p_id: id }))?.[0] || null;
+/** My rows of one coverage, also a cancelled one; [] if it's no longer mine. */
+export const getCoverage = async (id) => (await rpc('my_coverages', { p_id: id })) || [];
 export const addComment = (id, body) => rpc('add_comment', { p_id: id, p_body: body });
 /** reason: 'no_absence' | 'error' | 'other' (note required for 'other'). */
 export const cancelAbsence = (id, reason, note) =>
@@ -890,7 +896,7 @@ const ABSENCE_COLUMNS = [
   { header: 'Estado', width: 11 },
   { header: 'Recibida por', width: 22 },
   { header: 'Fecha recibida', width: 17 },
-  { header: 'Cubierto por', width: 24 },
+  { header: 'Cubierto por', width: 30, wrap: true },
   { header: 'Documentos', width: 11 },
   { header: 'Comentarios', width: 12 },
   { header: 'Registrada por', width: 22 },
@@ -901,11 +907,17 @@ const ABSENCE_COLUMNS = [
 
 const scheduleLabel = (a) => scheduleText(a).replace(/\u00a0/g, ' ');
 
+/** "José Pérez (lun 12 oct); Ana Ruiz (mar 13 oct)": who covers, with their days when not every day. */
+const coveredBy = (a) =>
+  a.covers?.some((c) => c.days?.length)
+    ? a.covers.map((c) => (c.days?.length ? `${c.name} (${c.days.map((d) => fmtDate(d).replace(/[,.]/g, '')).join(', ')})` : c.name)).join('; ')
+    : a.substitute;
+
 function absenceRow(a, cancelReasons = new Map()) {
   return [
     a.id, a.employee_name, a.employee_position, xDate(a.start_date), xDate(a.end_date), absenceDays(a),
     scheduleLabel(a), CATEGORIES[a.category] || '', a.reason, a.coverage_notes, STATUS[a.status]?.label,
-    a.received_by_name, xDateTime(a.received_at), a.substitute, a.attachment_count, a.comment_count,
+    a.received_by_name, xDateTime(a.received_at), coveredBy(a), a.attachment_count, a.comment_count,
     a.created_by_name, xDateTime(a.created_at), xDateTime(a.cancelled_at), cancelReasons.get(a.id),
   ];
 }

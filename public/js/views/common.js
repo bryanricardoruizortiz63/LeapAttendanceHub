@@ -1,4 +1,4 @@
-import { CATEGORIES, STATUS, colorIndex, dialog, fmtRange, html, initials, roleNeedsCoverage, scheduleText, $ } from '../lib.js';
+import { CATEGORIES, STATUS, colorIndex, coversOn, dialog, fmtRange, html, initials, roleNeedsCoverage, scheduleText, $ } from '../lib.js';
 import { appIcon } from '../branding.js';
 import { icon } from '../icons.js';
 import { canPromptInstall, isIos, isStandalone, promptInstall } from '../pwa.js';
@@ -21,8 +21,8 @@ function dateChip(dateStr) {
   return html`<span class="date-chip"><b>${d.getDate()}</b><small>${d.toLocaleDateString('es', { month: 'short' }).replace('.', '')}</small></span>`;
 }
 
-/** One absence row. showName=false is used for the employee's own list. */
-export function absenceItem(a, { showName = true } = {}) {
+/** One absence row. showName=false is used for the employee's own list; on: who covers that day (today's list). */
+export function absenceItem(a, { showName = true, on = null } = {}) {
   const cancelled = a.status === 'cancelled';
   const sub = [
     showName ? fmtRange(a.start_date, a.end_date) : null,
@@ -30,7 +30,8 @@ export function absenceItem(a, { showName = true } = {}) {
     a.category ? CATEGORIES[a.category] : null,
   ].filter(Boolean);
   let coverage = '';
-  if (!cancelled && a.substitute) coverage = html`<span class="tag tag-ok">${icon('check', 14)} ${a.substitute}</span>`;
+  const covering = on ? [...new Set(coversOn(a, on).map((c) => c.name))].join(', ') : a.substitute;
+  if (!cancelled && covering) coverage = html`<span class="tag tag-ok">${icon('check', 14)} ${covering}</span>`;
   else if (!cancelled && showName && roleNeedsCoverage(a.employee_role)) coverage = html`<span class="tag tag-warn">Sin cubrir</span>`;
 
   return html`

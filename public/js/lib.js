@@ -205,6 +205,12 @@ export function schoolCalendar(school) {
 export const closuresIn = (closures, from, to = from) =>
   closures.filter((c) => c.start_date <= to && c.end_date >= from);
 
+/** Who covers an absence on a day (covers[].days: their days, [] = every day); [] when nobody does. */
+export const coversOn = (a, day) =>
+  a.covers?.length
+    ? a.covers.filter((c) => !c.days?.length || c.days.includes(day))
+    : a.substitute ? [{ name: a.substitute }] : [];
+
 export function weekdays(start, end) {
   let n = 0;
   for (let d = start; d <= end; d = addDays(d, 1)) {
