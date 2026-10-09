@@ -66,9 +66,10 @@ export const PERMISSIONS = [
   { key: 'staff', label: 'Administrar el personal', hint: 'Crear y editar empleados, contraseñas y enviar accesos por correo.' },
   { key: 'calendar', label: 'Calendario escolar', hint: 'Horario de clases, días sin clases y los grados y grupos de la escuela.' },
   { key: 'security', label: 'Seguridad', hint: 'Recibe las alertas de «No ha llegado» enviadas a Seguridad y se encarga de las salidas de estudiantes.' },
-  { key: 'maintenance', label: 'Mantenimiento', hint: 'Recibe las solicitudes de mantenimiento (derrames, limpieza, baños, reparaciones) y las atiende.' },
+  { key: 'maintenance', label: 'Mantenimiento', hint: 'Recibe las solicitudes de limpieza (derrames, baños, basura) y las atiende.' },
   { key: 'messages', label: 'Enviar mensajes', hint: 'Escribir a todo el personal o a grupos.' },
-  { key: 'reports', label: 'Datos y reportes', hint: 'Estadísticas, exportar a Excel, respaldo y archivo anual.' },
+  { key: 'live', label: 'En vivo', hint: 'Lo que pasa ahora en la escuela: los turnos de Enfermería y Trabajo Social con su motivo, alertas, mantenimiento y salón.' },
+  { key: 'reports', label: 'Datos y reportes', hint: 'Estadísticas, paneles de los servicios con sus motivos, exportar a Excel, respaldo y archivo anual.' },
   { key: 'settings', label: 'Configurar la escuela', hint: 'Nombre, Teams, correo y mensaje de bienvenida.' },
 ];
 

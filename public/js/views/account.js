@@ -239,11 +239,11 @@ export async function moreView({ el }) {
     ]],
     ['Día a día', [
       ['#/turns', 'pulse', 'Turnos', 'Enfermería, Trabajo Social y otros servicios'],
-      ['#/maintenance', 'wrench', 'Mantenimiento', 'Pide limpieza o reparaciones y sigue las solicitudes'],
+      ['#/maintenance', 'wrench', 'Mantenimiento', 'Pide limpieza y sigue las solicitudes'],
       can(user, 'calendar')
         ? ['#/rooms', 'room', 'Salón de conferencias', 'Reserva el salón y aprueba las reservas del personal']
         : ['#/rooms', 'room', 'Salón de conferencias', 'Resérvalo o mira quién lo tiene'],
-      can(user, 'reports') ? ['#/live', 'live', 'En vivo', 'Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo'] : null,
+      can(user, 'live') ? ['#/live', 'live', 'En vivo', 'Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo'] : null,
       can(user, 'calendar')
         ? ['#/calendar', 'calendar', 'Calendario escolar', 'Horario, días sin clases y grados y grupos']
         : ['#/calendar', 'calendar', 'Calendario escolar', 'Horario de clases y días sin clases'],
@@ -254,7 +254,11 @@ export async function moreView({ el }) {
       can(user, 'settings') ? ['#/settings', 'teams', 'Escuela y Teams', 'Nombre, código, Teams, correo y contraseña de administración'] : null,
       admin ? ['#/roles', 'shield', 'Roles y permisos', 'Crea roles como Enfermería o Seguridad y elige qué puede hacer cada uno'] : null,
       can(user, 'settings') ? ['#/services', 'sliders', 'Servicios', 'Enfermería, Trabajo Social: quién atiende, motivos y tiempo para llegar'] : null,
-      can(user, 'reports') ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, exportar a Excel y respaldo'] : null,
+      can(user, 'reports')
+        ? ['#/data', 'chart', 'Datos y reportes', 'Estadísticas, paneles de los servicios, exportar a Excel y respaldo']
+        : user.serves?.length
+          ? ['#/data', 'chart', 'Datos y reportes', `Panel de ${user.serves.map((s) => s.name).join(' y ')}: estadísticas y Excel`]
+          : null,
     ]],
     ['Tu cuenta', [
       ['#/notifications', 'bell', 'Avisos', state.unread ? `${state.unread} sin leer` : 'Lo que te ha llegado: ausencias, turnos, alertas y mensajes'],

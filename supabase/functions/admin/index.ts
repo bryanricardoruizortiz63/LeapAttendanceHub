@@ -30,7 +30,7 @@ const EMPLOYEE_FIELDS =
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** What a role can do besides reporting its own absences (see the roles migration). */
-const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports', 'calendar', 'security', 'maintenance'];
+const PERMISSIONS = ['absences', 'staff', 'settings', 'messages', 'reports', 'live', 'calendar', 'security', 'maintenance'];
 /** Duties rather than powers over other people's data: whoever manages the staff can give them. */
 const DUTIES = ['maintenance'];
 
