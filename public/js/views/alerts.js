@@ -170,7 +170,7 @@ export async function alertsView(ctx) {
           ${canAskRelief(me)
             ? html`<button type="button" class="alert-action" data-ask-relief>${icon('swap', 26)}<strong>Pedir relevo</strong><small>Salgo un momento</small></button>`
             : ''}
-          <a class="alert-action" href="#/maintenance/new">${icon('wrench', 26)}<strong>Mantenimiento</strong><small>Derrame, limpieza, reparación</small></a>
+          <a class="alert-action" href="#/maintenance/new">${icon('wrench', 26)}<strong>Mantenimiento</strong><small>Derrame, limpieza, baño, basura</small></a>
         </div>
 
         ${missingOpen.length

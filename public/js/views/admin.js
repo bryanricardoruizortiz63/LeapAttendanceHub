@@ -33,6 +33,7 @@ import {
   saveEmailAccount,
   saveWelcomeTemplate,
   sendCredentials,
+  servicesOverview,
   setAdminPassword,
   stats,
   testEmail,
@@ -728,7 +729,30 @@ export async function settingsView({ el, reload }) {
 
 // ---- Datos y reportes ------------------------------------------------------------
 
+/** Links to the services' panels (Enfermería, Trabajo Social…): turns, reasons, times and Excel. */
+const servicePanelLinks = (services) =>
+  services.map(
+    (s) => html`<a class="item" href="#/turns/panel/${s.id}"><span class="item-icon">${icon('pulse')}</span>
+      <span class="item-main"><strong>${s.name}</strong><span class="item-sub">Turnos, motivos, tiempos y Excel</span></span>${icon('chevron', 18)}</a>`,
+  );
+
+/**
+ * Datos y reportes. Whoever has the permission (the dirección): everything, every service's panel included.
+ * Enfermería, Trabajo Social…: only the panel of the service they attend.
+ */
 export async function dataView({ el, isCurrent }) {
+  const user = state.me.user;
+  if (!can(user, 'reports')) {
+    el.innerHTML = String(html`<div class="stack">
+      <section class="card stack">
+        <h2 class="card-title">${icon('chart')} Tu panel</h2>
+        <div class="list flat">${servicePanelLinks(user.serves || [])}</div>
+        <p class="hint">Solo ves los datos de tu servicio. Ni el panel ni el Excel incluyen las notas de los maestros.</p>
+      </section>
+    </div>`);
+    return;
+  }
+  const services = ((await servicesOverview().catch(() => null)) || []).filter((s) => s.active);
   const today = todayStr();
   const presets = {
     '30': { label: '30 días', from: addDays(today, -30), to: today },
@@ -762,18 +786,21 @@ export async function dataView({ el, isCurrent }) {
       <section class="card stack">
         <h2 class="card-title">${icon('chart')} Más paneles</h2>
         <div class="list flat">
-          <a class="item" href="#/live"><span class="item-icon">${icon('pulse')}</span>
-            <span class="item-main"><strong>En vivo</strong><span class="item-sub">Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo</span></span>${icon('chevron', 18)}</a>
-          ${can(state.me.user, 'maintenance') || isStaff(state.me.user)
+          ${can(user, 'live')
+            ? html`<a class="item" href="#/live"><span class="item-icon">${icon('pulse')}</span>
+                <span class="item-main"><strong>En vivo</strong><span class="item-sub">Enfermería, Trabajo Social, alertas, mantenimiento y salón ahora mismo</span></span>${icon('chevron', 18)}</a>`
+            : ''}
+          ${servicePanelLinks(services)}
+          ${can(user, 'maintenance') || isStaff(user)
             ? html`<a class="item" href="#/maintenance/panel"><span class="item-icon">${icon('wrench')}</span>
                 <span class="item-main"><strong>Mantenimiento</strong><span class="item-sub">Solicitudes por tipo y lugar, tiempos de respuesta y Excel</span></span>${icon('chevron', 18)}</a>`
             : ''}
-          ${can(state.me.user, 'calendar')
+          ${can(user, 'calendar')
             ? html`<a class="item" href="#/rooms/panel"><span class="item-icon">${icon('room')}</span>
                 <span class="item-main"><strong>Salón de conferencias</strong><span class="item-sub">Horas reservadas, por persona y Excel</span></span>${icon('chevron', 18)}</a>`
             : ''}
         </div>
-        <p class="hint">Enfermería y Trabajo Social tienen su propio panel en <b>Turnos</b>: solo lo ve quien atiende el servicio.</p>
+        <p class="hint">Los paneles de los servicios dicen el motivo de cada turno, nunca las notas de los maestros. Cada servicio ve solo el suyo.</p>
       </section>
       <div data-archive-slot></div>
     </div>`);

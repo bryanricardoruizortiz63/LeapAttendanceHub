@@ -1,9 +1,10 @@
-// Paneles: what each part of the school did over a period, with an Excel download, and the dirección's live board.
-//   * Service (Enfermería, Trabajo Social…): only whoever attends it. At the end of the school year it downloads
-//     its history and closes it, so the names don't carry over to the next year.
+// Paneles: what each part of the school did over a period, with an Excel download, and the live board.
+//   * Service (Enfermería, Trabajo Social…): whoever attends it (only theirs) and the dirección (permission
+//     "reports"), with the reasons and never the teachers' notes. At the end of the school year the service
+//     downloads its history and closes it, so the names don't carry over to the next year.
 //   * Mantenimiento: Mantenimiento, the dirección and the secretaría.
 //   * Conference room: Secretaría and the dirección (permission "calendar").
-//   * En vivo: the dirección (permission "reports"); it refreshes by itself.
+//   * En vivo: the dirección and Secretaría (permission "live"), with each turn's reason; it refreshes by itself.
 import {
   bookingsBetween,
   closeServiceYear,
@@ -19,6 +20,7 @@ import {
   WEEKDAYS,
   addDays,
   busy,
+  can,
   dialog,
   fmtTime,
   html,
@@ -186,7 +188,7 @@ export async function servicePanelView(ctx) {
   const id = Number(params[0]);
   const service = (await servicesOverview()).find((s) => s.id === id);
   if (!service) throw new Error('No se encontró el servicio.');
-  if (!service.serves) throw new Error('Solo quien atiende este servicio ve su panel.');
+  if (!service.serves && !can(state.me.user, 'reports')) throw new Error('Solo quien atiende este servicio y la dirección ven su panel.');
   setTitle(`Panel de ${service.name}`);
   const visit = service.mode === 'visit';
   const today = todayStr();
@@ -196,7 +198,7 @@ export async function servicePanelView(ctx) {
   el.innerHTML = String(html`<div class="stack">
     <div data-range></div>
     <div class="stack" data-body></div>
-    <p class="hint">Solo quien atiende ${service.name} ve este panel. Ni el panel ni el Excel incluyen las notas.</p>
+    <p class="hint">Ven este panel quien atiende ${service.name} y la dirección. Ni el panel ni el Excel incluyen las notas de los maestros.</p>
   </div>`);
   const body = $('[data-body]', el);
   const range = rangePicker($('[data-range]', el), 'month', () => load());
@@ -314,7 +316,7 @@ export async function servicePanelView(ctx) {
       ${bars('Por hora', 'clock', hours, { note: 'Hora en que se pidió el turno.' })}
       ${bars('Por grupo', 'grid', countBy(turns, (t) => t.group_name).slice(0, 12))}
       ${bars('Gravedad', 'alert', [1, 2, 3, 4].map((n) => ({ label: SEVERITY[n].label, value: count((t) => t.severity === n) })))}
-      ${r.to < today && closable
+      ${service.serves && r.to < today && closable
         ? html`<section class="card stack" data-close-card>
             <h2 class="card-title">${icon('archive')} Cerrar este período</h2>
             <p class="muted">Al terminar el año escolar, descarga el Excel y después borra de la app los turnos terminados de este
@@ -587,6 +589,7 @@ function liveTurn(t, service) {
     <span class="item-icon ${t.late ? 'is-danger' : t.status === 'waiting' ? '' : 'is-ok'}">${icon('pulse')}</span>
     <span class="item-main">
       <strong>${who(t.student, t.group)}</strong>
+      ${t.reason ? html`<span class="item-sub" data-reason>${t.reason}</span>` : ''}
       <span class="item-sub">${[status, t.handled_by_name && t.status !== 'waiting' ? t.handled_by_name : null, timeAgo(t.since)].filter(Boolean).join(' · ')}</span>
     </span>
     <span class="tag ${sev.cls}">${sev.label}</span>
@@ -671,7 +674,7 @@ export async function liveView(ctx) {
           <span class="item-main"><strong>${r.purpose}</strong>
             <span class="item-sub">${fmtTime(r.start_time)} – ${fmtTime(r.end_time)} · ${r.created_by_name}</span></span>
         </a>`, { note: b.rooms_pending ? `${b.rooms_pending} ${b.rooms_pending === 1 ? 'reserva espera' : 'reservas esperan'} aprobación.` : '' })}
-      <p class="hint">Los motivos y las notas de Enfermería y Trabajo Social no salen aquí: solo los ve el servicio.</p>
+      <p class="hint">Cada turno dice su motivo. Las notas de los maestros no salen aquí: solo las ve el servicio.</p>
     </div>`);
   }
 

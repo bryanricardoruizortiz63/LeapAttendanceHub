@@ -795,18 +795,10 @@ export const cancelBooking = (id, note) => rpc('cancel_room_booking', { p_id: id
 /** From the start of the phone's day `from` to the start of the day after `to`, as timestamps. */
 export const dayBounds = (from, to) => [new Date(`${from}T00:00:00`).toISOString(), new Date(`${addDays(to, 1)}T00:00:00`).toISOString()];
 
-/** A service's turns in a period, with the reason (only the service sees them) and never the note. */
+/** A service's turns in a period, with the reason and never the note (the service and the dirección). */
 export function serviceTurns(serviceId, from, to) {
   const [start, end] = dayBounds(from, to);
-  return fetchAll(() =>
-    sb
-      .from('service_requests_v')
-      .select('id, service_id, student_name, student_key, group_name, severity, status, outcome, reason, created_by_name, '
-        + 'handled_by_name, out_of_order, created_at, called_at, sent_at, arrived_at, on_the_way_at, returning_at, closed_at, late_at')
-      .eq('service_id', serviceId)
-      .gte('created_at', start)
-      .lt('created_at', end)
-      .order('id'));
+  return fetchAll(() => sb.rpc('service_turns', { p_service_id: serviceId, p_from: start, p_to: end }).order('id'));
 }
 
 /** Maintenance requests made in a period (Mantenimiento, the dirección and the secretaría see them all). */

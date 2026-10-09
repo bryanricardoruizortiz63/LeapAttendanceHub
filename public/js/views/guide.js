@@ -37,11 +37,11 @@ function tabText(path, user) {
         ? 'Quién falta hoy, quién lo cubre y lo que falta por confirmar. Aquí registras la ausencia de un empleado.'
         : 'Quién falta hoy, quién lo cubre y lo que falta por confirmar. Aquí también reportas las tuyas.';
     case '/alerts':
-      return 'Un estudiante que no ha llegado, salidas, relevos y mantenimiento (derrame, limpieza, reparación).';
+      return 'Un estudiante que no ha llegado, salidas, relevos y mantenimiento (derrame, limpieza, baño, basura).';
     case '/turns':
       return 'Enfermería y Trabajo Social: pide turno para un estudiante y te avisamos cuando lo llamen.';
     case '/maintenance':
-      return 'Los pedidos de limpieza y reparación que te tocan.';
+      return 'Los pedidos de limpieza que te tocan.';
     case '/live':
       return 'Lo que pasa ahora en la escuela: Enfermería, Trabajo Social, alertas, mantenimiento y el salón.';
     case '/rooms':
@@ -119,14 +119,14 @@ function tasks(user) {
     ['#/alerts/new/missing', 'alert', 'Avisar que un estudiante no ha llegado', 'Alertas › No ha llegado'],
     ['#/alerts/new/pickup', 'logout', 'Avisar que vienen a buscar a un estudiante', 'Alertas › Salida'],
     fixesOnly(user)
-      ? ['#/maintenance', 'wrench', 'Ver los pedidos de limpieza y reparación', 'Pedidos']
-      : ['#/maintenance/new', 'wrench', 'Pedir limpieza o una reparación', 'Alertas › Mantenimiento'],
+      ? ['#/maintenance', 'wrench', 'Ver los pedidos de limpieza', 'Pedidos']
+      : ['#/maintenance/new', 'wrench', 'Pedir limpieza', 'Alertas › Mantenimiento'],
     ['#/calendar', 'calendar', 'Ver el horario y los días sin clases', 'Más › Calendario escolar'],
     ['#/notifications', 'bell', 'Ver mis avisos', 'La campana de arriba'],
     ['#/profile', 'user', 'Activar notificaciones o cambiar mi contraseña', 'Más › Mi perfil'],
     can(user, 'staff') ? ['#/employees', 'users', 'Añadir personal o enviarle su acceso', 'Más › Personal'] : null,
     can(user, 'messages') ? ['#/messages/new', 'mail', 'Escribirle al personal', 'Más › Mensajes'] : null,
-    can(user, 'reports') ? ['#/live', 'live', 'Ver lo que pasa ahora en la escuela', where('/live', 'En vivo')] : null,
+    can(user, 'live') ? ['#/live', 'live', 'Ver lo que pasa ahora en la escuela', where('/live', 'En vivo')] : null,
   ].filter(Boolean);
 }
 

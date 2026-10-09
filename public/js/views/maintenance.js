@@ -1,4 +1,4 @@
-// Mantenimiento: a teacher asks for what's needed (a spill, cleaning, the bathroom, trash, a repair) with the
+// Mantenimiento (cleaning only): a teacher asks for what's needed (a spill, cleaning, the bathroom, trash) with the
 // place, how urgent it is and an optional note or photo. Mantenimiento sees the queue (most urgent first), marks
 // "Voy en camino" and "Listo", and the app suggests the next one.
 import {
@@ -20,7 +20,8 @@ export const KINDS = {
   cleaning: { label: 'Limpieza', icon: 'sparkle' },
   bathroom: { label: 'Baño', icon: 'door' },
   trash: { label: 'Basura', icon: 'trash' },
-  repair: { label: 'Reparación', icon: 'wrench' },
+  // Mantenimiento doesn't do repairs: only for the requests made before.
+  repair: { label: 'Reparación', icon: 'wrench', old: true },
   other: { label: 'Otro', icon: 'chat' },
 };
 
@@ -193,7 +194,7 @@ export async function newMaintenanceView({ el }) {
       <section class="card stack">
         <h2 class="card-title">${icon('wrench')} ¿Qué hace falta?</h2>
         <div class="kind-grid" role="radiogroup" aria-label="Qué hace falta">
-          ${Object.entries(KINDS).map(
+          ${Object.entries(KINDS).filter(([, k]) => !k.old).map(
             ([key, k]) => html`<label class="kind"><input type="radio" name="kind" value="${key}"><span>${icon(k.icon, 24)}${k.label}</span></label>`,
           )}
         </div>

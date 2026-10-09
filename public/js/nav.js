@@ -20,9 +20,9 @@ export function navItems(user) {
   const maintenance = { path: '/maintenance', icon: 'wrench', label: 'Pedidos', match: ['/maintenance'] };
   // The conference room ("Salón" alone reads as the classroom).
   const rooms = { path: '/rooms', icon: 'room', label: 'Reservas', match: ['/rooms'] };
-  // The dirección's live board, one tap away.
+  // The live board (dirección and Secretaría), one tap away.
   const live = { path: '/live', icon: 'live', label: 'En vivo', match: ['/live'] };
-  const items = [absences, ...(can(user, 'reports') ? [live] : []), ...(fixes ? [maintenance, alerts] : [alerts, turns]), rooms];
+  const items = [absences, ...(can(user, 'live') ? [live] : []), ...(fixes ? [maintenance, alerts] : [alerts, turns]), rooms];
   const moreMatch = [
     '/more', '/guide', '/notifications', '/message/', '/profile', '/calendar', '/employees', '/settings', '/roles',
     '/services', '/data', '/messages', '/home', '/turns', '/maintenance', '/live',
