@@ -39,7 +39,9 @@ function tabText(path, user) {
     case '/alerts':
       return 'Un estudiante que no ha llegado, salidas, relevos y mantenimiento (derrame, limpieza, baño, basura).';
     case '/turns':
-      return 'Enfermería y Trabajo Social: pide turno para un estudiante y te avisamos cuando lo llamen.';
+      return can(user, 'visitors')
+        ? 'Enfermería y Trabajo Social: pide turno para un estudiante. Aquí también avisas cuando llega un padre y ves la respuesta.'
+        : 'Enfermería y Trabajo Social: pide turno para un estudiante y te avisamos cuando lo llamen.';
     case '/maintenance':
       return 'Los pedidos de limpieza que te tocan.';
     case '/live':
@@ -116,6 +118,7 @@ function tasks(user) {
     ['#/rooms', 'room', 'Pedir el salón de conferencias', `${where('/rooms', 'Salón de conferencias')} › Reservar el salón`],
     ['#/rooms/history', 'list', 'Ver las reservas canceladas y su historial', `${where('/rooms', 'Salón de conferencias')} › Historial y canceladas`],
     ['#/turns', 'pulse', 'Mandar un estudiante a Enfermería o Trabajo Social', `${where('/turns', 'Turnos')} › Pedir turno`],
+    can(user, 'visitors') ? ['#/turns/visit/new', 'door', 'Avisar que llegó un padre', `${where('/turns', 'Turnos')} › Llegó una visita`] : null,
     ['#/alerts/new/missing', 'alert', 'Avisar que un estudiante no ha llegado', 'Alertas › No ha llegado'],
     ['#/alerts/new/pickup', 'logout', 'Avisar que vienen a buscar a un estudiante', 'Alertas › Salida'],
     fixesOnly(user)

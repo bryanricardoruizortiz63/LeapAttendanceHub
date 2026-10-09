@@ -22,6 +22,7 @@ import {
   reliefDetailView,
 } from './views/alerts.js';
 import { newTurnView, serviceFormView, servicesView, turnDetailView, turnsView } from './views/turns.js';
+import { newVisitView, visitDetailView } from './views/visits.js';
 import { maintenanceDetailView, maintenanceView, newMaintenanceView } from './views/maintenance.js';
 import { bookingDetailView, bookingHistoryView, newBookingView, roomsView } from './views/rooms.js';
 import { liveView, maintenancePanelView, roomsPanelView, servicePanelView } from './views/panels.js';
@@ -63,6 +64,8 @@ const ROUTES = [
   { re: /^\/turns$/, view: turnsView, title: 'Turnos' },
   { re: /^\/turns\/new$/, view: newTurnView, title: 'Pedir turno', back: true },
   { re: /^\/turns\/(\d+)$/, view: turnDetailView, title: 'Turno', back: true },
+  { re: /^\/turns\/visit\/new$/, view: newVisitView, title: 'Llegó una visita', allow: may('visitors'), back: true },
+  { re: /^\/turns\/visit\/(\d+)$/, view: visitDetailView, title: 'Visita', back: true },
   // Only whoever attends the service (checked in the view and by the database).
   { re: /^\/turns\/panel\/(\d+)$/, view: servicePanelView, title: 'Panel del servicio', back: true },
   { re: /^\/services$/, view: servicesView, title: 'Servicios', allow: may('settings'), back: true },
